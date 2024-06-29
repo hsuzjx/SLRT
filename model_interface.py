@@ -12,6 +12,8 @@ from layers import *
 from data_interface import DataInterface
 from lightning.pytorch.loggers import WandbLogger
 
+from evaluation.slr_eval.wer_calculation import evaluate
+
 
 class SLRModel(L.LightningModule):
     def __init__(self, **kwargs):
@@ -48,6 +50,9 @@ class SLRModel(L.LightningModule):
         self.pred = None
         # self.validation_step_outputs = []
 
+        self.total_sentence = []
+        self.total_info = []
+
     def forward(self, x, lgt):
         batch, temp, channel, height, width = x.shape
         x = self.conv2d(x.permute(0, 2, 1, 3, 4)).view(batch, temp, -1).permute(0, 2, 1)
@@ -63,14 +68,14 @@ class SLRModel(L.LightningModule):
         # pred = None if self.training \
         #     else self.decoder.decode(outputs, lgt, batch_first=False, probs=False)
 
-        self.pred = None if self.training \
+        pred = None if self.training \
             else self.decoder.decode(outputs, lgt, batch_first=False, probs=False)
         # return outputs, lgt, pred
-        return outputs, lgt
+        return outputs, lgt, pred
 
     def training_step(self, batch, batch_idx):
         x, x_lgt, y, y_lgt, info = batch
-        y_hat, y_hat_lgt = self(x, x_lgt)
+        y_hat, y_hat_lgt, _ = self(x, x_lgt)
 
         loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
@@ -102,27 +107,40 @@ class SLRModel(L.LightningModule):
     # def on_validation_epoch_start(self) -> None:
     #     preds = []
     #     labels = []
+    def on_validation_epoch_start(self):
+        self.total_sentence = []
+        self.total_info = []
+
     def validation_step(self, batch, batch_idx):
         x, x_lgt, y, y_lgt, info = batch
-        y_hat, y_hat_lgt = self(x, x_lgt)
+        y_hat, y_hat_lgt, pred = self(x, x_lgt)
 
         loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
         # self.validation_step_outputs.append((info, pred_sentence))
-        try:
-            sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'), 'r')
-            aaa = sss.readlines()
-            sss.close()
-            self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'),
-                            info, self.pred)
-        except:
-            print("Unexpected error:", sys.exc_info()[0])
-            # lstm_ret = 100.0
-        finally:
-            pass
+        self.total_info += info
+        self.total_sentence += pred
 
         return loss
+
+    def on_validation_epoch_end(self):
+        wer = 100.0
+        try:
+            # sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'), 'r')
+            # aaa = sss.readlines()
+            # sss.close()
+            self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'),
+                            self.total_info, self.total_sentence)
+            wer = evaluate(mode='dev', sh_path=self.hparams.sh_path,
+                           save_path=self.hparams.save_path,
+                           ground_truth_path=self.hparams.ground_truth_path,
+                           mer_path=self.hparams.mer_path)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            wer = 100.0
+        finally:
+            self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def write2file(self, path, info, output):
         filereader = open(path, "w")
@@ -133,6 +151,41 @@ class SLRModel(L.LightningModule):
                                                      word_idx * 1.0 / 100,
                                                      (word_idx + 1) * 1.0 / 100,
                                                      word[0]))
+
+    def on_test_epoch_start(self):
+        self.total_sentence = []
+        self.total_info = []
+
+    def test_step(self, batch, batch_idx):
+        x, x_lgt, y, y_lgt, info = batch
+        y_hat, y_hat_lgt, pred = self(x, x_lgt)
+
+        loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
+
+        # self.validation_step_outputs.append((info, pred_sentence))
+        self.total_info += info
+        self.total_sentence += pred
+
+        return loss
+
+    def on_test_epoch_end(self):
+        wer = 100.0
+        try:
+            # sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-test.ctm'), 'r')
+            # aaa = sss.readlines()
+            # sss.close()
+            self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-test.ctm'),
+                            self.total_info, self.total_sentence)
+            wer = evaluate(mode='test', sh_path=self.hparams.sh_path,
+                           save_path=self.hparams.sava_path,
+                           ground_truth_path=self.hparams.ground_truth_path,
+                           mer_path=self.hparams.mer_path)
+        except:
+            print("Unexpected error:", sys.exc_info()[0])
+            wer = 100.0
+        finally:
+            self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     # def on_validation_epoch_end(self):
     #     lstm_ret = 100.0
@@ -172,13 +225,13 @@ class SLRModel(L.LightningModule):
     #         # self.validation_step_outputs.clear()
     #         self.validation_step_outputs = []
 
-    def test_step(self, batch, batch_idx):
-        x, x_lgt, y, y_lgt, info = batch
-        y_hat, y_hat_lgt = self(x, x_lgt)
-
-        loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
-        self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
-        return loss
+    # def test_step(self, batch, batch_idx):
+    #     x, x_lgt, y, y_lgt, info = batch
+    #     y_hat, y_hat_lgt = self(x, x_lgt)
+    #
+    #     loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+    #     self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
+    #     return loss
 
     def configure_optimizers(self):
         '''defines model optimizer'''
