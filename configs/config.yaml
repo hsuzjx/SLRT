@@ -1,0 +1,17 @@
+global:
+  seed: -1
+wandb:
+  project: 'Phoenix'
+  name:
+    name: 'Test'
+    splice_time: True
+dataset:
+  name: 'Phoenix2014'
+  feature_path: ''
+  annotations_path: ''
+model:
+  name: ''
+train:
+  name: ''
+evaluation:
+  name: ''
