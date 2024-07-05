@@ -6,7 +6,7 @@ wandb:
     name: 'Test'
     splice_time: True
 dataset:
-  name: 'Phoenix2014'
+  name: 'phoenix2014'
   feature_path: ''
   annotations_path: ''
 model:

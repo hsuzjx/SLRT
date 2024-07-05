@@ -15,7 +15,7 @@ from .transforms import Compose, ToTensor
 
 
 class Phoenix2014Dataset(data.Dataset):
-    def __init__(self, features_path, annotations_path, gloss_dict=None,
+    def __init__(self, features_path, annotations_path, gloss_dict,
                  mode="train",
                  transform=Compose([ToTensor()])):
         # super().__init__()
@@ -51,15 +51,6 @@ class Phoenix2014Dataset(data.Dataset):
 
     def __len__(self):
         return len(self.corpus)
-
-    def record_time(self):
-        self.cur_time = time.time()
-        return self.cur_time
-
-    def split_time(self):
-        split_time = time.time() - self.cur_time
-        self.record_time()
-        return split_time
 
     @staticmethod
     def collate_fn(batch):

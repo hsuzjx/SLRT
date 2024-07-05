@@ -16,8 +16,6 @@ class SLRModel(L.LightningModule):
         super().__init__()
         self.save_hyperparameters()
 
-        if not os.path.exists(os.path.abspath(self.hparams.gloss_dict_path)):
-            os.makedirs(os.path.abspath(self.hparams.gloss_dict_path))
         if not os.path.exists(os.path.abspath(self.hparams.save_path)):
             os.makedirs(os.path.abspath(self.hparams.save_path))
 
@@ -39,8 +37,7 @@ class SLRModel(L.LightningModule):
         self.classifier = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)
 
         self.decoder = Decode(
-            gloss_dict=np.load(os.path.join(os.path.abspath(self.hparams.gloss_dict_path), 'gloss_dict.npy'),
-                               allow_pickle=True).item(),
+            gloss_dict=self.hparams.gloss_dict,
             num_classes=1296, search_mode='beam')
 
         self.pred = None
