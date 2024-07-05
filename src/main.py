@@ -10,7 +10,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 
 from src.datasets import Phoenix2014DataModule
-from src.models import SLRModel
+from src.model import SLRModel
 from src.utils import preprocess
 
 if __name__ == '__main__':

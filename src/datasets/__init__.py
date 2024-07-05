@@ -1,2 +1,2 @@
-from .Phoenix2014Dataset import Phoenix2014Dataset
 from .Phoenix2014DataModule import Phoenix2014DataModule
+from .Phoenix2014Dataset import Phoenix2014Dataset

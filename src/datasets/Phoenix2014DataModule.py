@@ -1,8 +1,6 @@
 import os.path
 
 import lightning as L
-import numpy as np
-import pandas as pd
 from torch.utils.data import DataLoader
 
 from .Phoenix2014Dataset import Phoenix2014Dataset

@@ -37,7 +37,7 @@ def get_parser():
         '--save-interval',
         type=int,
         default=200,
-        help='the interval for storing models (#epochs)')
+        help='the interval for storing modules (#epochs)')
     parser.add_argument(
         '--random-seed',
         type=int,
@@ -47,7 +47,7 @@ def get_parser():
         '--eval-interval',
         type=int,
         default=100,
-        help='the interval for evaluating models (#epochs)')
+        help='the interval for evaluating modules (#epochs)')
     parser.add_argument(
         '--print-log',
         type=str2bool,

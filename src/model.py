@@ -3,12 +3,11 @@ import re
 import sys
 
 import lightning as L
-import numpy as np
 import torch
 
 from src.evaluation import evaluate
-from .layers import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
-from .utils import Decode
+from src.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
+from src.utils import Decode
 
 
 class SLRModel(L.LightningModule):
