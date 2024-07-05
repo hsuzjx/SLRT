@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-
+import re
 import lightning as L
 import numpy as np
 import wandb
@@ -52,6 +52,7 @@ class SLRModel(L.LightningModule):
 
         self.total_sentence = []
         self.total_info = []
+        self.register_backward_hook(self.backward_hook)
 
     def forward(self, x, lgt):
         batch, temp, channel, height, width = x.shape
@@ -72,6 +73,10 @@ class SLRModel(L.LightningModule):
             else self.decoder.decode(outputs, lgt, batch_first=False, probs=False)
         # return outputs, lgt, pred
         return outputs, lgt, pred
+
+    def backward_hook(self, module, grad_input, grad_output):
+        for g in grad_input:
+            g[g != g] = 0
 
     def training_step(self, batch, batch_idx):
         x, x_lgt, y, y_lgt, info = batch
@@ -137,9 +142,11 @@ class SLRModel(L.LightningModule):
                            ground_truth_path=self.hparams.ground_truth_path,
                            mer_path=self.hparams.mer_path)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error:", sys.exc_info())
             wer = 100.0
         finally:
+            if isinstance(wer, str):
+                wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def write2file(self, path, info, output):
@@ -178,13 +185,15 @@ class SLRModel(L.LightningModule):
             self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-test.ctm'),
                             self.total_info, self.total_sentence)
             wer = evaluate(mode='test', sh_path=self.hparams.sh_path,
-                           save_path=self.hparams.sava_path,
+                           save_path=self.hparams.save_path,
                            ground_truth_path=self.hparams.ground_truth_path,
                            mer_path=self.hparams.mer_path)
         except:
-            print("Unexpected error:", sys.exc_info()[0])
+            print("Unexpected error:", sys.exc_info())
             wer = 100.0
         finally:
+            if isinstance(wer, str):
+                wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     # def on_validation_epoch_end(self):

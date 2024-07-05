@@ -261,7 +261,8 @@ class TemporalConv(nn.Module):
             self.fc = nn.Linear(self.hidden_size, self.num_classes)
 
     def update_lgt(self, lgt):
-        feat_len = copy.deepcopy(lgt)
+        # feat_len = copy.deepcopy(lgt)
+        feat_len = lgt.clone()
         for ks in self.kernel_size:
             if ks[0] == 'P':
                 feat_len = torch.div(feat_len, 2)
