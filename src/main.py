@@ -6,6 +6,7 @@ import lightning as L
 import numpy as np
 import torch
 import wandb
+import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 
@@ -14,53 +15,83 @@ from src.model import SLRModel
 from src.utils import preprocess
 
 if __name__ == '__main__':
-    torch.set_float32_matmul_precision('medium')
+    # get config
+    with open('../configs/config.yaml', 'r') as f:
+        arg = yaml.load(f, Loader=yaml.FullLoader)
 
-    seed = random.randint(1, 2 ** 32 - 1)
-    project = "Phoenix2014"
-    name = "TTT-bh-sclite_{}".format(time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime()))
+    # set precision
+    torch.set_float32_matmul_precision(arg.get('global').get('torch_float32_matmul_precision'))
 
+    # set random seed
+    seed = arg.get('global').get('seed')
+    if seed == -1:
+        seed = random.randint(1, 2 ** 32 - 1)
     L.seed_everything(seed, workers=True)
 
-    # log model only if `val_accuracy` increases
-    save_dir = '../experiments/{}/{}'.format(project, name)
+    # set wandb logger
+    project = arg.get('wandb').get('project')
+    name = arg.get('wandb').get('name').get('name')
+    if arg.get('wandb').get('name').get('splice_time'):
+        name = "{}_{}".format(name, time.strftime("%Y-%m-%d_%H:%M:%S", time.localtime()))
+    save_dir = os.path.join(arg.get('wandb').get('save_dir'), '{}/{}'.format(project, name))
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
+    is_offline = arg.get('wandb').get('offline')
     wandb_logger = WandbLogger(project=project,
                                # log_model="all",
-                               name=name, offline=True, save_dir=save_dir, )
+                               name=name, offline=is_offline, save_dir=save_dir, )
     wandb.require("core")
 
+    # log seed
     # wandb_logger.log_hyperparams({'random_seed': seed})
     wandb_logger.experiment.config.update({'seed': seed})
-    checkpoint_callback = ModelCheckpoint(dirpath='./checkpoints/{}_{}'.format(project, name), monitor="DEV_WER",
-                                          mode="min", save_last=True, save_top_k=1)
 
-    dataset_name = 'phoenix2014'
-    gloss_dict_path = './.tmp/gloss_dict'
-    ground_truth_path = './.tmp/ground_truth'
-    save_path = './.tmp/saves/{}_{}'.format(project, name)
-    sh_path = './evaluation'
-    mer_path = './evaluation'
-    feature_path = '../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px'
-    annotation_path = '../data/phoenix2014/phoenix-2014-multisigner/annotations/manual'
+    # set checkpoint
+    dirpath = os.path.join(arg.get('checkpoint').get('save_dir'), '{}/{}'.format(project, name), 'checkpoints')
+    if not os.path.exists(dirpath):
+        os.makedirs(dirpath)
+    monitor = arg.get('checkpoint').get('monitor')
+    mode = arg.get('checkpoint').get('mode')
+    save_last = arg.get('checkpoint').get('save_last')
+    save_top_k = arg.get('checkpoint').get('save_top_k')
+    checkpoint_callback = ModelCheckpoint(dirpath=dirpath,
+                                          monitor=monitor,
+                                          mode=mode,
+                                          save_last=save_last,
+                                          save_top_k=save_top_k)
 
+    # preprocess
+    dataset_name = arg.get('dataset').get('name')
+    gloss_dict_path = arg.get('preprocess').get('gloss_dict_path')
+    ground_truth_path = arg.get('preprocess').get('ground_truth_path')
+    feature_path = arg.get('dataset').get('feature_path')
+    annotations_path = arg.get('dataset').get('annotations_path')
     preprocess(dataset_name=dataset_name,
-               annotations_path=annotation_path,
+               annotations_path=annotations_path,
                gloss_dict_path=gloss_dict_path,
                ground_truth_path=ground_truth_path)
 
+    # get gloss dict
     gloss_dict = np.load(os.path.join(gloss_dict_path, '{}_gloss_dict.npy'.format(dataset_name)),
                          allow_pickle=True).item()
 
+    # get lightning data module
+    batch_size = arg.get('train').get('batch_size')
+    num_workers = arg.get('train').get('num_workers')
     data_module = Phoenix2014DataModule(
         features_path=feature_path,
-        annotations_path=annotation_path,
+        annotations_path=annotations_path,
         gloss_dict=gloss_dict,
-        num_workers=8,
-        batch_size=2,
+        num_workers=num_workers,
+        batch_size=batch_size,
     )
 
+    # set model
+    save_path = os.path.join(arg.get('evaluation').get('save_path'), '{}/{}'.format(project, name), 'hypothesis')
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    sh_path = arg.get('evaluation').get('sh_path')
+    mer_path = arg.get('evaluation').get('mer_path')
     model = SLRModel(
         num_classes=1296, conv_type=2, use_bn=False, hidden_size=1024,
         gloss_dict=gloss_dict,
@@ -74,17 +105,22 @@ if __name__ == '__main__':
         test_param=False,
     )
 
+    # set trainer
+    max_epochs = arg.get('train').get('n_epochs')
+    accelerator = arg.get('train').get('accelerator')
+    devices = arg.get('train').get('devices')
+    precision = arg.get('train').get('precision')
     trainer = L.Trainer(
-        max_epochs=40,
-        accelerator='gpu',
-        devices=[1],  # if torch.cuda.is_available() else None,  # limiting got iPython runs
+        max_epochs=max_epochs,
+        accelerator=accelerator,
+        devices=devices,  # if torch.cuda.is_available() else None,  # limiting got iPython runs
         # callbacks=[TQDMProgressBar(refresh_rate=20)],
         # logger=CSVLogger(save_dir="logs/"),
         profiler="simple",
         # fast_dev_run=200,
         # limit_train_batches=20,
         # limit_val_batches=10,
-        precision='16-mixed',
+        precision=precision,
         # precision='32',
         num_sanity_val_steps=2,
         log_every_n_steps=2,
