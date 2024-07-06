@@ -7,7 +7,7 @@ import numpy as np
 import torch
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
-from lightning.pytorch.loggers import WandbLogger
+from lightning.pytorch.loggers.wandb import WandbLogger
 
 from src.datasets import Phoenix2014DataModule
 from src.model import SLRModel
@@ -23,11 +23,16 @@ if __name__ == '__main__':
     L.seed_everything(seed, workers=True)
 
     # log model only if `val_accuracy` increases
+    save_dir = '../experiments/{}/{}'.format(project, name)
+    if not os.path.exists(save_dir):
+        os.makedirs(save_dir)
     wandb_logger = WandbLogger(project=project,
                                # log_model="all",
-                               name=name, offline=True)
+                               name=name, offline=True, save_dir=save_dir, )
+    wandb.require("core")
 
-    wandb_logger.log_hyperparams({'random_seed': seed})
+    # wandb_logger.log_hyperparams({'random_seed': seed})
+    wandb_logger.experiment.config.update({'seed': seed})
     checkpoint_callback = ModelCheckpoint(dirpath='./checkpoints/{}_{}'.format(project, name), monitor="DEV_WER",
                                           mode="min", save_last=True, save_top_k=1)
 
@@ -42,7 +47,8 @@ if __name__ == '__main__':
 
     preprocess(dataset_name=dataset_name,
                annotations_path=annotation_path,
-               gloss_dict_path=gloss_dict_path, ground_truth_path=ground_truth_path)
+               gloss_dict_path=gloss_dict_path,
+               ground_truth_path=ground_truth_path)
 
     gloss_dict = np.load(os.path.join(gloss_dict_path, '{}_gloss_dict.npy'.format(dataset_name)),
                          allow_pickle=True).item()
@@ -69,7 +75,6 @@ if __name__ == '__main__':
     )
 
     trainer = L.Trainer(
-
         max_epochs=40,
         accelerator='gpu',
         devices=[1],  # if torch.cuda.is_available() else None,  # limiting got iPython runs
