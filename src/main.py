@@ -2,6 +2,7 @@ import os.path
 import random
 import time
 
+import hydra
 import lightning as L
 import numpy as np
 import torch
@@ -9,16 +10,15 @@ import wandb
 import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
+from omegaconf import DictConfig
 
 from src.datasets import Phoenix2014DataModule
 from src.model import SLRModel
 from src.utils import preprocess
 
-if __name__ == '__main__':
-    # get config
-    with open('../configs/config.yaml', 'r') as f:
-        arg = yaml.load(f, Loader=yaml.FullLoader)
 
+@hydra.main(version_base=None, config_path='../configs', config_name='config')
+def main(arg: DictConfig):
     # set precision
     torch.set_float32_matmul_precision(arg.get('global').get('torch_float32_matmul_precision'))
 
@@ -142,3 +142,7 @@ if __name__ == '__main__':
     )
 
     wandb.finish()
+
+
+if __name__ == '__main__':
+    main()
