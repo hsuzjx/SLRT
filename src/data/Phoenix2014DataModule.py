@@ -25,7 +25,7 @@ class Phoenix2014DataModule(L.LightningDataModule):
 
         self.gloss_dict = gloss_dict
 
-        # datasets
+        # data
         self.test_dataset = None
         self.dev_dataset = None
         self.train_dataset = None

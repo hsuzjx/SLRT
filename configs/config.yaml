@@ -1,4 +1,9 @@
-global:
+defaults:
+  - _self_
+  - data: phoenix2014
+  - paths: default
+  - logger: wandb
+global_cfg:
   seed: -1
   torch_float32_matmul_precision: 'medium'
 wandb:
@@ -14,10 +19,6 @@ checkpoint:
   mode: 'min'
   save_last: True
   save_top_k: 1
-dataset:
-  name: 'phoenix2014'
-  feature_path: '../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px'
-  annotations_path: '../data/phoenix2014/phoenix-2014-multisigner/annotations/manual'
 preprocess:
   gloss_dict_path: '../experiments/global_file/gloss_dict'
   ground_truth_path: '../experiments/global_file/ground_truth'

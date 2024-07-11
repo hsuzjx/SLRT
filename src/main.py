@@ -12,7 +12,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig
 
-from src.datasets import Phoenix2014DataModule
+from src.data import Phoenix2014DataModule
 from src.model import SLRModel
 from src.utils import preprocess
 

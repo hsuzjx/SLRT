@@ -1,0 +1,8 @@
+_target_: src.data.Phoenix2014DataModule
+name: 'phoenix2014'
+data_dir: ${paths.data_dir}/phoenix2014
+feature_path: ${.data_dir}/phoenix-2014-multisigner/features/fullFrame-256x256px
+annotations: ${.data_dir}/phoenix-2014-multisigner/annotations/manual
+batch_size: 128
+num_workers: 8
+pin_memory: True
