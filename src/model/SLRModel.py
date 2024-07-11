@@ -6,7 +6,7 @@ import lightning as L
 import torch
 
 from src.evaluation import evaluate
-from src.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
+from src.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
 from src.utils import Decode
 
 

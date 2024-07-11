@@ -3,37 +3,43 @@ defaults:
   - data: phoenix2014
   - paths: default
   - logger: wandb
-global_cfg:
-  seed: -1
-  torch_float32_matmul_precision: 'medium'
-wandb:
-  project: 'Phoenix2014'
-  name:
-    name: 'Test'
-    splice_time: True
-  save_dir: '../experiments/'
-  offline: True
-checkpoint:
-  save_dir: '../experiments/'
-  monitor: 'DEV_WER'
-  mode: 'min'
-  save_last: True
-  save_top_k: 1
-preprocess:
-  gloss_dict_path: '../experiments/global_file/gloss_dict'
-  ground_truth_path: '../experiments/global_file/ground_truth'
-model:
-  name: ''
-train:
-  name: ''
-  n_epochs: 40
-  batch_size: 2
-  num_workers: 8
-  accelerator: 'gpu'
-  devices: [1]
-  precision: '16-mixed'
-evaluation:
-  name: ''
-  save_path: '../experiments'
-  sh_path: './evaluation'
-  mer_path: './evaluation'
+  - model: phoenix2014
+  - callbacks: default
+  - trainer: gpu
+
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: example
+
+#torch_float32_matmul_precision: 'medium'
+#wandb:
+#  project: 'Phoenix2014'
+#  name:
+#    name: 'Test'
+#    splice_time: True
+#  save_dir: '../experiments/'
+#  offline: True
+#checkpoint:
+#  save_dir: '../experiments/'
+#  monitor: 'DEV_WER'
+#  mode: 'min'
+#  save_last: True
+#  save_top_k: 1
+#preprocess:
+#  gloss_dict_path: '../experiments/global_file/gloss_dict'
+#  ground_truth_path: '../experiments/global_file/ground_truth'
+#model:
+#  name: ''
+#train:
+#  name: ''
+#  n_epochs: 40
+#  batch_size: 2
+#  num_workers: 8
+#  accelerator: 'gpu'
+#  devices: [1]
+#  precision: '16-mixed'
+#evaluation:
+#  name: ''
+#  save_path: '../experiments'
+#  sh_path: './evaluation'
+#  mer_path: './evaluation'
