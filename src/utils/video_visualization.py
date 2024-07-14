@@ -72,17 +72,17 @@ def create_video_from_frames_with_annotations(frames_dir, annotations, output_vi
     # 释放资源
     out.release()
 
-# if __name__ == '__main__':
-#     import pickle
-#
-#     with open('/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_label/csl2020ct_v2.pkl', 'rb') as f:
-#         data = pickle.load(f)
-#     info0 = data['info'][1010]
-#
-#     # 示例使用
-#     frames_directory = os.path.join(
-#         '/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_frames-512x512/frames_512x512', info0['name'])
-#     annotation_list = ['{}'.format(''.join(info0["label_word"])) for _ in range(info0['length'])]
-#     output_directory = f'/new_home/xzj23/openmmlab_workspace/SLR/{info0["name"]}.mp4'
-#
-#     create_video_from_frames_with_annotations(frames_directory, annotation_list, output_directory)
+if __name__ == '__main__':
+    import pickle
+
+    with open('/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_label/csl2020ct_v2.pkl', 'rb') as f:
+        data = pickle.load(f)
+    info0 = data['info'][1010]
+
+    # 示例使用
+    frames_directory = os.path.join(
+        '/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_frames-512x512/frames_512x512', info0['name'])
+    annotation_list = ['{}'.format(''.join(info0["label_word"])) for _ in range(info0['length'])]
+    output_directory = f'/new_home/xzj23/openmmlab_workspace/SLR/{info0["name"]}.mp4'
+
+    create_video_from_frames_with_annotations(frames_directory, annotation_list, output_directory)
