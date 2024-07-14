@@ -7,7 +7,6 @@ import lightning as L
 import numpy as np
 import torch
 import wandb
-import yaml
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig

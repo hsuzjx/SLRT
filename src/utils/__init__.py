@@ -6,3 +6,4 @@ from .parameters import get_parser
 from .preprocess import preprocess
 from .random_state import RandomState
 from .record import Recorder
+from .video_visualization import create_video_from_frames_with_annotations
