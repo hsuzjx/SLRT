@@ -1,26 +1,48 @@
 import atexit
 import shutil
-import threading
-
-import cv2
 import tempfile
 import os
+import threading
 from glob import glob
-
 import numpy as np
-from gradio import Interface
-import gradio
-
+import cv2
 import pickle
+import gradio as gr
+
+# 读取配置文件，获取数据目录、临时目录和服务器地址
+config_path = '../configs/visualizer_config.txt'
+server_config = {}
+if os.path.exists(config_path):
+    with open(config_path, 'r') as f:
+        for line in f:
+            key, value = line.strip().split('=')
+            server_config[key] = value
+
+DATA_DIR = server_config.get('data_dir', '../data/csl-daily')
+TEMP_DIR = server_config.get('temp_dir', './.tmp')
+SERVER_NAME = server_config.get('server_name', '10.12.44.154')
+SERVER_PORT = server_config.get('server_port', 7866)
+
+
+def safe_pickle_load(file_path):
+    """
+    安全地加载pickle文件。
+    """
+    try:
+        with open(file_path, 'rb') as f:
+            data = pickle.load(f)
+        # 确保加载的数据是字典类型
+        if not isinstance(data, dict):
+            raise ValueError("Invalid data structure")
+        return data
+    except Exception as e:
+        print(f"Error loading data: {e}")
+        return {}
 
 
 def create_heatmap(image, keypoints, sigma=10):
     """
-    为给定的关键点生成热力图
-    :param image: 原始图像
-    :param keypoints: 特征点列表，每个特征点是一个包含位置(x,y)和强度(confidence)的元组
-    :param sigma: 高斯滤波器的标准差
-    :return: 热力图图像
+    根据给定的关键点生成热力图。
     """
     height, width = image.shape[:2]
     heatmap = np.zeros((height, width), dtype=np.float32)
@@ -48,96 +70,98 @@ def create_heatmap(image, keypoints, sigma=10):
 
 
 def process_frames_to_video(idx, is_add_keypoints=False, is_add_heatmap=False):
-    with open('/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_label/csl2020ct_v2.pkl', 'rb') as f:
-        data = pickle.load(f)
-    with open('/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/csl-daily-keypoints.pkl', 'rb') as f:
-        keypoints = pickle.load(f)
+    """
+    将图像序列处理为视频。
+    """
+    keypoints_file = os.path.join(DATA_DIR, 'csl-daily-keypoints.pkl')
+    label_file = os.path.join(DATA_DIR, 'sentence_label', 'csl2020ct_v2.pkl')
+    frames_dir = os.path.join(DATA_DIR, 'sentence_frames-512x512', 'frames_512x512')
+
+    data = safe_pickle_load(label_file)
+    keypoints_data = safe_pickle_load(keypoints_file)
+
+    if 'info' not in data or idx < 0 or idx >= len(data['info']):
+        raise ValueError("Invalid data or index")
+
     name = data['info'][idx]['name']
-    # 读取第一帧以获取尺寸信息
-    frames_dir = os.path.join(
-        '/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_frames-512x512/frames_512x512',
-        name)
-    frame_paths = sorted(os.listdir(frames_dir))
-    first_frame = cv2.imread(os.path.join(frames_dir, frame_paths[0]))
+    frame_paths = sorted(glob(os.path.join(frames_dir, name, '*.jpg')))
+    first_frame = cv2.imread(frame_paths[0])
     height, width, _ = first_frame.shape
+    if not os.path.exists(TEMP_DIR):
+        os.makedirs(TEMP_DIR)
 
-    if not os.path.exists('/new_home/xzj23/openmmlab_workspace/SLR/.tmp'):
-        os.makedirs('/new_home/xzj23/openmmlab_workspace/SLR/.tmp')
-    # 创建临时文件夹来保存输出视频
-    temp_dir = tempfile.mkdtemp(dir='/new_home/xzj23/openmmlab_workspace/SLR/.tmp')
-
+    temp_dir = tempfile.mkdtemp(dir=TEMP_DIR)
     output_video_path = os.path.join(temp_dir, "output_video.mp4")
-
-    # 初始化视频写入器
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(output_video_path, fourcc, 25, (width, height))
 
     for i, path in enumerate(frame_paths):
-        # 读取帧
-        frame = cv2.imread(os.path.join(frames_dir, path))
+        frame = cv2.imread(path)
+        if frame is None:
+            continue  # 跳过无法读取的帧
 
         if is_add_keypoints:
-            for kp in keypoints[name]['keypoints'][i]:
+            for kp in keypoints_data[name]['keypoints'][i]:
                 x, y, confidence = kp
                 if confidence > 0.3 and 0 <= x <= width - 1 and 0 <= y <= height - 1:
-                    cv2.circle(frame, (int(x), int(y)), 2, (0, 0, 255), -1)  # 画圆表示关键点
+                    cv2.circle(frame, (int(x), int(y)), 2, (0, 0, 255), -1)
+
         if is_add_heatmap:
-            kp = keypoints[name]['keypoints'][i]
+            kp = keypoints_data[name]['keypoints'][i]
             heatmap = create_heatmap(frame, kp, sigma=20)
             alpha = 0.5
             frame = cv2.addWeighted(frame, alpha, heatmap, 1 - alpha, 0)
 
-        # 将处理后的帧写入输出视频
         out.write(frame)
 
-    # 释放资源
     out.release()
-
     return output_video_path, ''.join(data['info'][idx]['label_word']), data['info'][idx]
 
 
-# 删除.tmp
 def clean_tmp_dir():
-    tmp_dir = '/new_home/xzj23/openmmlab_workspace/SLR/.tmp'
+    """
+    删除临时目录。
+    """
     try:
-        shutil.rmtree(tmp_dir)
-        print(f"Folder {tmp_dir} has been deleted.")
+        shutil.rmtree(TEMP_DIR)
+        print(f"Folder {TEMP_DIR} has been deleted.")
     except FileNotFoundError:
-        print(f"The folder {tmp_dir} does not exist.")
+        print(f"The folder {TEMP_DIR} does not exist.")
     except PermissionError:
-        print(f"Permission denied when trying to delete {tmp_dir}.")
+        print(f"Permission denied when trying to delete {TEMP_DIR}.")
     except Exception as e:
-        print(f"An error occurred while deleting {tmp_dir}: {e}")
+        print(f"An error occurred while deleting {TEMP_DIR}: {e}")
 
 
-# 定义一个函数来重复执行删除操作
 def repeat_delete(interval):
+    """
+    定时删除临时目录。
+    """
     clean_tmp_dir()
     timer = threading.Timer(interval, repeat_delete, args=[interval])
     timer.start()
 
 
+# 注册退出钩子，确保程序退出时清理临时目录
 atexit.register(clean_tmp_dir)
 
 if __name__ == "__main__":
+    # 每10分钟清理一次临时目录
     repeat_delete(600)
 
-    with open('/new_home/xzj23/openmmlab_workspace/SLR/data/csl-daily/sentence_label/csl2020ct_v2.pkl', 'rb') as f:
-        data = pickle.load(f)
-    # 创建 Gradio 接口
-    iface = Interface(
+    # 加载数据并启动gradio界面
+    data = safe_pickle_load(os.path.join(DATA_DIR, 'sentence_label', 'csl2020ct_v2.pkl'))
+    iface = gr.Interface(
         fn=process_frames_to_video,
-        inputs=[gradio.Number(label='sample index', info=f'{0}~{len(data["info"]) - 1}',
-                              maximum=len(data['info']) - 1,
-                              minimum=0),
-                gradio.Checkbox(label='is add keypoints?'),
-                gradio.Checkbox(label='is add heatmap?')],
-        outputs=[gradio.Video(label='video', autoplay=True, show_download_button=False),
-                 gradio.Text(label='translation'),
-                 gradio.Text(label='info')],
+        inputs=[gr.Number(label='sample index', info=f'{0}~{len(data["info"]) - 1}',
+                          maximum=len(data['info']) - 1,
+                          minimum=0),
+                gr.Checkbox(label='is add keypoints?'),
+                gr.Checkbox(label='is add heatmap?')],
+        outputs=[gr.Video(label='video', autoplay=True, show_download_button=False),
+                 gr.Text(label='translation'),
+                 gr.Text(label='info')],
         live=False,
         allow_flagging='never',
     )
-
-    # 启动 Gradio 应用
-    iface.launch(share=True, server_name='10.12.44.154')
+    iface.launch(share=True, server_name=SERVER_NAME, server_port=SERVER_PORT)

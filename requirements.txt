@@ -1,0 +1,11 @@
+pillow~=10.3.0
+numpy~=1.26.4
+scipy~=1.14.0
+torch~=1.13.1
+opencv-python~=4.10.0.84
+pandas~=2.2.2
+lightning~=2.0.9.post0
+ctcdecode~=1.0.3
+wandb~=0.17.3
+omegaconf~=2.3.0
+gradio~=4.38.1
