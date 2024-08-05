@@ -1,6 +1,5 @@
 import glob
 import os
-
 import cv2
 import numpy as np
 import pandas as pd
@@ -10,49 +9,100 @@ import torch.utils.data as data
 from .transforms import Compose, ToTensor
 
 
-# warnings.simplefilter(action='ignore', category=FutureWarning)
-
-
 class Phoenix2014Dataset(data.Dataset):
-    def __init__(self, features_path, annotations_path, gloss_dict,
-                 mode="train",
-                 transform=Compose([ToTensor()])):
-        # super().__init__()
+    """
+    Phoenix2014数据集类，继承自PyTorch的Dataset类。
+
+    参数:
+    - features_path: 特征文件路径
+    - annotations_path: 注释文件路径
+    - gloss_dict: 手势词汇字典
+    - mode: 数据集模式，"train"或"test"或"dev"
+    - transform: 数据变换，如果为None，则使用默认变换
+    """
+
+    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", transform=None):
+        super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
         self.annotations_path = os.path.abspath(annotations_path)
-
         self.dict = gloss_dict
 
-        self.corpus = pd.read_csv(os.path.join(self.annotations_path, f'{self.mode}.corpus.csv'),
-                                  sep='|', header=0, index_col='id')
+        corpus_file_path = os.path.join(self.annotations_path, f'{self.mode}.corpus.csv')
+        try:
+            self.corpus = pd.read_csv(corpus_file_path, sep='|', header=0, index_col='id')
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Corpus file not found at {corpus_file_path}")
+
         if self.mode == 'train':
-            self.corpus.drop('13April_2011_Wednesday_tagesschau_default-14', axis=0, inplace=True)
-        self.transform = transform
+            self.corpus = self.corpus.drop('13April_2011_Wednesday_tagesschau_default-14', axis=0)
+
+        if transform is None:
+            self.transform = Compose([ToTensor()])
+        else:
+            self.transform = transform
 
     def __getitem__(self, idx):
-        fi = self.corpus.iloc[idx]
-        img_list = sorted(glob.glob(os.path.join(self.features_path, f'{self.mode}', fi.folder)))
-        anno = fi.annotation.split(' ')
-        while '' in anno:
-            anno.remove('')
-        label_list = [self.dict[w] for w in anno]
+        """
+        获取数据集中的第idx项数据。
 
-        imgs = [cv2.cvtColor(cv2.imread(img_path), cv2.COLOR_BGR2RGB) for img_path in img_list]
-        label = label_list
+        参数:
+        - idx: 数据索引
 
-        if self.transform is not None:
-            imgs, label = self.transform(imgs, label)
+        返回:
+        - imgs: 图像数据
+        - label_list: 标签列表
+        - item.name: 数据名称
+        """
+        item = self.corpus.iloc[idx]
+        img_list_path = sorted(glob.glob(os.path.join(self.features_path, f'{self.mode}', item.folder)))
+        if not img_list_path:
+            raise ValueError(f"No images found for folder {item.folder}")
+
+        anno = item.annotation.split(' ')
+        anno = [word for word in anno if word]  # 移除空字符串
+        label_list = [self.dict.get(w, 0) for w in anno]  # 默认为0，如果单词不在字典中
+
+        imgs = []
+        for img_path in img_list_path:
+            img = cv2.imread(img_path)
+            if img is None:
+                raise FileNotFoundError(f"Image not found or failed to load: {img_path}")
+            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            imgs.append(img)
+
+        if self.transform:
+            imgs, label_list = self.transform(imgs, label_list)
+
         imgs = imgs.float() / 127.5 - 1
-        label = torch.LongTensor(label)
+        label_list = torch.LongTensor(label_list)
 
-        return imgs, label, fi.name
+        return imgs, label_list, item.name
 
     def __len__(self):
+        """
+        返回数据集的大小。
+
+        返回:
+        - 数据集大小
+        """
         return len(self.corpus)
 
     @staticmethod
     def collate_fn(batch):
+        """
+        动态padding函数，用于将一批数据进行padding对齐。
+
+        参数:
+        - batch: 一批数据
+
+        返回:
+        - padded_video: 填充后的视频数据
+        - video_length: 每个视频的原始长度
+        - padded_label: 填充后的标签数据（如果存在）
+        - label_length: 每个标签的原始长度
+        - info: 数据的额外信息
+        """
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
         video, label, info = list(zip(*batch))
         if len(video[0].shape) > 3:
