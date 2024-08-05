@@ -1,0 +1,59 @@
+# configs/config.yaml
+
+# 主项目名称
+project: "Phoenix2014"
+
+# 实验名称配置
+name:
+  display_name: "experiment_1"
+  include_time: true
+
+# 日志记录器配置
+logger:
+  offline: false
+  save_dir: "./logs"
+
+# 回调配置
+callback:
+  monitor: "val_loss"
+  mode: "min"
+  save_last: true
+  save_top_k: 1
+
+# 预处理配置
+preprocess:
+  name: "phoenix2014"
+  features_path: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
+  annotations_path: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
+  gloss_dict_path: "../data/experiments/global_file/gloss_dict"
+  ground_truth_path: "../data/experiments/global_file/ground_truth"
+
+# 训练配置
+train:
+  num_workers: 8
+  batch_size: 2
+  n_epochs: 40
+  accelerator: "gpu"
+  devices: [1]
+  precision: "16-mixed"
+  save_path: "../experiments"
+  sh_path: "./evaluation"
+  mer_path: "./evaluation"
+  torch_float32_matmul_precision: "medium"
+
+# 模型配置
+model:
+  num_classes: 1296
+  conv_type: 2
+  use_bn: false
+  hidden_size: 1024
+  lr: 0.0001
+  weight_decay: 0.0001
+  lr_scheduler_milestones: null
+  lr_scheduler_gamma: 0.2
+  last_epoch: -1
+  test_param: false
+  weight_norm: true
+
+# 其他配置
+seed: -1

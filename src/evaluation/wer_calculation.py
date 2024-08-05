@@ -31,7 +31,7 @@ def evaluate(mode, sh_path='./.tmp', save_path='./.tmp', ground_truth_path='./.t
     else:
         if not os.path.exists(save_path + '/sclite_results'):
             os.makedirs(save_path + '/sclite_results')
-        sclite_path = os.path.abspath('./.bin/sclite')
+        sclite_path = os.path.abspath('../.bin/sclite')
         os.system(
             f"{sclite_path} -h {save_path}/out.output-hypothesis-{mode}.ctm ctm"
             f" -r {save_path}/tmp.stm stm -f 0 -o sgml sum rsum pra -O {save_path}/sclite_results"
