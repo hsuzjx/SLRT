@@ -19,7 +19,7 @@ if os.path.exists(config_path):
             server_config[key] = value
 
 DATA_DIR = server_config.get('data_dir', '../data/csl-daily')
-TEMP_DIR = server_config.get('temp_dir', './.tmp')
+TEMP_DIR = server_config.get('temp_dir', '../.tmp')
 SERVER_NAME = server_config.get('server_name', '10.12.44.154')
 SERVER_PORT = server_config.get('server_port', 7866)
 
@@ -87,9 +87,9 @@ def process_frames_to_video(idx, is_add_keypoints=False, is_add_heatmap=False):
     frame_paths = sorted(glob(os.path.join(frames_dir, name, '*.jpg')))
     first_frame = cv2.imread(frame_paths[0])
     height, width, _ = first_frame.shape
+
     if not os.path.exists(TEMP_DIR):
         os.makedirs(TEMP_DIR)
-
     temp_dir = tempfile.mkdtemp(dir=TEMP_DIR)
     output_video_path = os.path.join(temp_dir, "output_video.mp4")
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -152,6 +152,8 @@ if __name__ == "__main__":
     # 加载数据并启动gradio界面
     data = safe_pickle_load(os.path.join(DATA_DIR, 'sentence_label', 'csl2020ct_v2.pkl'))
     iface = gr.Interface(
+        title='CSL Daily Visualizer',
+        # description='Visualize CSL Daily videos with keypoints and heatmaps.',
         fn=process_frames_to_video,
         inputs=[gr.Number(label='sample index', info=f'{0}~{len(data["info"]) - 1}',
                           maximum=len(data['info']) - 1,

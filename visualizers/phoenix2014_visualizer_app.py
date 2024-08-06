@@ -11,26 +11,26 @@ from translate import Translator
 
 TEMP_DIR = '../.tmp'
 SERVER_NAME = '10.12.44.154'
-SERVER_PORT = 7867
+SERVER_PORT = 7868
 
 # 定义数据路径
-data_path = '/new_home/xzj23/workspace/SLR/data/phoenix2014T'
-features_path = os.path.join(data_path, 'PHOENIX-2014-T/features/fullFrame-210x260px')
-annotations_path = os.path.join(data_path, 'PHOENIX-2014-T/annotations/manual')
+data_path = '/new_home/xzj23/workspace/SLR/data/phoenix2014'
+features_path = os.path.join(data_path, 'phoenix-2014-multisigner/features/fullFrame-210x260px')
+annotations_path = os.path.join(data_path, 'phoenix-2014-multisigner/annotations/manual')
 
-# 初始化数据列表s
+# 初始化数据列表
 features_list = []
 annotations_list = []
 num_of_samples = dict()
 
 # 加载数据
 for mode in ['train', 'dev', 'test']:
-    with open(os.path.join(annotations_path, f'PHOENIX-2014-T.{mode}.corpus.csv'), 'rb') as f:
+    with open(os.path.join(annotations_path, f'{mode}.corpus.csv'), 'rb') as f:
         data = pd.read_csv(f, sep='|')
     for i, info in data.iterrows():
-        frames_file_list = sorted(os.listdir(os.path.join(features_path, mode, info['name'])))
+        frames_file_list = sorted(os.listdir(os.path.join(features_path, mode, info['id'], '1')))
         features_list.append(
-            [os.path.join(features_path, mode, info['name'], frame_file) for frame_file in frames_file_list])
+            [os.path.join(features_path, mode, info['id'], '1', frame_file) for frame_file in frames_file_list])
         annotations_list.append(info)
     num_of_samples[mode] = len(data)
 
@@ -58,19 +58,6 @@ class VideoWriter:
     def release_writer(self):
         if self.writer is not None:
             self.writer.release()
-
-
-def translate_text(text, from_lang, to_lang):
-    """
-    尝试翻译文本，如果发生异常，则返回None。
-    这样可以避免因翻译失败而导致的程序崩溃。
-    """
-    try:
-        translator = Translator(from_lang=from_lang, to_lang=to_lang)
-        return translator.translate(text)
-    except Exception as e:
-        print(f"翻译遇到问题: {e}")
-        return None
 
 
 # 定义函数：将图像序列转换为视频
@@ -102,25 +89,8 @@ def process_frames_to_video(idx, is_add_keypoints=False, is_add_heatmap=False):
     temp_dir = tempfile.mkdtemp(dir=TEMP_DIR)
     output_video_path = os.path.join(temp_dir, "output_video.mp4")
     frames_to_video(frames_file_list=features_list[idx], video_save_file=output_video_path, fps=25)
-    # 翻译逻辑
-    translation_en = translate_text(annotations_list[idx]['translation'], "de", "en")
-    translation_zh_cn = translate_text(annotations_list[idx]['translation'], "de", "zh-cn")
 
-    # 结果组装
-    if translation_en is not None and translation_zh_cn is not None:
-        translations = f"en: {translation_en}\nzh-cn: {translation_zh_cn}"
-    else:
-        # 如果翻译失败，则告知原因
-        translations = "Translation failed for one or more languages."
-
-    # TODO: 音频生成逻辑
-    # output_audio_path = os.path.join(temp_dir, "output_audio.mp3")
-    # generate_audio(output_audio_path, translation_en)
-
-    return (output_video_path, annotations_list[idx]['translation'],
-            # output_audio_path,
-            translations,
-            annotations_list[idx])
+    return output_video_path, annotations_list[idx]['annotation'], annotations_list[idx]
 
 
 def clean_tmp_dir():
@@ -155,8 +125,8 @@ if __name__ == "__main__":
     repeat_delete(600)
     # 加载数据并启动gradio界面
     iface = gr.Interface(
-        title='Phoenix2014T Visualizer',
-        # description='Visualize the video and translation of the Phoenix2014T dataset.',
+        title='Phoenix2014 Visualizer',
+        # description='Visualize Phoenix2014 dataset.',
         fn=process_frames_to_video,
         inputs=[gr.Number(label='sample index',
                           info=f'train set: {0}~{num_of_samples["train"] - 1}, '
@@ -167,12 +137,9 @@ if __name__ == "__main__":
                 gr.Checkbox(label='is add keypoints?'),
                 gr.Checkbox(label='is add heatmap?')],
         outputs=[gr.Video(label='video', autoplay=True, show_download_button=False),
-                 gr.Text(label='translation'),
-                 # gr.Audio(label='audio', autoplay=True, show_download_button=False),
-                 gr.Text(label='translation (other languages)'),
+                 gr.Text(label='annotation'),
                  gr.Text(label='info')],
         live=False,
         allow_flagging='never',
     )
     iface.launch(share=False, server_name=SERVER_NAME, server_port=SERVER_PORT)
-    
