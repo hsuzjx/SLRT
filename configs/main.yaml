@@ -25,8 +25,8 @@ preprocess:
   name: "phoenix2014"
   features_path: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
   annotations_path: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
-  gloss_dict_path: "../data/experiments/global_file/gloss_dict"
-  ground_truth_path: "../data/experiments/global_file/ground_truth"
+  gloss_dict_path: "../data/global_file/gloss_dict"
+  ground_truth_path: "../data/global_file/ground_truth"
 
 # 训练配置
 train:

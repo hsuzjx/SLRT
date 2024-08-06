@@ -11,7 +11,7 @@ class TestPhoenix2014Dataset(unittest.TestCase):
         # 根据你的项目路径替换下面的路径
         features_path = '../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px'
         annotations_path = '../data/phoenix2014/phoenix-2014-multisigner/annotations/manual'
-        gloss_dict = np.load('../experiments/global_file/gloss_dict/phoenix2014_gloss_dict.npy',
+        gloss_dict = np.load('../data/global_files/gloss_dict/phoenix2014_gloss_dict.npy',
                              allow_pickle=True).item()
         self.dataset = Phoenix2014Dataset(features_path, annotations_path, gloss_dict, mode='train')
 

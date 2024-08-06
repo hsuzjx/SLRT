@@ -142,14 +142,22 @@ class SLRModel(L.LightningModule):
             self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     def write2file(self, path, info, output):
-        filereader = open(path, "w")
+        contents = []
         for sample_idx, sample in enumerate(output):
             for word_idx, word in enumerate(sample):
-                filereader.writelines(
-                    "{} 1 {:.2f} {:.2f} {}\n".format(info[sample_idx],
-                                                     word_idx * 1.0 / 100,
-                                                     (word_idx + 1) * 1.0 / 100,
-                                                     word[0]))
+                line = "{} 1 {:.2f} {:.2f} {}\n".format(info[sample_idx],
+                                                        word_idx * 1.0 / 100,
+                                                        (word_idx + 1) * 1.0 / 100,
+                                                        word[0])
+                contents.append(line)
+        content = "".join(contents)
+
+        try:
+            with open(path, "w") as file:
+                file.write(content)
+        except IOError as e:
+            print(f"写入文件时发生错误: {e}")
+            # 可以考虑将错误记录到日志文件
 
     def on_test_epoch_start(self):
         self.total_sentence = []
@@ -169,23 +177,22 @@ class SLRModel(L.LightningModule):
         return loss
 
     def on_test_epoch_end(self):
-        wer = 100.0
+        wer = '100.0'  # 默认值设为字符串方便后续转换
         try:
-            # sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-test.ctm'), 'r')
-            # aaa = sss.readlines()
-            # sss.close()
-            self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-test.ctm'),
-                            self.total_info, self.total_sentence)
+            save_path = os.path.abspath(self.hparams.save_path)
+            output_file_path = os.path.join(save_path, 'output-hypothesis-test.ctm')
+            self.write2file(output_file_path, self.total_info, self.total_sentence)
+
+            # 假设evaluate函数已正确实现并返回WER指标
             wer = evaluate(mode='test', sh_path=self.hparams.sh_path,
-                           save_path=self.hparams.save_path,
+                           save_path=save_path,
                            ground_truth_path=self.hparams.ground_truth_path,
                            mer_path=self.hparams.mer_path)
-        except:
-            print("Unexpected error:", sys.exc_info())
-            wer = 100.0
+        except Exception as e:  # 捕获更具体的异常，提供更多信息
+            print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")
+            wer = '100.0'
         finally:
-            if isinstance(wer, str):
-                wer = float(re.findall("\d+\.?\d*", wer)[0])
+            wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
 
     # def on_validation_epoch_end(self):

@@ -7,7 +7,7 @@ from src.data.Phoenix2014DataModule import Phoenix2014DataModule
 # 定义数据特征和注释的路径以及手势词典的路径
 FEATURES_PATH = '../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px'
 ANNOTATIONS_PATH = '../data/phoenix2014/phoenix-2014-multisigner/annotations/manual'
-GLOSS_DICT = np.load('../experiments/global_file/gloss_dict/phoenix2014_gloss_dict.npy',
+GLOSS_DICT = np.load('../data/global_files/gloss_dict/phoenix2014_gloss_dict.npy',
                      allow_pickle=True).item()
 
 # 测试类，用于测试Phoenix2014DataModule的各个功能
