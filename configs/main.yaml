@@ -1,7 +1,7 @@
 # configs/config.yaml
 hydra:
   run:
-    dir: ../experiments/${project}/${name}/${time}
+    dir: ../experiments/${project}/${name}/${timestamp}
 
 # 主项目名称
 project: "Phoenix2014"

@@ -43,8 +43,8 @@ def setup_seed(cfg):
     seed = cfg.get('seed', -1)
     if seed == -1:
         seed = random.randint(1, 2 ** 32 - 1)
-    cfg.seed = seed
     L.seed_everything(seed, workers=True)
+    return seed
 
 
 # 初始化Weights & Biases日志记录器。
@@ -105,7 +105,7 @@ def main(cfg: DictConfig):
     torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
 
     # 随机种子设置
-    setup_seed(cfg)
+    seed = setup_seed(cfg)
 
     project = cfg.get('project', 'default_project')
     name = cfg.get('name', 'default_name')
@@ -113,7 +113,7 @@ def main(cfg: DictConfig):
 
     # Wandb日志记录器设置
     wandb_cfg = safe_get_config(cfg, 'logger')
-    wandb_logger = setup_wandb_logger(wandb_cfg, project, name, timestamp, {'random_seed', cfg.seed})
+    wandb_logger = setup_wandb_logger(wandb_cfg, project, name, timestamp, {'random_seed': seed})
 
     # 检查点回调设置
     checkpoint_cfg = safe_get_config(cfg, 'callback')
