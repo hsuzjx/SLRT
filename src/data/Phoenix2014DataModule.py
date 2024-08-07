@@ -56,7 +56,7 @@ class Phoenix2014DataModule(L.LightningDataModule):
         self.dev_transform = dev_transform
         self.test_transform = test_transform
 
-    def load_dataset(self, mode, transform):
+    def load_dataset(self, mode, transform, drop_ids=None):
         """
         封装数据集加载逻辑，提高代码复用性。
 
@@ -72,6 +72,7 @@ class Phoenix2014DataModule(L.LightningDataModule):
                                       annotations_path=self.annotations_path,
                                       gloss_dict=self.gloss_dict,
                                       mode=mode,
+                                      drop_ids=drop_ids,
                                       transform=transform)
         except Exception as e:
             raise RuntimeError(f"Failed to load dataset with mode {mode}: {e}")
@@ -84,7 +85,8 @@ class Phoenix2014DataModule(L.LightningDataModule):
         stage -- 运行阶段（"fit", "test"）
         """
         if stage == 'fit':
-            self.train_dataset = self.load_dataset("train", self.train_transform)
+            self.train_dataset = self.load_dataset("train", self.train_transform,
+                                                   drop_ids=['13April_2011_Wednesday_tagesschau_default-14'])
             self.dev_dataset = self.load_dataset("dev", self.dev_transform)
 
         if stage == 'test':

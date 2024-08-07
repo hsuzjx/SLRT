@@ -21,12 +21,14 @@ class Phoenix2014Dataset(data.Dataset):
     - transform: 数据变换，如果为None，则使用默认变换
     """
 
-    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", transform=None):
+    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None,
+                 return_text=False):
         super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
         self.annotations_path = os.path.abspath(annotations_path)
         self.dict = gloss_dict
+        self.return_text = return_text
 
         corpus_file_path = os.path.join(self.annotations_path, f'{self.mode}.corpus.csv')
         try:
@@ -34,8 +36,11 @@ class Phoenix2014Dataset(data.Dataset):
         except FileNotFoundError:
             raise FileNotFoundError(f"Corpus file not found at {corpus_file_path}")
 
-        if self.mode == 'train':
-            self.corpus = self.corpus.drop('13April_2011_Wednesday_tagesschau_default-14', axis=0)
+        # Drop specific ID if needed
+        if drop_ids is not None:
+            for drop_id in drop_ids:
+                if drop_id in self.corpus.index:
+                    self.corpus.drop(drop_id, axis=0, inplace=True)
 
         if transform is None:
             self.transform = Compose([ToTensor()])
@@ -76,7 +81,8 @@ class Phoenix2014Dataset(data.Dataset):
 
         imgs = imgs.float() / 127.5 - 1
         label_list = torch.LongTensor(label_list)
-
+        if self.return_text:
+            return imgs, label_list, item.name, item.annotation
         return imgs, label_list, item.name
 
     def __len__(self):

@@ -10,32 +10,37 @@ from .transforms import Compose, ToTensor
 
 
 class Phoenix2014TDataset(data.Dataset):
-    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", is_use_train_complex_annotation=False,
-                 transform=None):
-        """
-        初始化数据集。
+    """
+    Phoenix2014T数据集类，继承自PyTorch的Dataset类。
 
-        参数:
-        - features_path: 特征数据的路径
-        - annotations_path: 注解数据的路径
-        - gloss_dict: 手语词汇字典
-        - mode: 数据集的模式（"train", "test"等）
-        - transform: 应用于数据的可选变换
-        """
+    参数:
+    - features_path: 特征文件路径
+    - annotations_path: 注释文件路径
+    - gloss_dict: 手势词汇字典
+    - mode: 数据集模式，"train"或"test"或"dev"
+    - transform: 数据变换，如果为None，则使用默认变换
+    """
+
+    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None,
+                 return_text=False, return_translation=False):
+        super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
         self.annotations_path = os.path.abspath(annotations_path)
         self.dict = gloss_dict
+        self.return_text = return_text
 
         corpus_file_path = os.path.join(self.annotations_path, f'PHOENIX-2014-T.{self.mode}.corpus.csv')
-        if self.mode == 'train' and is_use_train_complex_annotation:
-            corpus_file_path = os.path.join(self.annotations_path,
-                                            f'PHOENIX-2014-T.train-complex-annotation.corpus.csv')
-
         try:
             self.corpus = pd.read_csv(corpus_file_path, sep='|', header=0, index_col='id')
         except FileNotFoundError:
             raise FileNotFoundError(f"Corpus file not found at {corpus_file_path}")
+
+        # Drop specific ID if needed
+        if drop_ids is not None:
+            for drop_id in drop_ids:
+                if drop_id in self.corpus.index:
+                    self.corpus.drop(drop_id, axis=0, inplace=True)
 
         if transform is None:
             self.transform = Compose([ToTensor()])
@@ -57,14 +62,15 @@ class Phoenix2014TDataset(data.Dataset):
         item = self.corpus.iloc[idx]
         img_list_path = sorted(glob.glob(os.path.join(self.features_path, f'{self.mode}', item.name, '*.png')))
         if not img_list_path:
-            raise ValueError(f"No images found for folder {item.folder}")
+            raise ValueError(f"No images found for folder {item.name}/*.png")
 
         orth = item.orth.split(' ')
         orth = [word for word in orth if word]  # 移除空字符串
         orth_label_list = [self.dict.get(w, 0) for w in orth]  # 默认为0，如果单词不在字典中
-        translation = item.translation.split(' ')
-        translation = [word for word in translation if word]
-        translation_label_list = [self.dict.get(w, 0) for w in translation]
+        # TODO: translation
+        # translation = item.translation.split(' ')
+        # translation = [word for word in translation if word]
+        # translation_label_list = [self.dict.get(w, 0) for w in translation]
 
         imgs = []
         for img_path in img_list_path:
@@ -80,11 +86,19 @@ class Phoenix2014TDataset(data.Dataset):
         imgs = imgs.float() / 127.5 - 1
         orth_label_list = torch.LongTensor(orth_label_list)
 
-        return imgs, orth_label_list, translation_label_list, item.name
+        # TODO: return translation
+        # if self.return_translation:
+        #     ...
+        if self.return_text:
+            return imgs, orth_label_list, item.name, item.orth
+        return imgs, orth_label_list, item.name
 
     def __len__(self):
         """
         返回数据集的大小。
+
+        返回:
+        - 数据集大小
         """
         return len(self.corpus)
 
@@ -104,7 +118,7 @@ class Phoenix2014TDataset(data.Dataset):
         - info: 数据的额外信息
         """
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        video, orth_label, translation_label, info = list(zip(*batch))
+        video, orth_label, info = list(zip(*batch))
         if len(video[0].shape) > 3:
             max_len = len(video[0])
             video_length = torch.LongTensor([np.ceil(len(vid) / 4.0) * 4 + 12 for vid in video])
@@ -132,14 +146,11 @@ class Phoenix2014TDataset(data.Dataset):
                 for vid in video]
             padded_video = torch.stack(padded_video).permute(0, 2, 1)
         orth_label_length = torch.LongTensor([len(lab) for lab in orth_label])
-        translation_label_length = torch.LongTensor([len(lab) for lab in translation_label])
         if max(orth_label_length) == 0:
-            if max(translation_label_length) == 0:
-                return padded_video, video_length, [], [], [], [], info
-            return padded_video, video_length, [], [], translation_label, translation_label_length, info
+            return padded_video, video_length, [], [], info
         else:
             padded_orth_label = []
             for lab in orth_label:
                 padded_orth_label.extend(lab)
             padded_orth_label = torch.LongTensor(padded_orth_label)
-            return padded_video, video_length, padded_orth_label, orth_label_length, translation_label, translation_label_length, info
+            return padded_video, video_length, padded_orth_label, orth_label_length, info
