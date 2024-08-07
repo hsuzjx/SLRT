@@ -1,20 +1,25 @@
 # configs/config.yaml
+hydra:
+  run:
+    dir: ../experiments/${project}/${name}/${time}
 
 # 主项目名称
 project: "Phoenix2014"
 
 # 实验名称配置
-name:
-  display_name: "experiment_1"
-  include_time: true
+name: "experiment_1"
+
+# 时间戳
+timestamp: ${now:%Y-%m-%d-%H-%M-%S}
 
 # 日志记录器配置
 logger:
   offline: false
-  save_dir: "./logs"
+  save_dir: "../experiments"
 
 # 回调配置
 callback:
+  save_dir: "../experiments"
   monitor: "val_loss"
   mode: "min"
   save_last: true
@@ -25,8 +30,8 @@ preprocess:
   name: "phoenix2014"
   features_path: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
   annotations_path: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
-  gloss_dict_path: "../data/global_file/gloss_dict"
-  ground_truth_path: "../data/global_file/ground_truth"
+  gloss_dict_path: "../data/global_files/gloss_dict"
+  ground_truth_path: "../data/global_files/ground_truth"
 
 # 训练配置
 train:
@@ -34,7 +39,7 @@ train:
   batch_size: 2
   n_epochs: 40
   accelerator: "gpu"
-  devices: [1]
+  devices: [ 1 ]
   precision: "16-mixed"
   save_path: "../experiments"
   sh_path: "./evaluation"
