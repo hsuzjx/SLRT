@@ -4,8 +4,8 @@ hydra:
     dir: ../experiments/${project}/${name}/${timestamp}
 
 # 主项目名称
-#project: "Phoenix2014"
-project: "Phoenix2014T"
+project: "Phoenix2014"
+#project: "Phoenix2014T"
 
 # 实验名称配置
 name: "experiment_1"
@@ -28,16 +28,16 @@ callback:
 
 # 预处理配置
 preprocess:
-#  name: "phoenix2014"
-#  features_path: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
-#  annotations_path: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
-#  gloss_dict_path: "../data/global_files/gloss_dict"
-#  ground_truth_path: "../data/global_files/ground_truth"
-  name: "phoenix2014T"
-  features_path: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-210x260px"
-  annotations_path: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
+  name: "phoenix2014"
+  features_path: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
+  annotations_path: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
   gloss_dict_path: "../data/global_files/gloss_dict"
   ground_truth_path: "../data/global_files/ground_truth"
+#  name: "phoenix2014T"
+#  features_path: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-210x260px"
+#  annotations_path: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
+#  gloss_dict_path: "../data/global_files/gloss_dict"
+#  ground_truth_path: "../data/global_files/ground_truth"
 
 # 训练配置
 train:
@@ -54,8 +54,8 @@ train:
 
 # 模型配置
 model:
-#  num_classes: 1296
-  num_classes: 1116
+  num_classes: 1296
+#  num_classes: 1116
   conv_type: 2
   use_bn: false
   hidden_size: 1024

@@ -142,7 +142,7 @@ def main(cfg: DictConfig):
         print("找不到词汇表路径。")
         return
     gloss_dict = np.load(os.path.join(gloss_dict_path, f'{dataset_name}_gloss_dict.npy'), allow_pickle=True).item()
-    data_module = Phoenix2014TDataModule(
+    data_module = Phoenix2014DataModule(
         features_path=preprocess_cfg.get('features_path'),
         annotations_path=preprocess_cfg.get('annotations_path'),
         gloss_dict=gloss_dict,
