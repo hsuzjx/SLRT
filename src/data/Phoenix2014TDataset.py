@@ -32,7 +32,7 @@ class Phoenix2014TDataset(data.Dataset):
 
         corpus_file_path = os.path.join(self.annotations_path, f'PHOENIX-2014-T.{self.mode}.corpus.csv')
         try:
-            self.corpus = pd.read_csv(corpus_file_path, sep='|', header=0, index_col='id')
+            self.corpus = pd.read_csv(corpus_file_path, sep='|', header=0, index_col='name')
         except FileNotFoundError:
             raise FileNotFoundError(f"Corpus file not found at {corpus_file_path}")
 

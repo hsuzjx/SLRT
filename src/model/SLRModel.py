@@ -37,7 +37,7 @@ class SLRModel(L.LightningModule):
 
         self.decoder = Decode(
             gloss_dict=self.hparams.gloss_dict,
-            num_classes=1296, search_mode='beam')
+            num_classes=self.hparams.num_classes, search_mode='beam')
 
         self.pred = None
         # self.validation_step_outputs = []

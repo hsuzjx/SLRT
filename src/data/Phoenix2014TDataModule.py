@@ -69,11 +69,11 @@ class Phoenix2014TDataModule(L.LightningDataModule):
         """
         try:
             return Phoenix2014TDataset(features_path=self.features_path,
-                                      annotations_path=self.annotations_path,
-                                      gloss_dict=self.gloss_dict,
-                                      mode=mode,
-                                      drop_ids=drop_ids,
-                                      transform=transform)
+                                       annotations_path=self.annotations_path,
+                                       gloss_dict=self.gloss_dict,
+                                       mode=mode,
+                                       drop_ids=drop_ids,
+                                       transform=transform)
         except Exception as e:
             raise RuntimeError(f"Failed to load dataset with mode {mode}: {e}")
 
@@ -86,7 +86,8 @@ class Phoenix2014TDataModule(L.LightningDataModule):
         """
         if stage == 'fit':
             self.train_dataset = self.load_dataset("train", self.train_transform)
-            self.dev_dataset = self.load_dataset("dev", self.dev_transform)
+            self.dev_dataset = self.load_dataset("dev", self.dev_transform,
+                                                   drop_ids=['11August_2010_Wednesday_tagesschau-2'])
 
         if stage == 'test':
             self.test_dataset = self.load_dataset("test", self.test_transform)
@@ -98,6 +99,8 @@ class Phoenix2014TDataModule(L.LightningDataModule):
         返回:
         DataLoader实例
         """
+        # TODO: PHOENIX-2014-T.train-complex-annotation.corpus.csv
+        # ...
         return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True,
                           collate_fn=self.train_dataset.collate_fn, pin_memory=True, drop_last=True)
 

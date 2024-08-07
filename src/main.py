@@ -11,6 +11,8 @@ from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 
 from src.data import Phoenix2014DataModule
+from src.data import Phoenix2014TDataModule
+
 from src.model import SLRModel
 from src.utils import preprocess
 
@@ -140,15 +142,16 @@ def main(cfg: DictConfig):
         print("找不到词汇表路径。")
         return
     gloss_dict = np.load(os.path.join(gloss_dict_path, f'{dataset_name}_gloss_dict.npy'), allow_pickle=True).item()
-    data_module = Phoenix2014DataModule(
+    data_module = Phoenix2014TDataModule(
         features_path=preprocess_cfg.get('features_path'),
         annotations_path=preprocess_cfg.get('annotations_path'),
         gloss_dict=gloss_dict,
         num_workers=train_cfg.get('num_workers'),
         batch_size=train_cfg.get('batch_size'),
     )
+    model_cfg = safe_get_config(cfg, 'model')
     model = SLRModel(
-        num_classes=1296, conv_type=2, use_bn=False, hidden_size=1024,
+        num_classes=model_cfg.num_classes, conv_type=2, use_bn=False, hidden_size=1024,
         gloss_dict=gloss_dict,
         save_path=os.path.join(train_cfg.get('save_path', '.'), f'{project}/{name}/{timestamp}/hypothesis'),
         sh_path=train_cfg.get('sh_path'),
