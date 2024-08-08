@@ -153,14 +153,17 @@ def main(cfg: DictConfig):
     model = SLRModel(
         num_classes=model_cfg.num_classes, conv_type=2, use_bn=False, hidden_size=1024,
         gloss_dict=gloss_dict,
-        save_path=os.path.join(train_cfg.get('save_path', '.'), f'{project}/{name}/{timestamp}/hypothesis'),
-        sh_path=train_cfg.get('sh_path'),
-        ground_truth_path=preprocess_cfg.get('ground_truth_path'),
-        mer_path=train_cfg.get('mer_path'),
         weight_norm=True,
         lr=0.0001, weight_decay=0.0001, lr_scheduler_milestones=None, lr_scheduler_gamma=0.2,
         last_epoch=-1,
         test_param=False,
+        save_path=os.path.join(train_cfg.get('save_path', '.'),
+                               f'{project}/{name}/{timestamp}/hypothesis'),
+        # for evaluation
+        dataset_name=dataset_name,
+        evaluation_sh_path=train_cfg.get('sh_path'),
+        ground_truth_path=preprocess_cfg.get('ground_truth_path'),
+        evaluation_sclite_path=train_cfg.get('sclite_path'),
     )
 
     # 训练器设置

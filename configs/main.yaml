@@ -49,7 +49,8 @@ train:
   precision: "16-mixed"
   save_path: "../experiments"
   sh_path: "./evaluation"
-  mer_path: "./evaluation"
+#  mer_path: "./evaluation"
+  sclite_path: "../.bin/sclite"
   torch_float32_matmul_precision: "medium"
 
 # 模型配置

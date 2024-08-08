@@ -127,12 +127,20 @@ class SLRModel(L.LightningModule):
             # sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'), 'r')
             # aaa = sss.readlines()
             # sss.close()
-            self.write2file(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'),
-                            self.total_info, self.total_sentence)
-            wer = evaluate(mode='dev', sh_path=self.hparams.sh_path,
-                           save_path=self.hparams.save_path,
-                           ground_truth_path=self.hparams.ground_truth_path,
-                           mer_path=self.hparams.mer_path)
+            file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch={self.current_epoch}")
+            if not os.path.isdir(file_save_path):
+                os.makedirs(file_save_path)
+            output_file = os.path.join(file_save_path, 'output-hypothesis-dev.ctm')
+            self.write2file(output_file, self.total_info, self.total_sentence)
+            # wer = evaluate(mode='dev', sh_path=self.hparams.sh_path,
+            #                save_path=self.hparams.save_path,
+            #                ground_truth_path=self.hparams.ground_truth_path,
+            #                mer_path=self.hparams.mer_path)
+            wer = evaluate(file_save_path=file_save_path,
+                           groundtruth_file=os.path.join(self.hparams.ground_truth_path,
+                                                         f"{self.hparams.dataset_name}-groundtruth-dev.stm"),
+                           ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
+                           sclite_path=self.hparams.evaluation_sclite_path)
         except:
             print("Unexpected error:", sys.exc_info())
             wer = 100.0
@@ -179,15 +187,23 @@ class SLRModel(L.LightningModule):
     def on_test_epoch_end(self):
         wer = '100.0'  # 默认值设为字符串方便后续转换
         try:
-            save_path = os.path.abspath(self.hparams.save_path)
-            output_file_path = os.path.join(save_path, 'output-hypothesis-test.ctm')
-            self.write2file(output_file_path, self.total_info, self.total_sentence)
+            file_save_path = os.path.join(self.hparams.save_path, "test", f"epoch={self.current_epoch}")
+            if not os.path.isdir(file_save_path):
+                os.makedirs(file_save_path)
+            output_file = os.path.join(file_save_path, 'output-hypothesis-test.ctm')
+            self.write2file(output_file, self.total_info, self.total_sentence)
 
             # 假设evaluate函数已正确实现并返回WER指标
-            wer = evaluate(mode='test', sh_path=self.hparams.sh_path,
-                           save_path=save_path,
-                           ground_truth_path=self.hparams.ground_truth_path,
-                           mer_path=self.hparams.mer_path)
+            # wer = evaluate(mode='test', sh_path=self.hparams.sh_path,
+            #                save_path=save_path,
+            #                ground_truth_path=self.hparams.ground_truth_path,
+            #                mer_path=self.hparams.mer_path)
+
+            wer = evaluate(file_save_path=file_save_path,
+                           groundtruth_file=os.path.join(self.hparams.ground_truth_path,
+                                                         f"{self.hparams.dataset_name}-groundtruth-test.stm"),
+                           ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
+                           sclite_path=self.hparams.evaluation_sclite_path)
         except Exception as e:  # 捕获更具体的异常，提供更多信息
             print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")
             wer = '100.0'

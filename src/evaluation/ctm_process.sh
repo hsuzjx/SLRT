@@ -27,31 +27,29 @@ fi
 # 减少不必要的输出
 echo "$(date '+%Y-%m-%d %H:%M:%S') Starting CTM processing..."
 
-# 简化处理流程
-if ! cat "${input_file}" | sed -E 's,loc-|cl-|qu-|poss-|lh-||__EMOTION__|__PU__|__LEFTHAND__,,g;
-        s,S0NNE,SONNE,g;
-        s,HABEN2,HABEN,g;
-        s,WIE AUSSEHEN,WIE-AUSSEHEN,g;
-        s,ZEIGEN ,ZEIGEN-BILDSCHIRM ,g;
-        s,ZEIGEN$,ZEIGEN-BILDSCHIRM,g;
-        s,^\([A-Z]\) \([A-Z][+ ]\),\1+\2,g;
-        s,[ +]\([A-Z]\) \([A-Z]\) , \1+\2 ,g;
-        s,\([ +][A-Z]\) \([A-Z][ +]\),\1+\2,g;
-        s,\([ +]SCH\) \([A-Z][ +]\),\1+\2,g;
-        s,\([ +]NN\) \([A-Z][ +]\),\1+\2,g;
-        s,\([ +][A-Z]\) \(NN[ +]\),\1+\2,g;
-        s,\([ +][A-Z]\) \([A-Z]\)$,\1+\2,g;
-        s,\([A-Z][A-Z]\)RAUM,\1,g;
-        s,-PLUSPLUS,,g;
-        # 添加 Perl 的替换逻辑
-        s,(?<![\w-])(\b[A-Z]+(?![\w-])) \1(?![\w-]),\1,g;
-        # 去除特定标记
-        /__LEFTHAND__/d;
-        /__EPENTHESIS__/d;
-        /__EMOTION__/d;
-        s,\s*$,,' |
-awk 'BEGIN{lastID="";lastRow=""}{if (lastID!=$1 && cnt[lastID]<1 && lastRow!=""){print lastRow" [EMPTY]";}if ($5!=""){cnt[$1]+=1;print $0;}lastID=$1;lastRow=$0}' |
-sort -k1,1 -k3,3 > "${output_file}"; then
+# 处理输入文件中的数据
+cat "${input_file}" | \
+    # 移除特定的错误识别和格式化文本
+    sed -e 's,loc-||cl-||qu-||poss-||lh-||__EMOTION__||__PU__||__LEFTHAND__,,g' \
+    -e 's,S0NNE,SONNE,g' -e 's,HABEN2,HABEN,g' -e 's,WIE AUSSEHEN,WIE-AUSSEHEN,g' \
+    -e 's,ZEIGEN ,ZEIGEN-BILDSCHIRM ,g' -e 's,ZEIGEN$,ZEIGEN-BILDSCHIRM,g' \
+    -e 's,^\([A-Z]\) \([A-Z][+ ]\),\1+\2,g' -e 's,[ +]\([A-Z]\) \([A-Z]\) , \1+\2 ,g' \
+    -e 's,\([ +][A-Z]\) \([A-Z][ +]\),\1+\2,g' -e 's,\([ +]SCH\) \([A-Z][ +]\),\1+\2,g' \
+    -e 's,\([ +]NN\) \([A-Z][ +]\),\1+\2,g' -e 's,\([ +][A-Z]\) \(NN[ +]\),\1+\2,g' \
+    -e 's,\([ +][A-Z]\) \([A-Z]\)$,\1+\2,g' -e 's,\([A-Z][A-Z]\)RAUM,\1,g' -e 's,-PLUSPLUS,,g' | \
+    # 处理大小写和重复的单词
+    perl -ne 's,(?<![\w-])(\b[A-Z]+(?![\w-])) \1(?![\w-]),\1,g; print;' | \
+    # 过滤掉特定的行
+    grep -v "__LEFTHAND__" | grep -v "__EPENTHESIS__" | grep -v "__EMOTION__" | \
+    # 清理行尾的空格
+    sed -e 's,\s*$,,' | \
+    # 处理空行和重复的记录
+    awk 'BEGIN{lastID="";lastRow=""}{if (lastID!=$1 && cnt[lastID]<1 && lastRow!=""){print lastRow" [EMPTY]";}if ($5!=""){cnt[$1]+=1;print $0;}lastID=$1;lastRow=$0}' | \
+    # 根据第一和第三个字段排序
+    sort -k1,1 -k3,3 > "${output_file}"
+
+# 检查命令的执行结果
+if [ $? -eq 0 ]; then
     echo "$(date '+%Y-%m-%d %H:%M:%S') CTM processing finished. Output to ${output_file}"
 else
     echo "$(date '+%Y-%m-%d %H:%M:%S') Error during CTM processing."
