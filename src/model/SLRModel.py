@@ -127,7 +127,7 @@ class SLRModel(L.LightningModule):
             # sss = open(os.path.join(os.path.abspath(self.hparams.save_path), 'output-hypothesis-dev.ctm'), 'r')
             # aaa = sss.readlines()
             # sss.close()
-            file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch={self.current_epoch}")
+            file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
             if not os.path.isdir(file_save_path):
                 os.makedirs(file_save_path)
             output_file = os.path.join(file_save_path, 'output-hypothesis-dev.ctm')
@@ -187,7 +187,7 @@ class SLRModel(L.LightningModule):
     def on_test_epoch_end(self):
         wer = '100.0'  # 默认值设为字符串方便后续转换
         try:
-            file_save_path = os.path.join(self.hparams.save_path, "test", f"epoch={self.current_epoch}")
+            file_save_path = os.path.join(self.hparams.save_path, "test", f"epoch_{self.current_epoch}")
             if not os.path.isdir(file_save_path):
                 os.makedirs(file_save_path)
             output_file = os.path.join(file_save_path, 'output-hypothesis-test.ctm')

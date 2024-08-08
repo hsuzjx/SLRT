@@ -2,7 +2,7 @@ import os
 import subprocess
 
 
-# from .mergectmstm_1722914048172 import merge_ctm_stm
+from .merge_ctm_stm import merge_ctm_stm
 
 
 def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate_dir=None,
@@ -45,6 +45,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     ctm_file_base_name = os.path.basename(ctm_file)
     processed_ctm_file = os.path.join(file_save_path, f"processed.{ctm_file_base_name}")
     merged_ctm_file = os.path.join(file_save_path, f"merged.{ctm_file_base_name}")
+    sorted_ctm_file = os.path.join(file_save_path, f"sorted.{ctm_file_base_name}")
 
     # Preprocess and sort STM file
     ctm_process_cmd = [
@@ -69,39 +70,40 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     except subprocess.CalledProcessError as e:
         # Handle errors during command execution
         print(f"Error executing command: {e.cmd}")
-        print(f"Return code: {e.returncode}")
-        print(f"Standard output: {e.stdout}")
-        print(f"Standard error: {e.stderr}")
         raise
 
     # Merge CTM and STM files
-    # TODO: ...
-    # merge_ctm_stm(processed_ctm_file, sorted_ground_truth_file, merged_ctm_file)
-    merge_cmd = [
-        "python", os.path.join(evaluate_dir, "mergectmstm.py"),
-        processed_ctm_file,
-        sorted_ground_truth_file
-    ]
-    subprocess.run(merge_cmd, check=True)
+    merge_ctm_stm(processed_ctm_file, sorted_ground_truth_file, merged_ctm_file)
 
-    # Copy merged CTM file to final output location
-    subprocess.run(["cp", processed_ctm_file, merged_ctm_file], check=True)
+    # Sort CTM file
+    ctm_sort_cmd = [
+        "sort",
+        "-k1,1",
+                    "-k3,3",
+        merged_ctm_file,
+        "-o", sorted_ctm_file
+    ]
+    try:
+        subprocess.run(ctm_sort_cmd, check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"Error executing command: {e.cmd}")
+        raise
 
     # TODO: Implement Python-based evaluation
     # if python_evaluate:
-    #     ret = wer_calculation(os.path.join(evaluate_dir, f"{evaluate_prefix}-{mode}.stm"), merged_ctm_file)
+    #     ret = wer_calculation(os.path.join(evaluate_dir, f"{evaluate_prefix}-{mode}.stm"), sorted_ctm_file)
     #     if triplet:
     #         wer_calculation(
     #             os.path.join(evaluate_dir, f"{evaluate_prefix}-{mode}.stm"),
-    #             merged_ctm_file,
-    #             merged_ctm_file.replace(".ctm", "-conv.ctm")
+    #             sorted_ctm_file,
+    #             sorted_ctm_file.replace(".ctm", "-conv.ctm")
     #         )
     #     return ret
 
     # Run SCLITE evaluation
     sclite_args = [
         sclite_path,
-        "-h", merged_ctm_file, "ctm",  # Hypothesis file
+        "-h", sorted_ctm_file, "ctm",  # Hypothesis file
         "-r", sorted_ground_truth_file, "stm",  # Reference file
         "-f", "0",  # Format of input files
         "-o", "sgml", "sum", "rsum", "pra", "dtl",  # Output format
@@ -118,7 +120,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
         raise
 
     # Extract WER from SCLITE output
-    with open(os.path.join(results_output_dir, f"merged.{ctm_file_base_name}.dtl"), "r") as f:
+    with open(os.path.join(results_output_dir, f"sorted.{ctm_file_base_name}.dtl"), "r") as f:
         for line in f:
             line = line.strip()
             if "Percent Total Error" in line:

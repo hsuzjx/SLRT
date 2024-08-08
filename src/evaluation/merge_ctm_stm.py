@@ -32,13 +32,11 @@ def merge_ctm_stm(processed_ctm_file, sorted_stm_file, merged_ctm_file):
     ctm_lines = read_file(processed_ctm_file)
     stm_lines = read_file(sorted_stm_file)
 
-    ctm_dict = {line[0]: line for line in ctm_lines}
-    stm_dict = {line[0]: line for line in stm_lines}
+    ctm_keys = {line[0] for line in ctm_lines}
+    stm_keys = {line[0] for line in stm_lines}
 
-    added_lines = 0
-    for key in stm_dict:
-        if key not in ctm_dict:
-            ctm_lines.insert(list(ctm_dict.keys()).index(key) + added_lines, [key, "1 0.000 0.030 [EMPTY]"])
-            added_lines += 1
+    for key in stm_keys:
+        if key not in ctm_keys:
+            ctm_lines.append([key, "1", "0.000", "0.030", "[EMPTY]"])
 
     write_file(merged_ctm_file, ctm_lines)
