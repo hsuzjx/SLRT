@@ -183,7 +183,8 @@ def _generate_ground_truth(ground_truth_file: str, annotations_path: str, file_n
         # Write to file
         with open(ground_truth_file, "w") as f:
             for item in corpus.iterrows():
-                line = f"{item[0]} 1 {item[1][column_names['signer']]} 0.0 1.79769e+308 {item[1][column_names['annotation']]}\n"
+                item_annotation = ' '.join([gloss for gloss in item[1][column_names['annotation']].split(' ') if gloss])
+                line = f"{item[0]} 1 {item[1][column_names['signer']]} 0.0 1.79769e+308 {item_annotation}\n"
                 f.write(line)
     except FileNotFoundError as e:
         print(f"File not found error: {e}")

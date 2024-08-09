@@ -27,26 +27,28 @@ fi
 # 减少不必要的输出
 echo "$(date '+%Y-%m-%d %H:%M:%S') Starting CTM processing..."
 
-# 处理输入文件中的数据
+# 处理输入文件，按指定规则转换和过滤数据，并写入输出文件
 cat "${input_file}" | \
-    # 移除特定的错误识别和格式化文本
-    sed -e 's,loc-||cl-||qu-||poss-||lh-||__EMOTION__||__PU__||__LEFTHAND__,,g' \
-    -e 's,S0NNE,SONNE,g' -e 's,HABEN2,HABEN,g' -e 's,WIE AUSSEHEN,WIE-AUSSEHEN,g' \
-    -e 's,ZEIGEN ,ZEIGEN-BILDSCHIRM ,g' -e 's,ZEIGEN$,ZEIGEN-BILDSCHIRM,g' \
-    -e 's,^\([A-Z]\) \([A-Z][+ ]\),\1+\2,g' -e 's,[ +]\([A-Z]\) \([A-Z]\) , \1+\2 ,g' \
-    -e 's,\([ +][A-Z]\) \([A-Z][ +]\),\1+\2,g' -e 's,\([ +]SCH\) \([A-Z][ +]\),\1+\2,g' \
-    -e 's,\([ +]NN\) \([A-Z][ +]\),\1+\2,g' -e 's,\([ +][A-Z]\) \(NN[ +]\),\1+\2,g' \
-    -e 's,\([ +][A-Z]\) \([A-Z]\)$,\1+\2,g' -e 's,\([A-Z][A-Z]\)RAUM,\1,g' -e 's,-PLUSPLUS,,g' | \
-    # 处理大小写和重复的单词
-    perl -ne 's,(?<![\w-])(\b[A-Z]+(?![\w-])) \1(?![\w-]),\1,g; print;' | \
-    # 过滤掉特定的行
-    grep -v "__LEFTHAND__" | grep -v "__EPENTHESIS__" | grep -v "__EMOTION__" | \
-    # 清理行尾的空格
-    sed -e 's,\s*$,,' | \
-    # 处理空行和重复的记录
-    awk 'BEGIN{lastID="";lastRow=""}{if (lastID!=$1 && cnt[lastID]<1 && lastRow!=""){print lastRow" [EMPTY]";}if ($5!=""){cnt[$1]+=1;print $0;}lastID=$1;lastRow=$0}' | \
-    # 根据第一和第三个字段排序
-    sort -k1,1 -k3,3 > "${output_file}"
+sed -E 's/loc-|cl-|qu-|poss-|lh-|__EMOTION__|__PU__|__LEFTHAND__//g' | \
+sed -e 's/S0NNE/SONNE/g' \
+    -e 's/HABEN2/HABEN/g' \
+    -e 's/WIE AUSSEHEN/WIE-AUSSEHEN/g' \
+    -e 's/ZEIGEN /ZEIGEN-BILDSCHIRM /g' \
+    -e 's/ZEIGEN$/ZEIGEN-BILDSCHIRM/g' \
+    -e 's/^\([A-Z]\) \([A-Z][+ ]\)/\1+\2/g' \
+    -e 's/[ +]\([A-Z]\) \([A-Z]\) / \1+\2 /g' \
+    -e 's/\([ +][A-Z]\) \([A-Z][ +]\)/\1+\2/g' \
+    -e 's/\([ +]SCH\) \([A-Z][ +]\)/\1+\2/g' \
+    -e 's/\([ +]NN\) \([A-Z][ +]\)/\1+\2/g' \
+    -e 's/\([ +][A-Z]\) \(NN[ +]\)/\1+\2/g' \
+    -e 's/\([ +][A-Z]\) \([A-Z]\)$/\1+\2/g' \
+    -e 's/\([A-Z][A-Z]\)RAUM/\1/g' \
+    -e 's/-PLUSPLUS//g' | \
+perl -ne 's,(?<![\w-])(\b[A-Z]+(?![\w-])) \1(?![\w-]),\1,g;print;' | \
+grep -v "__LEFTHAND__" | grep -v "__EPENTHESIS__" | grep -v "__EMOTION__" | \
+sed -e 's/\s*$//' | \
+awk 'BEGIN{lastID="";lastRow=""}{if (lastID!=$1 && cnt[lastID]<1 && lastRow!=""){print lastRow" [EMPTY]";}if ($5!=""){cnt[$1]+=1;print $0;}lastID=$1;lastRow=$0}' | \
+sort -k1,1 -k3,3 > "${output_file}"
 
 # 检查命令的执行结果
 if [ $? -eq 0 ]; then
