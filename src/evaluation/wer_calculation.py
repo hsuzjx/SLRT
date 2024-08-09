@@ -41,7 +41,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     merged_ctm_file = os.path.join(file_save_path, f"merged.{ctm_file_base_name}")
     sorted_ctm_file = os.path.join(file_save_path, f"sorted.{ctm_file_base_name}")
 
-    # Preprocess and sort STM file
+    # Process CTM file
     ctm_process_cmd = [
         "bash", os.path.join(evaluate_dir, "ctm_process.sh"),
         ctm_file,

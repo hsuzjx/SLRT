@@ -22,13 +22,12 @@ class Phoenix2014TDataset(data.Dataset):
     """
 
     def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None,
-                 return_text=False, return_translation=False):
+                 return_translation=False):
         super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
         self.annotations_path = os.path.abspath(annotations_path)
         self.dict = gloss_dict
-        self.return_text = return_text
 
         corpus_file_path = os.path.join(self.annotations_path, f'PHOENIX-2014-T.{self.mode}.corpus.csv')
         try:
@@ -89,9 +88,8 @@ class Phoenix2014TDataset(data.Dataset):
         # TODO: return translation
         # if self.return_translation:
         #     ...
-        if self.return_text:
-            return imgs, orth_label_list, item.name, item.orth
-        return imgs, orth_label_list, item.name
+
+        return imgs, orth_label_list, item
 
     def __len__(self):
         """

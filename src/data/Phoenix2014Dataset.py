@@ -21,14 +21,12 @@ class Phoenix2014Dataset(data.Dataset):
     - transform: 数据变换，如果为None，则使用默认变换
     """
 
-    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None,
-                 return_text=False):
+    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None):
         super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
         self.annotations_path = os.path.abspath(annotations_path)
         self.dict = gloss_dict
-        self.return_text = return_text
 
         corpus_file_path = os.path.join(self.annotations_path, f'{self.mode}.corpus.csv')
         try:
@@ -81,9 +79,8 @@ class Phoenix2014Dataset(data.Dataset):
 
         imgs = imgs.float() / 127.5 - 1
         label_list = torch.LongTensor(label_list)
-        if self.return_text:
-            return imgs, label_list, item.name, item.annotation
-        return imgs, label_list, item.name
+
+        return imgs, label_list, item
 
     def __len__(self):
         """

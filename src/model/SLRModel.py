@@ -116,7 +116,7 @@ class SLRModel(L.LightningModule):
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
         # self.validation_step_outputs.append((info, pred_sentence))
-        self.total_info += info
+        self.total_info += [it.name for it in info]
         self.total_sentence += pred
 
         return loss
@@ -148,6 +148,7 @@ class SLRModel(L.LightningModule):
             if isinstance(wer, str):
                 wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            print("DEV_WER:", wer)
 
     def write2file(self, path, info, output):
         contents = []
@@ -179,7 +180,7 @@ class SLRModel(L.LightningModule):
         self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
         # self.validation_step_outputs.append((info, pred_sentence))
-        self.total_info += info
+        self.total_info += [it.name for it in info]
         self.total_sentence += pred
 
         return loss
@@ -210,6 +211,7 @@ class SLRModel(L.LightningModule):
         finally:
             wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+            print("TEST_WER:", wer)
 
     # def on_validation_epoch_end(self):
     #     lstm_ret = 100.0
