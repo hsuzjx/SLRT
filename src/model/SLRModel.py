@@ -138,7 +138,7 @@ class SLRModel(L.LightningModule):
             #                mer_path=self.hparams.mer_path)
             wer = evaluate(file_save_path=file_save_path,
                            groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                                         f"{self.hparams.dataset_name}-groundtruth-dev.stm"),
+                                                         f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
                            ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
                            sclite_path=self.hparams.evaluation_sclite_path)
         except:
@@ -201,7 +201,7 @@ class SLRModel(L.LightningModule):
 
             wer = evaluate(file_save_path=file_save_path,
                            groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                                         f"{self.hparams.dataset_name}-groundtruth-test.stm"),
+                                                         f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
                            ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
                            sclite_path=self.hparams.evaluation_sclite_path)
         except Exception as e:  # 捕获更具体的异常，提供更多信息

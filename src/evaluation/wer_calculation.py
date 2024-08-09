@@ -1,7 +1,6 @@
 import os
 import subprocess
 
-
 from .merge_ctm_stm import merge_ctm_stm
 
 
@@ -27,14 +26,9 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     groundtruth_file = os.path.abspath(groundtruth_file)
     ctm_file = os.path.abspath(ctm_file)
 
-    # Create sorted ground truth file path
-    sorted_ground_truth_file = os.path.join(file_save_path, "sorted_ground_truth",
-                                            f"sorted.{os.path.basename(groundtruth_file)}")
     # Ensure necessary directories exist
     if not os.path.isdir(file_save_path):
         os.makedirs(file_save_path)
-    if not os.path.isdir(os.path.dirname(sorted_ground_truth_file)):
-        os.makedirs(os.path.dirname(sorted_ground_truth_file))
 
     # Prepare directory for SCLITE results
     results_output_dir = os.path.join(file_save_path, "sclite_results")
@@ -53,33 +47,23 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
         ctm_file,
         processed_ctm_file
     ]
-    sort_cmd = [
-        "sort",
-        "-k1,1",
-        groundtruth_file,
-        "-o", sorted_ground_truth_file
-    ]
 
     try:
         # Execute CTM processing and sorting commands
         subprocess.run(ctm_process_cmd, check=True)
-        if not os.path.exists(sorted_ground_truth_file):
-            print("Sorted ground truth file not found. Sorting...")
-            subprocess.run(sort_cmd, check=True)
-            print(f"Sorted ground truth file created. Saved in {sorted_ground_truth_file}")
     except subprocess.CalledProcessError as e:
         # Handle errors during command execution
         print(f"Error executing command: {e.cmd}")
         raise
 
     # Merge CTM and STM files
-    merge_ctm_stm(processed_ctm_file, sorted_ground_truth_file, merged_ctm_file)
+    merge_ctm_stm(processed_ctm_file, groundtruth_file, merged_ctm_file)
 
     # Sort CTM file
     ctm_sort_cmd = [
         "sort",
         "-k1,1",
-                    "-k3,3",
+        "-k3,3",
         merged_ctm_file,
         "-o", sorted_ctm_file
     ]
@@ -104,7 +88,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     sclite_args = [
         sclite_path,
         "-h", sorted_ctm_file, "ctm",  # Hypothesis file
-        "-r", sorted_ground_truth_file, "stm",  # Reference file
+        "-r", groundtruth_file, "stm",  # Reference file
         "-f", "0",  # Format of input files
         "-o", "sgml", "sum", "rsum", "pra", "dtl",  # Output format
     ]

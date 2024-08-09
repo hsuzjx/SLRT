@@ -1,4 +1,6 @@
 import os
+import subprocess
+
 import numpy as np
 import pandas as pd
 
@@ -48,7 +50,7 @@ def preprocess_phoenix2014(dataset_name, annotations_path, gloss_dict_path, grou
         ground_truth_file = os.path.join(ground_truth_path, f'{dataset_name}-groundtruth-{mode}.stm')
         if not os.path.exists(os.path.dirname(ground_truth_file)):
             os.makedirs(os.path.dirname(ground_truth_file))
-        if not generate_phoenix2014_ground_truth(ground_truth_file, annotations_path, mode):
+        if not generate_phoenix2014_ground_truth(ground_truth_file, annotations_path, mode, is_gen_sorted=True):
             exit(1)
 
 
@@ -78,7 +80,7 @@ def preprocess_phoenix2014T(dataset_name, annotations_path, gloss_dict_path, gro
         ground_truth_file = os.path.join(ground_truth_path, f'{dataset_name}-groundtruth-{mode}.stm')
         if not os.path.exists(os.path.dirname(ground_truth_file)):
             os.makedirs(os.path.dirname(ground_truth_file))
-        if not generate_phoenix2014T_ground_truth(ground_truth_file, annotations_path, mode):
+        if not generate_phoenix2014T_ground_truth(ground_truth_file, annotations_path, mode, is_gen_sorted=True):
             exit(1)
 
 
@@ -199,32 +201,95 @@ def _generate_ground_truth(ground_truth_file: str, annotations_path: str, file_n
     return os.path.exists(ground_truth_file)
 
 
-def generate_phoenix2014_ground_truth(ground_truth_file, annotations_path, mode):
+def sort_ground_truth(ground_truth_file, sorted_ground_truth_file):
+    """
+    使用外部命令对groundtruth文件进行排序。
+
+    此函数检查指定的groundtruth文件是否存在，并尝试使用Unix的'sort'命令对其进行排序。
+    如果排序成功，将排序后的文件保存到指定的位置。
+
+    参数:
+    ground_truth_file: 待排序的原始groundtruth文件路径。
+    sorted_ground_truth_file: 排序后保存的文件路径。
+
+    返回:
+    如果排序后的文件成功生成，则返回True；如果原始文件不存在或排序过程中出现错误，则返回False。
+    """
+    # 检查排序后的文件是否已经存在
+    if os.path.exists(sorted_ground_truth_file):
+        return True
+    # 检查原始groundtruth文件是否存在
+    if not os.path.exists(ground_truth_file):
+        return False
+
+    try:
+        # 构建'sort'命令行，指定排序规则和输出文件
+        sort_cmd = [
+            "sort",
+            "-k1,1",  # 根据第一列进行排序
+            ground_truth_file,
+            "-o", sorted_ground_truth_file  # 将排序结果输出到指定文件
+        ]
+        # 执行构建的排序命令，检查执行结果
+        print("Sorted ground truth file not found. Sorting...")
+        subprocess.run(sort_cmd, check=True)
+        print(f"Sorted ground truth file created. Saved in {os.path.abspath(sorted_ground_truth_file)}")
+    except subprocess.CalledProcessError as e:
+        # 处理命令执行过程中的错误
+        print(f"Error executing command: {e.cmd}")
+        # 如果排序后的文件已经生成，则删除它
+        if os.path.exists(sorted_ground_truth_file):
+            os.remove(sorted_ground_truth_file)
+        raise e
+    except Exception as e:
+        # 处理其他意外错误
+        print(f"An unexpected error occurred: {e}")
+        # 如果排序后的文件已经生成，则删除它
+        if os.path.exists(sorted_ground_truth_file):
+            os.remove(sorted_ground_truth_file)
+        raise e
+
+    # 返回排序后的文件是否成功生成
+    return os.path.exists(sorted_ground_truth_file)
+
+
+def generate_phoenix2014_ground_truth(ground_truth_file, annotations_path, mode, is_gen_sorted=False):
     """
     Generates a ground truth file for the Phoenix-2014 dataset.
 
     :param ground_truth_file: File path to save the ground truth.
     :param annotations_path: Path to the Phoenix-2014 annotation files.
     :param mode: Mode of the dataset (train, test, dev).
+    :param is_gen_sorted: Whether to generate a sorted version of the ground truth file.
     :return: True if the ground truth file is successfully generated or already exists, False otherwise.
     """
     file_name = f'{mode}.corpus.csv'
     index_col_name = 'id'
     column_names = {'signer': 'signer', 'annotation': 'annotation'}
     drop_id = '13April_2011_Wednesday_tagesschau_default-14' if mode == 'train' else None
+    if is_gen_sorted:
+        sorted_ground_truth_file = ground_truth_file.replace('.stm', '_sorted.stm')
+        return _generate_ground_truth(ground_truth_file, annotations_path, file_name, index_col_name, column_names,
+                                      drop_id) and sort_ground_truth(ground_truth_file, sorted_ground_truth_file)
     return _generate_ground_truth(ground_truth_file, annotations_path, file_name, index_col_name, column_names, drop_id)
 
 
-def generate_phoenix2014T_ground_truth(ground_truth_file, annotations_path, mode):
+def generate_phoenix2014T_ground_truth(ground_truth_file, annotations_path, mode, is_gen_sorted=False):
     """
     Generates a ground truth file for the Phoenix-2014-T dataset.
 
     :param ground_truth_file: File path to save the ground truth.
     :param annotations_path: Path to the Phoenix-2014-T annotation files.
     :param mode: Mode of the dataset (train, test, dev).
+    :param is_gen_sorted: Whether to generate a sorted version of the ground truth file.
     :return: True if the ground truth file is successfully generated or already exists, False otherwise.
     """
     file_name = f'PHOENIX-2014-T.{mode}.corpus.csv'
     index_col_name = 'name'
     column_names = {'signer': 'speaker', 'annotation': 'orth'}
-    return _generate_ground_truth(ground_truth_file, annotations_path, file_name, index_col_name, column_names)
+    drop_id = None
+    if is_gen_sorted:
+        sorted_ground_truth_file = ground_truth_file.replace('.stm', '_sorted.stm')
+        return _generate_ground_truth(ground_truth_file, annotations_path, file_name, index_col_name, column_names,
+                                      drop_id) and sort_ground_truth(ground_truth_file, sorted_ground_truth_file)
+    return _generate_ground_truth(ground_truth_file, annotations_path, file_name, index_col_name, column_names, drop_id)
