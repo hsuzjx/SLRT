@@ -1,10 +1,10 @@
 import os
 import re
-import sys
 from datetime import datetime
 
 import lightning as L
 import torch
+from torch import nn
 
 from src.evaluation import evaluate
 from src.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
@@ -12,66 +12,101 @@ from src.utils import Decode
 
 
 class SLRModel(L.LightningModule):
+    """
+    手语识别模型，继承自PyTorch Lightning的LightningModule。
+    """
+
     def __init__(self, **kwargs):
+        """
+        初始化模型参数和组件。
+        """
         super().__init__()
-        self.save_hyperparameters()
+        self.save_hyperparameters()  # 保存超参数
 
-        if not os.path.exists(os.path.abspath(self.hparams.save_path)):
-            os.makedirs(os.path.abspath(self.hparams.save_path))
+        # 创建保存路径的父目录
+        save_directory = os.path.dirname(os.path.abspath(self.hparams.save_path))
+        try:
+            if not os.path.exists(save_directory):
+                os.makedirs(save_directory)
+        except Exception as e:
+            print(f"Error creating directory: {e}")
 
-        self.loss_function = torch.nn.CTCLoss(reduction='none', zero_infinity=False)
+        # 定义损失函数
+        self.loss_function = nn.CTCLoss(reduction='none', zero_infinity=False)
 
-        # self.conv2d = torch.hub.load('pytorch/vision:v0.10.0', 'resnet18', pretrained=True)
+        # 初始化卷积层
         self.conv2d = resnet18()
-        self.conv2d.fc = Identity()
+        self.conv2d.fc = Identity()  # 将全连接层替换为身份映射
 
-        self.conv1d = TemporalConv(input_size=512, hidden_size=self.hparams.hidden_size,
-                                   conv_type=self.hparams.conv_type, use_bn=self.hparams.use_bn,
-                                   num_classes=self.hparams.num_classes)
-        self.conv1d.fc = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)
+        # 初始化一维卷积层
+        self.conv1d = TemporalConv(
+            input_size=512,
+            hidden_size=self.hparams.hidden_size,
+            conv_type=self.hparams.conv_type,
+            use_bn=self.hparams.use_bn,
+            num_classes=self.hparams.num_classes
+        )
+        self.conv1d.fc = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)  # 定义全连接层
 
-        self.temporal_model = BiLSTMLayer(rnn_type='LSTM', input_size=self.hparams.hidden_size,
-                                          hidden_size=self.hparams.hidden_size, num_layers=2, bidirectional=True)
+        # 初始化双向 LSTM 层
+        self.temporal_model = BiLSTMLayer(
+            rnn_type='LSTM',
+            input_size=self.hparams.hidden_size,
+            hidden_size=self.hparams.hidden_size,
+            num_layers=2,
+            bidirectional=True
+        )
 
-        # self.classifier = torch.nn.Linear(self.hparams.hidden_size, self.hparams.num_classes)
+        # 初始化分类器
         self.classifier = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)
 
+        # 初始化解码器
         self.decoder = Decode(
             gloss_dict=self.hparams.gloss_dict,
-            num_classes=self.hparams.num_classes, search_mode='beam')
+            num_classes=self.hparams.num_classes,
+            search_mode='beam'
+        )
 
-        self.pred = None
+        # 注册后向传播钩子
+        self.register_full_backward_hook(self.handle_nan_gradients)
 
-        self.total_sentence = []
-        self.total_info = []
-        self.register_full_backward_hook(self.full_backward_hook)
-        # self.register_backward_hook(self.full_backward_hook)
+    def forward(self, inputs, lengths):
+        """
+        模型的前向传播函数。
+        :param inputs: 输入数据，形状为[batch_size, sequence_length, channels, height, width]。
+        :param lengths: 输入序列的长度。
+        :return: 输出 logits、特征长度和解码结果。
+        """
+        batch_size, sequence_length, channels, height, width = inputs.shape
+        reshaped_inputs = inputs.permute(0, 2, 1, 3, 4)
+        # 通过卷积网络
+        convolved = self.conv2d(reshaped_inputs).view(batch_size, sequence_length, -1).permute(0, 2, 1)
 
-    def forward(self, x, lgt):
-        batch, temp, channel, height, width = x.shape
-        x = self.conv2d(x.permute(0, 2, 1, 3, 4)).view(batch, temp, -1).permute(0, 2, 1)
+        # 通过一维卷积层
+        conv1d_output = self.conv1d(convolved, lengths)
+        visual_features = conv1d_output['visual_feat']
+        feature_lengths = conv1d_output['feat_len']
 
-        rst = self.conv1d(x, lgt)
-        x = rst['visual_feat']
-        lgt = rst['feat_len']
+        # 通过双向 LSTM 层
+        lstm_output = self.temporal_model(visual_features, feature_lengths)
+        predictions = lstm_output['predictions']
 
-        rst = self.temporal_model(x, lgt)
-        x = rst['predictions']
+        # 通过分类器
+        output_logits = self.classifier(predictions)
 
-        outputs = self.classifier(x)
+        # 解码
+        decoded = [] if self.training else self.decoder.decode(output_logits, feature_lengths, batch_first=False,
+                                                               probs=False)
+        return output_logits, feature_lengths, decoded
 
-        # 输入 outputs lgt，输出[[('IN-KOMMEND-ZEIT', 0), ('START', 1), ... ]]， batchfirst: 是否[B,T,N], probs: 是否经过softmax
-        pred = [] if self.training \
-            else self.decoder.decode(outputs, lgt, batch_first=False, probs=False)
-        return outputs, lgt, pred
-
-    #
-    def full_backward_hook(self, module, grad_inputs, grad_outputs):
-        # TODO: 不确定
-        for i, g in enumerate(grad_inputs):
-            if g is not None:  # 检查梯度是否为 None
-                grad_inputs[i][grad_inputs[i] != grad_inputs[i]] = 0  # 将 NaN 值设为 0
-        return grad_inputs
+    def handle_nan_gradients(self, module, grad_input, grad_output):
+        """
+        捕获并处理含有 NaN 值的梯度。
+        """
+        for index, gradient in enumerate(grad_input):
+            if gradient is not None and torch.isnan(gradient).any():
+                print(f"NaN values detected in gradient {index}.")
+        return grad_input
 
     def training_step(self, batch, batch_idx):
         """
@@ -146,7 +181,7 @@ class SLRModel(L.LightningModule):
         """
         在每个验证周期结束时，计算并记录模型的错误率（WER）。
         """
-        wer = 100.0
+        wer = '100.0'
         try:
             # 准备保存路径和输出文件
             if self.trainer.sanity_checking:
@@ -166,7 +201,7 @@ class SLRModel(L.LightningModule):
                            sclite_path=self.hparams.evaluation_sclite_path)
         except Exception as e:
             print(f"在验证阶段结束时发生异常: {e}, 请检查详细错误信息。")
-            wer = 100.0
+            wer = '100.0'
         finally:
             # 处理WER记录，确保即使是字符串形式也能正确记录
             if isinstance(wer, str):
