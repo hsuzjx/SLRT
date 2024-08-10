@@ -174,7 +174,10 @@ def main(cfg: DictConfig):
         precision=train_cfg.get('precision'),
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
-        strategy='ddp_find_unused_parameters_true'
+        strategy='ddp_find_unused_parameters_true',
+
+        limit_train_batches=10
+
     )
 
     try:

@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+from datetime import datetime
 
 import lightning as L
 import torch
@@ -43,7 +44,8 @@ class SLRModel(L.LightningModule):
 
         self.total_sentence = []
         self.total_info = []
-        self.register_backward_hook(self.backward_hook)
+        self.register_full_backward_hook(self.full_backward_hook)
+        # self.register_backward_hook(self.full_backward_hook)
 
     def forward(self, x, lgt):
         batch, temp, channel, height, width = x.shape
@@ -59,13 +61,17 @@ class SLRModel(L.LightningModule):
         outputs = self.classifier(x)
 
         # 输入 outputs lgt，输出[[('IN-KOMMEND-ZEIT', 0), ('START', 1), ... ]]， batchfirst: 是否[B,T,N], probs: 是否经过softmax
-        pred = None if self.training \
+        pred = [] if self.training \
             else self.decoder.decode(outputs, lgt, batch_first=False, probs=False)
         return outputs, lgt, pred
 
-    def backward_hook(self, module, grad_input, grad_output):
-        for g in grad_input:
-            g[g != g] = 0
+    #
+    def full_backward_hook(self, module, grad_inputs, grad_outputs):
+        # TODO: 不确定
+        for i, g in enumerate(grad_inputs):
+            if g is not None:  # 检查梯度是否为 None
+                grad_inputs[i][grad_inputs[i] != grad_inputs[i]] = 0  # 将 NaN 值设为 0
+        return grad_inputs
 
     def training_step(self, batch, batch_idx):
         """
@@ -89,10 +95,10 @@ class SLRModel(L.LightningModule):
         # 检查是否有 NaN 值
         if torch.isnan(loss).any():
             print('\nWARNING:Detected NaN in loss.')
-            # 可以添加更详细的调试信息
-            # ...
-            # 为了程序的健壮性，可以选择跳过该批次或终止训练
-            # return None 或者 raise Exception("NaN detected in loss.")
+        # 可以添加更详细的调试信息
+        # ...
+        # 为了程序的健壮性，可以选择跳过该批次或终止训练
+        # return None 或者 raise Exception("NaN detected in loss.")
 
         # 计算平均损失
         loss_mean = loss.mean()
@@ -143,7 +149,10 @@ class SLRModel(L.LightningModule):
         wer = 100.0
         try:
             # 准备保存路径和输出文件
-            file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
+            if self.trainer.sanity_checking:
+                file_save_path = os.path.join(self.hparams.save_path, "dev", "sanity_check")
+            else:
+                file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
             if not os.path.exists(file_save_path):  # 使用更安全的方式检查路径
                 os.makedirs(file_save_path, exist_ok=True)  # 添加 exist_ok 参数避免异常
             output_file = os.path.join(file_save_path, 'output-hypothesis-dev.ctm')
@@ -163,7 +172,10 @@ class SLRModel(L.LightningModule):
             if isinstance(wer, str):
                 wer = float(re.findall("\d+\.?\d*", wer)[0])
             self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            print("DEV_WER:", wer)
+            if self.trainer.sanity_checking:
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
+            else:
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
 
     def write2file(self, path, info, output):
         """

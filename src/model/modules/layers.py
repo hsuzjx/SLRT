@@ -36,16 +36,16 @@ class Get_Correlation(nn.Module):
         affinities2 = torch.einsum('bcthw,bctsd->bthwsd', x,
                                    torch.concat([x2[:, :, :1], x2[:, :, :-1]], 2))  # repeat the first frame
         features = torch.einsum('bctsd,bthwsd->bcthw', torch.concat([x2[:, :, 1:], x2[:, :, -1:]], 2),
-                                F.sigmoid(affinities) - 0.5) * self.weights2[0] + \
+                                torch.sigmoid(affinities) - 0.5) * self.weights2[0] + \
                    torch.einsum('bctsd,bthwsd->bcthw', torch.concat([x2[:, :, :1], x2[:, :, :-1]], 2),
-                                F.sigmoid(affinities2) - 0.5) * self.weights2[1]
+                                torch.sigmoid(affinities2) - 0.5) * self.weights2[1]
 
         x = self.down_conv(x)
         aggregated_x = self.spatial_aggregation1(x) * self.weights[0] + self.spatial_aggregation2(x) * self.weights[1] \
                        + self.spatial_aggregation3(x) * self.weights[2]
         aggregated_x = self.conv_back(aggregated_x)
 
-        return features * (F.sigmoid(aggregated_x) - 0.5)
+        return features * (torch.sigmoid(aggregated_x) - 0.5)
 
 
 def conv3x3(in_planes, out_planes, stride=1):

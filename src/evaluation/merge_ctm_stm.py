@@ -3,6 +3,8 @@
 import sys
 import os
 
+from datetime import datetime
+
 
 def read_file(file_name):
     """安全地读取文件，返回各行的列表"""
@@ -29,6 +31,7 @@ def write_file(file_name, data):
 
 
 def merge_ctm_stm(processed_ctm_file, sorted_stm_file, merged_ctm_file):
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Merging CTM and STM files...")
     ctm_lines = read_file(processed_ctm_file)
     stm_lines = read_file(sorted_stm_file)
 
@@ -40,3 +43,4 @@ def merge_ctm_stm(processed_ctm_file, sorted_stm_file, merged_ctm_file):
             ctm_lines.append([key, "1", "0.000", "0.030", "[EMPTY]"])
 
     write_file(merged_ctm_file, ctm_lines)
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Merged CTM and STM files saved to {merged_ctm_file}")

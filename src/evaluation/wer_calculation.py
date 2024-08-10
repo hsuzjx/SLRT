@@ -1,5 +1,6 @@
 import os
 import subprocess
+from datetime import datetime
 
 from .merge_ctm_stm import merge_ctm_stm
 
@@ -49,6 +50,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     ]
 
     try:
+        print()
         # Execute CTM processing and sorting commands
         subprocess.run(ctm_process_cmd, check=True)
     except subprocess.CalledProcessError as e:
@@ -68,7 +70,9 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
         "-o", sorted_ctm_file
     ]
     try:
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sorting CTM file...")
         subprocess.run(ctm_sort_cmd, check=True)
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sorted CTM file saved to {sorted_ctm_file}")
     except subprocess.CalledProcessError as e:
         print(f"Error executing command: {e.cmd}")
         raise
@@ -97,7 +101,10 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
 
     try:
         # Execute SCLITE with prepared arguments
+        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Running SCLITE...")
         subprocess.run(sclite_args, capture_output=True, text=True, check=True)
+        print(
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} SCLITE completed successfully. Outputs saved to {results_output_dir}")
     except subprocess.CalledProcessError as e:
         # Handle errors during SCLITE execution
         print(f"SCLITE execution failed: {e.stderr}")
