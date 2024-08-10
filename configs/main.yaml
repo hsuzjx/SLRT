@@ -21,7 +21,7 @@ logger:
 # 回调配置
 callback:
   save_dir: "../experiments"
-  monitor: "val_loss"
+  monitor: "DEV_WER"
   mode: "min"
   save_last: true
   save_top_k: 1
