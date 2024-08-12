@@ -1,13 +1,9 @@
-import pdb
-import copy
 import torch
-import collections
 import torch.nn as nn
-import torch.nn.functional as F
+
 
 class MultiScale_TemporalConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, dilations=[1,2,3,4],):
-
+    def __init__(self, in_channels, out_channels, kernel_size=3, dilations=[1, 2, 3, 4], ):
         super().__init__()
 
         # Multiple branches of temporal convolution
@@ -18,18 +14,18 @@ class MultiScale_TemporalConv(nn.Module):
             nn.Sequential(
                 nn.Conv1d(
                     in_channels,
-                    out_channels//self.num_branches,
+                    out_channels // self.num_branches,
                     kernel_size=kernel_size,
                     dilation=dilation,
-                    padding = dilation),
-                nn.BatchNorm1d(out_channels//self.num_branches)
+                    padding=dilation),
+                nn.BatchNorm1d(out_channels // self.num_branches)
             )
             for dilation in dilations
         ])
 
-        #self.fuse = nn.Conv1d(in_channels * self.num_branches, out_channels, kernel_size=1)
-        #self.fuse = nn.Conv2d(in_channels, out_channels, kernel_size=(4,1))
-        #self.bn = nn.BatchNorm1d(out_channels)
+        # self.fuse = nn.Conv1d(in_channels * self.num_branches, out_channels, kernel_size=1)
+        # self.fuse = nn.Conv2d(in_channels, out_channels, kernel_size=(4,1))
+        # self.bn = nn.BatchNorm1d(out_channels)
 
     def forward(self, x):
         # Input dim: (N,C,T,V)
@@ -39,9 +35,9 @@ class MultiScale_TemporalConv(nn.Module):
             branch_outs.append(out)
 
         out = torch.cat(branch_outs, dim=1)
-        #out = torch.stack(branch_outs, dim=2)
-        #out = self.fuse(out).squeeze(2)
-        #out = self.bn(out)
+        # out = torch.stack(branch_outs, dim=2)
+        # out = self.fuse(out).squeeze(2)
+        # out = self.bn(out)
         return out
 
 
@@ -81,7 +77,7 @@ class TemporalConv(nn.Module):
             elif ks[0] == 'K':
                 modules.append(
                     nn.Conv1d(input_sz, self.hidden_size, kernel_size=int(ks[1]), stride=1, padding=0)
-                    #MultiScale_TemporalConv(input_sz, self.hidden_size)
+                    # MultiScale_TemporalConv(input_sz, self.hidden_size)
                 )
                 modules.append(nn.BatchNorm1d(self.hidden_size))
                 modules.append(nn.ReLU(inplace=True))
@@ -91,13 +87,14 @@ class TemporalConv(nn.Module):
             self.fc = nn.Linear(self.hidden_size, self.num_classes)
 
     def update_lgt(self, lgt):
-        feat_len = copy.deepcopy(lgt)
+        # feat_len = copy.deepcopy(lgt)
+        feat_len = lgt.clone()
         for ks in self.kernel_size:
             if ks[0] == 'P':
                 feat_len = torch.div(feat_len, 2)
             else:
                 feat_len -= int(ks[1]) - 1
-                #pass
+                # pass
         return feat_len
 
     def forward(self, frame_feat, lgt):
