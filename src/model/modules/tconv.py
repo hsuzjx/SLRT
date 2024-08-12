@@ -3,7 +3,16 @@ import torch.nn as nn
 
 
 class MultiScale_TemporalConv(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size=3, dilations=[1, 2, 3, 4], ):
+    """
+    Multi-scale temporal convolution module, used to extract features from time series data at multiple scales.
+    
+    Attributes:
+        in_channels (int): Number of channels in the input.
+        out_channels (int): Number of channels in the output.
+        kernel_size (int): Size of the convolution kernel.
+        dilations (list): List of dilation rates for temporal convolutions.
+    """
+    def __init__(self, in_channels, out_channels, kernel_size=3, dilations=[1, 2, 3, 4]):
         super().__init__()
 
         # Multiple branches of temporal convolution
@@ -28,7 +37,15 @@ class MultiScale_TemporalConv(nn.Module):
         # self.bn = nn.BatchNorm1d(out_channels)
 
     def forward(self, x):
-        # Input dim: (N,C,T,V)
+        """
+        Forward propagation of the multi-scale temporal convolution module.
+        
+        Parameters:
+            x (Tensor): Input tensor, dimension (N, C, T, V).
+            
+        Returns:
+            Tensor: Output tensor after multi-scale temporal convolution, dimension (N, C_out, T, V).
+        """
         branch_outs = []
         for tempconv in self.branches:
             out = tempconv(x)
@@ -42,32 +59,37 @@ class MultiScale_TemporalConv(nn.Module):
 
 
 class TemporalConv(nn.Module):
+    """
+    Temporal convolution module, used for feature extraction and transformation in time series data.
+    
+    Attributes:
+        input_size (int): Number of channels in the input.
+        hidden_size (int): Number of channels in the hidden layer.
+        conv_type (int): Type of convolution structure.
+        use_bn (bool): Whether to use batch normalization.
+        num_classes (int): Number of categories for classification, -1 if no classification is performed.
+    """
     def __init__(self, input_size, hidden_size, conv_type=2, use_bn=False, num_classes=-1):
         super(TemporalConv, self).__init__()
         self.use_bn = use_bn
         self.input_size = input_size
         self.hidden_size = hidden_size
         self.num_classes = num_classes
+        assert 0 <= conv_type <= 8, "Invalid conv_type"
         self.conv_type = conv_type
 
-        if self.conv_type == 0:
-            self.kernel_size = ['K3']
-        elif self.conv_type == 1:
-            self.kernel_size = ['K5', "P2"]
-        elif self.conv_type == 2:
-            self.kernel_size = ['K5', "P2", 'K5', "P2"]
-        elif self.conv_type == 3:
-            self.kernel_size = ['K5', 'K5', "P2"]
-        elif self.conv_type == 4:
-            self.kernel_size = ['K5', 'K5']
-        elif self.conv_type == 5:
-            self.kernel_size = ['K5', "P2", 'K5']
-        elif self.conv_type == 6:
-            self.kernel_size = ["P2", 'K5', 'K5']
-        elif self.conv_type == 7:
-            self.kernel_size = ["P2", 'K5', "P2", 'K5']
-        elif self.conv_type == 8:
-            self.kernel_size = ["P2", "P2", 'K5', 'K5']
+        # Simplified kernel size definition
+        self.kernel_size = [
+            ['K3'],
+            ['K5', "P2"],
+            ['K5', "P2", 'K5', "P2"],
+            ['K5', 'K5', "P2"],
+            ['K5', 'K5'],
+            ['K5', "P2", 'K5'],
+            ["P2", 'K5', 'K5'],
+            ["P2", 'K5', "P2", 'K5'],
+            ["P2", "P2", 'K5', 'K5']
+        ][conv_type]
 
         modules = []
         for layer_idx, ks in enumerate(self.kernel_size):
@@ -87,21 +109,38 @@ class TemporalConv(nn.Module):
             self.fc = nn.Linear(self.hidden_size, self.num_classes)
 
     def update_lgt(self, lgt):
-        # feat_len = copy.deepcopy(lgt)
+        """
+        Update the length of the feature based on the convolution structure.
+        
+        Parameters:
+            lgt (Tensor): Original feature length.
+            
+        Returns:
+            Tensor: Updated feature length.
+        """
         feat_len = lgt.clone()
         for ks in self.kernel_size:
             if ks[0] == 'P':
-                feat_len = torch.div(feat_len, 2)
+                feat_len = torch.ceil(feat_len / 2).long()  # Ensure integer division
             else:
                 feat_len -= int(ks[1]) - 1
                 # pass
         return feat_len
 
     def forward(self, frame_feat, lgt):
+        """
+        Forward propagation of the temporal convolution module.
+        
+        Parameters:
+            frame_feat (Tensor): Input frame feature, dimension (N, C_in, T, V).
+            lgt (Tensor): Length of the input feature.
+            
+        Returns:
+            dict: Containing visual features, convolution outputs, and updated feature lengths.
+        """
         visual_feat = self.temporal_conv(frame_feat)
         lgt = self.update_lgt(lgt)
-        logits = None if self.num_classes == -1 \
-            else self.fc(visual_feat.transpose(1, 2)).transpose(1, 2)
+        logits = None if self.num_classes == -1 else self.fc(visual_feat.transpose(1, 2)).transpose(1, 2)
         return {
             "visual_feat": visual_feat.permute(2, 0, 1),
             "conv_logits": logits.permute(2, 0, 1),
