@@ -9,3 +9,9 @@ features_dir:
 # 注解目录，存储注解信息
 annotations_dir:
   - "${base_dir}/phoenix2014/phoenix-2014-multisigner/annotations/manual"
+
+
+# 定义全局文件中字典保存的目录
+gloss_dict_dir: "../data/global_files/gloss_dict"
+# 定义全局文件中ground_truth保存的目录
+ground_truth_dir: "../data/global_files/ground_truth"

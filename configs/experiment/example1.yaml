@@ -1,28 +1,27 @@
 # experiments/example1.yaml
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
-  - data: phoenix2014 # 数据集配置
-  - preprocess: phoenix2014 # 预处理配置
-  - train: default # 训练配置
-  - models: phoenix2014 # 模型配置
-  - callback: default # 回调函数配置
-  - logger: wandb # 日志记录器配置
+  - ../data: phoenix2014 # 数据集配置
+  - ../preprocess: default # 预处理配置
+  - ../train: use_gpu # 训练配置
+  - ../models: model1 # 模型配置
+  - ../callback: default # 回调函数配置
+  - ../logger: wandb # 日志记录器配置
+
 
 # Hydra 运行配置
 hydra:
   run:
     # 实验目录结构
     dir: ../experiments/${project}/${name}/${timestamp}/hydra
-    project: ${experiment.project} # 项目名称
-    name: ${experiment.name} # 实验名称
-    timestamp: ${experiment.timestamp} # 时间戳
 
-# 实验配置
-experiment:
-  project: example # 项目名称
-  name: example # 实验名称
-  timestamp: +%Y-%m-%d_%H-%M-%S # 时间戳格式
+# 项目相关配置
+project: Phoenix2014 # 项目名称
+name: experiment_1111 # 实验名称
+timestamp: ${now:%Y-%m-%d_%H-%M-%S} # 更新时间戳格式为带下划线分隔
 
-# 随机数种子
-seed: -1
-workers: true
+# 其他配置
+seed: -1 # 随机数种子
+
+
+save_dir: ../experiments

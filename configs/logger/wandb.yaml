@@ -1,6 +1,4 @@
 # configs/logger/wandb.yaml
 # 指定是否离线模式，如果为true，则不会将日志上传到wandb的云平台
 offline: false
-# 定义了日志文件保存的目录，这里是相对于配置文件所在的位置
-save_dir: "../experiments"
 
