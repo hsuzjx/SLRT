@@ -1,8 +1,11 @@
-_target_: src.data.Phoenix2014DataModule
-name: 'phoenix2014'
-data_dir: ${paths.data_dir}/phoenix2014
-feature_path: ${.data_dir}/phoenix-2014-multisigner/features/fullFrame-256x256px
-annotations: ${.data_dir}/phoenix-2014-multisigner/annotations/manual
-batch_size: 128
-num_workers: 8
-pin_memory: True
+# configs/data/phoenix2014.yaml
+name: "phoenix2014"
+base_dir: "../data/phoenix2014" # 基础目录
+
+# 特征目录，存储特征数据
+features_dir:
+  - "${base_dir}/phoenix-2014-multisigner/features/fullFrame-256x256px"
+
+# 注解目录，存储注解信息
+annotations_dir:
+  - "${base_dir}/phoenix2014/phoenix-2014-multisigner/annotations/manual"

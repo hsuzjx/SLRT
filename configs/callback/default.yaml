@@ -1,28 +1,18 @@
-defaults:
-  #  - model_checkpoint
-  #  - early_stopping
-  #  - model_summary
-  #  - rich_progress_bar
-  - _self_
+# configs/callback/default.yaml
+# 定义模型训练过程中的回调配置
 
-#model_checkpoint:
-#  dirpath: ${paths.output_dir}/checkpoints
-#  filename: "epoch_{epoch:03d}"
-#  monitor: "val/acc"
-#  mode: "max"
-#  save_last: True
-#  auto_insert_metric_name: False
-#
-#early_stopping:
-#  monitor: "val/acc"
-#  patience: 100
-#  mode: "max"
-#
-#model_summary:
-#  max_depth: -1
+# 模型和训练结果的保存目录
+save_dir: "../experiments"
 
-save_dir: "${paths.output_dir}"
-monitor: "val/acc"
-mode: "max"
-save_last: True
-save_top_k: 2
+# 监控指标，用于判断模型性能
+monitor: "DEV_WER"
+
+# 优化目标，min表示追求指标的最小值
+mode: "min"
+
+# 是否保存训练过程中的最后一个模型
+save_last: true
+
+# 保存最优模型的数量，1表示仅保存最优的模型
+save_top_k: 1
+

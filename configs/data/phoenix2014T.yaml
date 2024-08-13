@@ -1,0 +1,11 @@
+# configs/data/phoenix2014T.yaml
+name: "phoenix2014T"
+base_dir: "../data/phoenix2014T" # 基础目录
+
+# 特征目录，存储特征数据
+features_dir:
+  - "${base_dir}/PHOENIX-2014-T/features/fullFrame-210x260px"
+
+# 注解目录，存储注解信息
+annotations_dir:
+  - "${base_dir}/PHOENIX-2014-T/annotations/manual"

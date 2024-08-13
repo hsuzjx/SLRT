@@ -1,20 +1,6 @@
-# https://wandb.ai
+# configs/logger/wandb.yaml
+# 指定是否离线模式，如果为true，则不会将日志上传到wandb的云平台
+offline: false
+# 定义了日志文件保存的目录，这里是相对于配置文件所在的位置
+save_dir: "../experiments"
 
-# 该部分定义了WandbLogger的配置，包括项目名称、运行名称、保存目录等。
-wandb:
-  _target_: lightning.pytorch.loggers.wandb.WandbLogger
-  save_dir: "${paths.output_dir}"  # 输出目录，从环境变量或项目结构中引用
-  offline: False  # 是否离线模式，不上传数据到wandb云
-  # 以下为可选高级配置项，注释部分提供了简要说明和默认值
-  # id: null # 用于恢复实验的ID
-  # anonymous: null # 匿名登录功能，保护隐私
-  # log_model: False # 自动记录模型检查点到wandb
-  # prefix: "" # 所有指标键的前缀
-  # entity: "" # wandb团队名称
-  group: ""  # 实验分组
-  tags: [ ]  # 标签列表，用于过滤和组织
-  job_type: ""  # 作业类型描述
-
-# 注意：任何敏感信息（如API密钥）应通过安全方式引入配置，例如环境变量或密钥管理服务。
-# 示例环境变量引用（假设API密钥存储在环境变量WANDB_API_KEY中）:
-# api_key: "${WANDB_API_KEY}"
