@@ -288,7 +288,7 @@ class ResNet(nn.Module):
         return x
 
 
-def resnet18(**kwargs):
+def resnet18(pretrained=True, **kwargs):
     """构建一个基于ResNet-18的模型。
     
     参数:
@@ -299,16 +299,17 @@ def resnet18(**kwargs):
     """
     # 创建ResNet-18模型实例，使用BasicBlock作为基础块，层数配置为[2, 2, 2, 2]
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
-    # 从预训练模型URL中加载ResNet-18的参数
-    checkpoint = model_zoo.load_url(model_urls['resnet18'])
-    # 获取模型参数的层名称列表
-    layer_name = list(checkpoint.keys())
-    # 遍历层名称列表，对特定层的权重进行维度扩展
-    for ln in layer_name:
-        if 'conv' in ln or 'downsample.0.weight' in ln:
-            checkpoint[ln] = checkpoint[ln].unsqueeze(2)
-    # 加载模型参数，允许非严格模式以忽略不匹配的层
-    model.load_state_dict(checkpoint, strict=False)
+    if pretrained:
+        # 从预训练模型URL中加载ResNet-18的参数
+        checkpoint = model_zoo.load_url(model_urls['resnet18'])
+        # 获取模型参数的层名称列表
+        layer_name = list(checkpoint.keys())
+        # 遍历层名称列表，对特定层的权重进行维度扩展
+        for ln in layer_name:
+            if 'conv' in ln or 'downsample.0.weight' in ln:
+                checkpoint[ln] = checkpoint[ln].unsqueeze(2)
+        # 加载模型参数，允许非严格模式以忽略不匹配的层
+        model.load_state_dict(checkpoint, strict=False)
     # 返回构建好的模型
     return model
 
