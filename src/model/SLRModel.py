@@ -20,52 +20,20 @@ class SLRModel(L.LightningModule):
         """
         初始化模型参数和组件。
         """
-        super().__init__()
+        super().__init__()  # 调用父类的初始化方法
         self.save_hyperparameters()  # 保存超参数
 
-        # 创建保存路径的父目录
-        save_directory = os.path.dirname(os.path.abspath(self.hparams.save_path))
-        try:
-            if not os.path.exists(save_directory):
-                os.makedirs(save_directory)
-        except Exception as e:
-            print(f"Error creating directory: {e}")
+        # 确保保存目录存在
+        os.makedirs(os.path.abspath(self.hparams.save_path), exist_ok=True)
+
+        # 初始化网络结构
+        self._init_networks()
+
+        # 定义解码器
+        self._define_decoder()
 
         # 定义损失函数
-        self.loss_function = nn.CTCLoss(reduction='none', zero_infinity=False)
-
-        # 初始化卷积层
-        self.conv2d = resnet18()
-        self.conv2d.fc = Identity()  # 将全连接层替换为身份映射
-
-        # 初始化一维卷积层
-        self.conv1d = TemporalConv(
-            input_size=512,
-            hidden_size=self.hparams.hidden_size,
-            conv_type=self.hparams.conv_type,
-            use_bn=self.hparams.use_bn,
-            num_classes=self.hparams.num_classes
-        )
-        self.conv1d.fc = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)  # 定义全连接层
-
-        # 初始化双向 LSTM 层
-        self.temporal_model = BiLSTMLayer(
-            rnn_type='LSTM',
-            input_size=self.hparams.hidden_size,
-            hidden_size=self.hparams.hidden_size,
-            num_layers=2,
-            bidirectional=True
-        )
-
-        # 初始化分类器
-        self.classifier = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)
-
-        # 初始化解码器
-        self.decoder = Decode(
-            gloss_dict=self.hparams.gloss_dict,
-            num_classes=self.hparams.num_classes,
-            search_mode='beam'
-        )
+        self._define_loss_function()
 
         # 注册后向传播钩子
         self.register_full_backward_hook(self.handle_nan_gradients)
@@ -95,9 +63,90 @@ class SLRModel(L.LightningModule):
         output_logits = self.classifier(predictions)
 
         # 解码
-        decoded = [] if self.training else self.decoder.decode(output_logits, feature_lengths, batch_first=False,
-                                                               probs=False)
+        decoded = [] if self.training else self.decoder.decode(
+            output_logits,
+            feature_lengths,
+            batch_first=False,
+            probs=False
+        )
         return output_logits, feature_lengths, decoded
+
+    def _init_networks(self):
+        """
+        初始化模型的各个网络组件。
+        """
+        self.conv2d = self._init_conv2d()
+        self.conv1d = self._init_conv1d()
+        self.temporal_model = self._init_bilstm()
+        self.classifier = self._init_classifier()
+
+    def _init_conv2d(self):
+        """
+        初始化2D卷积层。
+        返回:
+            - conv2d: 使用ResNet-18作为2D卷积层，去除其全连接层。
+        """
+        conv2d = resnet18()
+        conv2d.fc = Identity()  # 将全连接层替换为身份映射
+        return conv2d
+
+    def _init_conv1d(self):
+        """
+        初始化1D卷积层。
+        返回:
+            - conv1d: 包含全连接层的1D卷积层。
+        """
+        conv1d = TemporalConv(
+            input_size=512,
+            hidden_size=self.hparams.hidden_size,
+            conv_type=self.hparams.conv_type,
+            use_bn=self.hparams.use_bn,
+            num_classes=self.hparams.num_classes
+        )
+        conv1d.fc = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)  # 定义全连接层
+        return conv1d
+
+    def _init_bilstm(self):
+        """
+        初始化双向LSTM层。
+        返回:
+            - 一个双向LSTM层，用于序列建模。
+        """
+        return BiLSTMLayer(
+            rnn_type='LSTM',
+            input_size=self.hparams.hidden_size,
+            hidden_size=self.hparams.hidden_size,
+            num_layers=2,
+            bidirectional=True
+        )
+
+    def _init_classifier(self):
+        """
+        初始化分类器。
+        返回:
+            - 一个线性分类器，用于将LSTM的输出映射到类别上。
+        """
+        return NormLinear(self.hparams.hidden_size, self.hparams.num_classes)
+
+    def _define_decoder(self):
+        """
+        初始化解码器。
+        返回:
+            - 一个解码器，用于将模型输出转换为可读的标签。
+        """
+        self.decoder = Decode(
+            gloss_dict=self.hparams.gloss_dict,
+            num_classes=self.hparams.num_classes,
+            search_mode='beam'
+        )
+
+    def _define_loss_function(self):
+        """
+        定义损失函数。
+
+        使用CTC损失函数，其设置为不合并损失输出且不允许无穷大值作为损失。
+        """
+        self.loss_fn = nn.CTCLoss(reduction='none', zero_infinity=False)
 
     def handle_nan_gradients(self, module, grad_input, grad_output):
         """
@@ -125,7 +174,7 @@ class SLRModel(L.LightningModule):
         y_hat, y_hat_lgt, _ = self(x, x_lgt)
 
         # 计算损失
-        loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int())
+        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int())
 
         # 检查是否有 NaN 值
         if torch.isnan(loss).any():
@@ -168,7 +217,7 @@ class SLRModel(L.LightningModule):
         y_hat, y_hat_lgt, pred = self(x, x_lgt)
 
         # 计算并记录验证损失
-        loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
         # 收集当前批次的信息和预测结果
@@ -265,7 +314,7 @@ class SLRModel(L.LightningModule):
         y_hat, y_hat_lgt, pred = self(x, x_lgt)
 
         # 计算损失
-        loss = self.loss_function(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
         # 记录损失
         self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 

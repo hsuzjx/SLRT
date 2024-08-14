@@ -1,9 +1,6 @@
 # configs/callback/default.yaml
 # 定义模型训练过程中的回调配置
 
-# 模型和训练结果的保存目录
-save_dir: "../experiments"
-
 # 监控指标，用于判断模型性能
 monitor: "DEV_WER"
 

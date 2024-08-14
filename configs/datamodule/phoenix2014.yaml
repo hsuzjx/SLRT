@@ -1,0 +1,4 @@
+# configs/datamodule/phoenix2014.yaml
+
+num_workers: 8
+batch_size: 2

@@ -1,14 +1,12 @@
 # configs/data/phoenix2014.yaml
 name: "phoenix2014"
-base_dir: "../data/phoenix2014" # 基础目录
+# base_dir: "../data/phoenix2014" # 基础目录
 
 # 特征目录，存储特征数据
-features_dir:
-  - "${base_dir}/phoenix-2014-multisigner/features/fullFrame-256x256px"
+features_dir: ../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px
 
 # 注解目录，存储注解信息
-annotations_dir:
-  - "${base_dir}/phoenix2014/phoenix-2014-multisigner/annotations/manual"
+annotations_dir: ../data/phoenix2014/phoenix-2014-multisigner/annotations/manual
 
 
 # 定义全局文件中字典保存的目录
