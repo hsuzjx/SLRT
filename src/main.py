@@ -77,11 +77,8 @@ def init_wandb_logger(save_dir, wandb_project, wandb_name, logger_cfg: DictConfi
         save_dir=save_dir
     )
 
-    # if not isinstance(wandb_logger.experiment, wandb.sdk.wandb_run.Run):
-    #     raise ValueError("wandb_logger.experiment is not a valid Wandb Run object.")
-
     # 如果有配置更新，更新WandbLogger的配置
-    if update_config:
+    if isinstance(wandb_logger.experiment, wandb.sdk.wandb_run.Run) and update_config:
         wandb_logger.experiment.config.update(update_config, allow_val_change=True)
 
     # 返回初始化的日志记录器
@@ -241,7 +238,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     return trainer
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
+@hydra.main(version_base=None, config_path='../configs', config_name='example1_debug.yaml')
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。

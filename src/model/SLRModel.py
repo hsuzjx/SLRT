@@ -1,3 +1,4 @@
+import itertools
 import os
 import re
 from datetime import datetime
@@ -35,6 +36,10 @@ class SLRModel(L.LightningModule):
         # 定义损失函数
         self._define_loss_function()
 
+        # 初始化模型验证和测试阶段的输出容器
+        self.validation_step_outputs = None
+        self.test_step_outputs = None
+
         # 注册后向传播钩子
         self.register_full_backward_hook(self.handle_nan_gradients)
 
@@ -62,14 +67,7 @@ class SLRModel(L.LightningModule):
         # 通过分类器
         output_logits = self.classifier(predictions)
 
-        # 解码
-        decoded = [] if self.training else self.decoder.decode(
-            output_logits,
-            feature_lengths,
-            batch_first=False,
-            probs=False
-        )
-        return output_logits, feature_lengths, decoded
+        return output_logits, feature_lengths
 
     def _init_networks(self):
         """
@@ -171,34 +169,26 @@ class SLRModel(L.LightningModule):
         # 解包批处理数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型正向传播
-        y_hat, y_hat_lgt, _ = self(x, x_lgt)
+        y_hat, y_hat_lgt = self(x, x_lgt)
 
         # 计算损失
-        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int())
+        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
 
         # 检查是否有 NaN 值
-        if torch.isnan(loss).any():
+        if torch.isnan(loss):
             print('\nWARNING:Detected NaN in loss.')
-        # 可以添加更详细的调试信息
-        # ...
-        # 为了程序的健壮性，可以选择跳过该批次或终止训练
-        # return None 或者 raise Exception("NaN detected in loss.")
-
-        # 计算平均损失
-        loss_mean = loss.mean()
 
         # 日志记录
-        self.log('train_loss', loss_mean, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0],
+        self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0],
                  sync_dist=True)
 
-        return loss_mean
+        return loss
 
     def on_validation_epoch_start(self):
         """
         在每个验证周期开始时重置句子和信息列表。
         """
-        self.total_sentence = []
-        self.total_info = []
+        self.validation_step_outputs = []
 
     def validation_step(self, batch, batch_idx):
         """
@@ -214,57 +204,97 @@ class SLRModel(L.LightningModule):
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        y_hat, y_hat_lgt, pred = self(x, x_lgt)
+        y_hat, y_hat_lgt = self(x, x_lgt)
 
-        # 计算并记录验证损失
+        # 解码
+        decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
+
+        # 计算验证损失
         loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+
+        # 检查是否有 NaN 值
+        if torch.isnan(loss):
+            print('\nWARNING:Detected NaN in loss.')
+
+        # 记录当前批次的损失，以便后续分析
         self.log('val_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
         # 收集当前批次的信息和预测结果
-        self.total_info += [it.name for it in info]
-        self.total_sentence += pred
+        assert len(info) == len(decoded)
+        self.validation_step_outputs.append({
+            'predictions': [(info[i].name, decoded[i]) for i in range(len(info))]
+        })
 
         return loss
 
     def on_validation_epoch_end(self):
         """
-        在每个验证周期结束时，计算并记录模型的错误率（WER）。
+        在每个验证周期结束时执行特定操作。
+        
+        主要功能包括：
+        - 从所有GPU上收集数据并合并。
+        - 根据训练器的状态准备保存路径。
+        - 将预测结果写入文件并计算WER（字错率）。
+        - 记录DEV_WER指标。
         """
-        wer = '100.0'
-        try:
-            # 准备保存路径和输出文件
-            if self.trainer.sanity_checking:
-                file_save_path = os.path.join(self.hparams.save_path, "dev", "sanity_check")
-            else:
-                file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
-            if not os.path.exists(file_save_path):  # 使用更安全的方式检查路径
-                os.makedirs(file_save_path, exist_ok=True)  # 添加 exist_ok 参数避免异常
-            output_file = os.path.join(file_save_path, 'output-hypothesis-dev.ctm')
+        # 收集所有GPU上的数据
+        all_validation_step_outputs = [None for _ in range(self.trainer.world_size)]
+        torch.distributed.all_gather_object(all_validation_step_outputs, self.validation_step_outputs)
+        # 确保所有进程完成数据收集
+        torch.distributed.barrier()
 
-            # 写入预测结果到文件并计算WER
-            self.write2file(output_file, self.total_info, self.total_sentence)
-            wer = evaluate(file_save_path=file_save_path,
-                           groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                                         f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
-                           ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
-                           sclite_path=self.hparams.evaluation_sclite_path)
-        except Exception as e:
-            print(f"在验证阶段结束时发生异常: {e}, 请检查详细错误信息。")
-            wer = '100.0'
-        finally:
-            # 处理WER记录，确保即使是字符串形式也能正确记录
-            if isinstance(wer, str):
-                wer = float(re.findall("\d+\.?\d*", wer)[0])
-            self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            if self.trainer.sanity_checking:
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
-            else:
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
+        # 确保所有收集的数据都不是None
+        for item in all_validation_step_outputs:
+            assert item is not None
 
-    def write2file(self, path, info, output):
+        # 检查是否为主进程
+        if self.trainer.is_global_zero:
+
+            # 将收集到的数据合并成一个列表
+            all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))  # 合并列表
+            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
+
+            try:
+                # 准备保存路径和输出文件
+                if self.trainer.sanity_checking:
+                    file_save_path = os.path.join(self.hparams.save_path, "dev", "sanity_check")
+                else:
+                    file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
+                if not os.path.exists(file_save_path):  # 使用更安全的方式检查路径
+                    os.makedirs(file_save_path, exist_ok=True)  # 添加 exist_ok 参数避免异常
+                output_file = os.path.join(file_save_path, 'output-hypothesis-dev.ctm')
+
+                # 写入预测结果到文件并计算WER
+                self.write2file(output_file, total_predictions)
+
+                # 调用evaluate函数计算WER
+                wer = evaluate(
+                    file_save_path=file_save_path,
+                    groundtruth_file=os.path.join(self.hparams.ground_truth_path,
+                                                  f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
+                    ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
+                    sclite_path=self.hparams.evaluation_sclite_path
+                )
+            except Exception as e:
+                # 异常处理，记录错误信息并设置WER为默认值
+                print(f"在验证阶段结束时发生异常: {e}, 请检查详细错误信息。")
+                wer = '100.0'
+            finally:
+                # 处理WER记录，确保即使是字符串形式也能正确记录
+                if isinstance(wer, str):
+                    wer = float(re.findall("\d+\.?\d*", wer)[0])
+                # 记录DEV_WER指标
+                self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+                # 根据是否为sanity check打印不同信息
+                if self.trainer.sanity_checking:
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
+                else:
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
+
+    def write2file(self, path, preds_info):
         """
         将预测结果写入指定文件。
-    
+
         参数:
         - path: 文件路径
         - info: 附加信息列表
@@ -272,12 +302,14 @@ class SLRModel(L.LightningModule):
         """
         contents = []
         # 构建文件内容
-        for sample_idx, sample in enumerate(output):
-            for word_idx, word in enumerate(sample):
-                line = "{} 1 {:.2f} {:.2f} {}\n".format(info[sample_idx],
-                                                        word_idx * 1.0 / 100,
-                                                        (word_idx + 1) * 1.0 / 100,
-                                                        word[0])
+        for name, preds in preds_info:
+            for word, word_idx in preds:
+                line = "{} 1 {:.2f} {:.2f} {}\n".format(
+                    name,
+                    word_idx * 1.0 / 100,
+                    (word_idx + 1) * 1.0 / 100,
+                    word
+                )
                 contents.append(line)
         content = "".join(contents)
 
@@ -293,34 +325,42 @@ class SLRModel(L.LightningModule):
         """
         在测试阶段开始时重置统计信息。
         """
-        # 初始化用于存储所有句子和相关信息的列表
-        self.total_sentence = []
-        self.total_info = []
+        self.test_step_outputs = []
 
     def test_step(self, batch, batch_idx):
         """
         执行单个测试步骤，即处理一个批次的数据。
-    
+
         参数:
         - batch: 一个批次的数据，包含输入和目标等。
         - batch_idx: 批次的索引。
-    
+
         返回:
         - loss: 该批次的损失值。
         """
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        y_hat, y_hat_lgt, pred = self(x, x_lgt)
+        y_hat, y_hat_lgt = self(x, x_lgt)
+
+        # 解码
+        decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
 
         # 计算损失
         loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+
+        # 检查是否有 NaN 值
+        if torch.isnan(loss):
+            print('\nWARNING:Detected NaN in loss.')
+
         # 记录损失
         self.log('test_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0], sync_dist=True)
 
-        # 更新总的信息和句子
-        self.total_info += [it.name for it in info]
-        self.total_sentence += pred
+        # 收集当前批次的信息和预测结果
+        assert len(info) == len(decoded)
+        self.test_step_outputs.append({
+            'predictions': [(info[i].name, decoded[i]) for i in range(len(info))]
+        })
 
         return loss
 
@@ -328,34 +368,54 @@ class SLRModel(L.LightningModule):
         """
         在测试阶段结束时进行汇总和计算WER（词错误率）。
         """
-        # 默认词错误率为100.0，以字符串形式方便后续转换
-        wer = '100.0'
-        try:
-            # 构造保存路径并创建目录
-            file_save_path = os.path.join(self.hparams.save_path, "test", f"epoch_{self.current_epoch}")
-            if not os.path.exists(file_save_path):
-                os.makedirs(file_save_path, exist_ok=True)
-            # 定义输出文件路径
-            output_file = os.path.join(file_save_path, 'output-hypothesis-test.ctm')
-            # 将预测结果写入文件
-            self.write2file(output_file, self.total_info, self.total_sentence)
+        # 收集所有GPU上的数据
+        all_test_step_outputs = [None for _ in range(self.trainer.world_size)]
+        torch.distributed.all_gather_object(all_test_step_outputs, self.test_step_outputs)
+        # 确保所有进程完成数据收集
+        torch.distributed.barrier()
 
-            # 调用evaluate函数计算WER
-            wer = evaluate(file_save_path=file_save_path,
-                           groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                                         f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
-                           ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
-                           sclite_path=self.hparams.evaluation_sclite_path)
-        except Exception as e:  # 捕获更具体的异常，提供更多信息
-            print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")
-            wer = '100.0'
-        finally:
-            # 提取数字部分
-            if isinstance(wer, str):
-                wer = float(re.findall("\d+\.?\d*", wer)[0])
-            # 记录和输出TEST_WER
-            self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
-            print("TEST_WER:", wer)
+        # 确保所有收集的数据都不是None
+        for item in all_test_step_outputs:
+            assert item is not None
+
+        # 检查是否为主进程
+        if self.trainer.is_global_zero:
+
+            # 将收集到的数据合并成一个列表
+            all_items = list(itertools.chain.from_iterable(all_test_step_outputs))  # 合并列表
+            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
+
+            try:
+                # 构造保存路径并创建目录
+                file_save_path = os.path.join(self.hparams.save_path, "test",
+                                              f"test_after_epoch_{self.current_epoch - 1}")
+                if not os.path.exists(file_save_path):
+                    os.makedirs(file_save_path, exist_ok=True)
+                # 定义输出文件路径
+                output_file = os.path.join(file_save_path, 'output-hypothesis-test.ctm')
+
+                # 将预测结果写入文件
+                self.write2file(output_file, total_predictions)
+
+                # 调用evaluate函数计算WER
+                wer = evaluate(
+                    file_save_path=file_save_path,
+                    groundtruth_file=os.path.join(self.hparams.ground_truth_path,
+                                                  f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
+                    ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
+                    sclite_path=self.hparams.evaluation_sclite_path
+                )
+            except Exception as e:  # 捕获更具体的异常，提供更多信息
+                print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")
+                wer = '100.0'
+            finally:
+                # 提取数字部分
+                if isinstance(wer, str):
+                    wer = float(re.findall("\d+\.?\d*", wer)[0])
+                # 记录和输出TEST_WER
+                self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=True, sync_dist=True)
+                print(
+                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
 
     def configure_optimizers(self):
         # 定义模型优化器

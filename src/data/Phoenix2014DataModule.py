@@ -88,7 +88,8 @@ class Phoenix2014DataModule(L.LightningDataModule):
             self.train_dataset = self.load_dataset("train", self.train_transform,
                                                    drop_ids=['13April_2011_Wednesday_tagesschau_default-14'])
             self.dev_dataset = self.load_dataset("dev", self.dev_transform)
-
+        if stage == 'validate':
+            self.dev_dataset = self.load_dataset("dev", self.dev_transform)
         if stage == 'test':
             self.test_dataset = self.load_dataset("test", self.test_transform)
 
