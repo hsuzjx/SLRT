@@ -254,6 +254,10 @@ class SLRModel(L.LightningModule):
             all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))  # 合并列表
             total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
 
+            # 检查是否有重复的name
+            total_names = [name for name, _ in total_predictions]
+            assert len(total_names) == len(set(total_names))
+
             try:
                 # 准备保存路径和输出文件
                 if self.trainer.sanity_checking:
@@ -384,6 +388,10 @@ class SLRModel(L.LightningModule):
             # 将收集到的数据合并成一个列表
             all_items = list(itertools.chain.from_iterable(all_test_step_outputs))  # 合并列表
             total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
+
+            # 检查是否有重复的name
+            total_names = [name for name, _ in total_predictions]
+            assert len(total_names) == len(set(total_names))
 
             try:
                 # 构造保存路径并创建目录
