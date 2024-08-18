@@ -255,6 +255,25 @@ def main(cfg: DictConfig):
     # 获取项目名称、名称和时间戳
     project = cfg.get('project', 'default_project')
     name = cfg.get('name', 'default_name')
+    # # 初始化分布式进程组
+    # if 'WORLD_SIZE' in os.environ:
+    #     rank = int(os.environ["RANK"])
+    #     world_size = int(os.environ['WORLD_SIZE'])
+    #     local_rank = int(os.environ['LOCAL_RANK'])
+    # else:
+    #     rank, world_size, local_rank = 0, 1, 0
+    #
+    # if rank==0:
+    #     # timestamp = cfg.get('timestamp', '00000000')
+    #     timestamp = datetime.now().timestamp()
+    #     timestamp_tensor = torch.tensor(timestamp)
+    # else:
+    #     timestamp_tensor = torch.tensor(0.0)
+    # torch.distributed.broadcast(timestamp_tensor, src=0)
+    # torch.distributed.barrier()
+    #
+    # # 更新时间戳
+    # timestamp = timestamp_tensor.item()
     timestamp = cfg.get('timestamp', '00000000')
 
     # 创建保存目录
