@@ -71,8 +71,5 @@ def modify_phoenix2014_output(input_file, output_file):
     if last_id and cnt.get(last_id, 0) < 1:
         processed_data.append(f"{last_row} [EMPTY]")
 
-    # Sort the final output by specific criteria
-    sorted_data = sorted(processed_data, key=lambda x: (x.split()[0], x.split()[2]))
-
     # Write to output file
-    write_file(output_file, sorted_data)
+    write_file(output_file, processed_data)

@@ -27,7 +27,7 @@ def process_phoenix2014_output(file, ground_truth_file, processed_file, remove_t
     merged_ctm_file = os.path.join(file_save_dir, f"tmp2.merged.{base_name}")
 
     # Output the start time of the preprocessing
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Preprocessing CTM file...")
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing CTM file...")
 
     # Modify the original CTM file to correct the format
     modify_phoenix2014_output(file, modified_ctm_file)
@@ -44,4 +44,4 @@ def process_phoenix2014_output(file, ground_truth_file, processed_file, remove_t
         os.remove(merged_ctm_file)
 
     # Output completion time and processed file path
-    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Preprocessing CTM file done. Output file: {processed_file}")
+    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Processing CTM file done. Output to {processed_file}")
