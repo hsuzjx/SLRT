@@ -247,7 +247,7 @@ class SLRModel(L.LightningModule):
         for item in all_validation_step_outputs:
             assert item is not None
 
-        # 检查是否为主进程
+        # TODO: 检查是否为主进程
         # if self.trainer.is_global_zero:
 
         # 将收集到的数据合并成一个列表
@@ -382,7 +382,7 @@ class SLRModel(L.LightningModule):
         for item in all_test_step_outputs:
             assert item is not None
 
-        # 检查是否为主进程
+        # TODO: 检查是否为主进程
         # if self.trainer.is_global_zero:
 
         # 将收集到的数据合并成一个列表
