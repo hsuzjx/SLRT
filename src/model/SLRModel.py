@@ -273,11 +273,14 @@ class SLRModel(L.LightningModule):
 
             # 调用evaluate函数计算WER
             wer = evaluate(
+                dataset_name=self.hparams.dataset_name,
                 file_save_path=file_save_path,
-                groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                              f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
-                ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
-                sclite_path=self.hparams.evaluation_sclite_path
+                ground_truth_file=os.path.join(
+                    self.hparams.ground_truth_path,
+                    f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
+                ctm_file=output_file,
+                sclite_path=self.hparams.evaluation_sclite_path,
+                remove_tmp_file=self.hparams.remove_eval_tmp_file
             )
         except Exception as e:
             # 异常处理，记录错误信息并设置WER为默认值
@@ -407,11 +410,14 @@ class SLRModel(L.LightningModule):
 
             # 调用evaluate函数计算WER
             wer = evaluate(
+                dataset_name=self.hparams.dataset_name,
                 file_save_path=file_save_path,
-                groundtruth_file=os.path.join(self.hparams.ground_truth_path,
-                                              f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
-                ctm_file=output_file, evaluate_dir=self.hparams.evaluation_sh_path,
-                sclite_path=self.hparams.evaluation_sclite_path
+                ground_truth_file=os.path.join(
+                    self.hparams.ground_truth_path,
+                    f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
+                ctm_file=output_file,
+                sclite_path=self.hparams.evaluation_sclite_path,
+                remove_tmp_file=self.hparams.remove_eval_tmp_file
             )
         except Exception as e:  # 捕获更具体的异常，提供更多信息
             print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")

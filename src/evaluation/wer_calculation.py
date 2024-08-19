@@ -2,20 +2,21 @@ import os
 import subprocess
 from datetime import datetime
 
-from .merge_ctm_stm import merge_ctm_stm
+from .process_phoenix2014_output import process_phoenix2014_output
 
 
-def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate_dir=None,
-             sclite_path="../../.bin/sclite",
+def evaluate(dataset_name, file_save_path="./", ground_truth_file=None, ctm_file=None, sclite_path="../../.bin/sclite",
+             remove_tmp_file=True,
              python_evaluate=False, triplet=False):
     """
     Evaluates the speech recognition results using SCLITE or Python-based evaluation.
     
+    :param dataset_name: Name of the dataset for which the evaluation is performed.
     :param file_save_path: Prefix for file paths.
-    :param groundtruth_file: Ground truth file path.
+    :param ground_truth_file: Ground truth file path.
     :param ctm_file: Output file name.
-    :param evaluate_dir: Directory containing evaluation scripts.
     :param sclite_path: Path to the SCLITE executable.
+    :param remove_tmp_file: Whether to remove temporary files after processing.
     :param python_evaluate: Whether to use Python for evaluation.
     :param triplet: Whether to perform triplet evaluation.
     :return: WER value as a float.
@@ -23,59 +24,30 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     # Resolve absolute paths for better file path handling
     sclite_path = os.path.abspath(sclite_path)
 
-    file_save_path = os.path.abspath(file_save_path)
-    groundtruth_file = os.path.abspath(groundtruth_file)
+    ground_truth_file = os.path.abspath(ground_truth_file)
     ctm_file = os.path.abspath(ctm_file)
 
-    # Ensure necessary directories exist
-    if not os.path.isdir(file_save_path):
-        os.makedirs(file_save_path)
+    file_save_path = os.path.abspath(file_save_path)
+    os.makedirs(file_save_path, exist_ok=True)
 
     # Prepare directory for SCLITE results
     results_output_dir = os.path.join(file_save_path, "sclite_results")
-    if not os.path.isdir(results_output_dir):
-        os.makedirs(results_output_dir)
+    os.makedirs(results_output_dir, exist_ok=True)
 
-    # Prepare names for processed and merged CTM files
-    ctm_file_base_name = os.path.basename(ctm_file)
-    processed_ctm_file = os.path.join(file_save_path, f"processed.{ctm_file_base_name}")
-    merged_ctm_file = os.path.join(file_save_path, f"merged.{ctm_file_base_name}")
-    sorted_ctm_file = os.path.join(file_save_path, f"sorted.{ctm_file_base_name}")
+    processed_ctm_file = os.path.join(file_save_path, f"processed.{os.path.basename(ctm_file)}")
 
-    # Process CTM file
-    ctm_process_cmd = [
-        "bash", os.path.join(evaluate_dir, "ctm_process.sh"),
-        ctm_file,
-        processed_ctm_file
-    ]
-
-    try:
-        print()
-        # Execute CTM processing and sorting commands
-        subprocess.run(ctm_process_cmd, check=True)
-    except subprocess.CalledProcessError as e:
-        # Handle errors during command execution
-        print(f"Error executing command: {e.cmd}")
-        raise
-
-    # Merge CTM and STM files
-    merge_ctm_stm(processed_ctm_file, groundtruth_file, merged_ctm_file)
-
-    # Sort CTM file
-    ctm_sort_cmd = [
-        "sort",
-        "-k1,1",
-        "-k3,3",
-        merged_ctm_file,
-        "-o", sorted_ctm_file
-    ]
-    try:
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sorting CTM file...")
-        subprocess.run(ctm_sort_cmd, check=True)
-        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sorted CTM file saved to {sorted_ctm_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error executing command: {e.cmd}")
-        raise
+    # Preprocess the CTM file for evaluation
+    if dataset_name == "phoenix2014":
+        process_phoenix2014_output(ctm_file, ground_truth_file, processed_ctm_file, remove_tmp_file=remove_tmp_file)
+    elif dataset_name == "phoenix2014T":
+        # TODO: Implement preprocessing for Phoenix 2014T
+        pass
+    elif dataset_name == "csl-daily":
+        # TODO: Implement preprocessing for CSL-Daily
+        pass
+    else:
+        # TODO: ...
+        raise ValueError("Invalid dataset name. Supported datasets are .....")
 
     # TODO: Implement Python-based evaluation
     # if python_evaluate:
@@ -91,8 +63,8 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
     # Run SCLITE evaluation
     sclite_args = [
         sclite_path,
-        "-h", sorted_ctm_file, "ctm",  # Hypothesis file
-        "-r", groundtruth_file, "stm",  # Reference file
+        "-h", processed_ctm_file, "ctm",  # Hypothesis file
+        "-r", ground_truth_file, "stm",  # Reference file
         "-f", "0",  # Format of input files
         "-o", "sgml", "sum", "rsum", "pra", "dtl",  # Output format
     ]
@@ -111,7 +83,7 @@ def evaluate(file_save_path="./", groundtruth_file=None, ctm_file=None, evaluate
         raise
 
     # Extract WER from SCLITE output
-    with open(os.path.join(results_output_dir, f"sorted.{ctm_file_base_name}.dtl"), "r") as f:
+    with open(os.path.join(results_output_dir, f"{os.path.basename(processed_ctm_file)}.dtl"), "r") as f:
         for line in f:
             line = line.strip()
             if "Percent Total Error" in line:

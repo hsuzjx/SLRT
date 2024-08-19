@@ -207,6 +207,7 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
         evaluation_sh_path=os.path.abspath(model_cfg.get('evaluation_sh_path')),  # 评估脚本路径
         ground_truth_path=ground_truth_path,  # 真实标签路径
         evaluation_sclite_path=os.path.abspath(model_cfg.get('evaluation_sclite_path')),  # sclite评估工具路径
+        remove_eval_tmp_file=model_cfg.get('remove_eval_tmp_file')
     )
     return model
 
@@ -239,7 +240,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     return trainer
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
+@hydra.main(version_base=None, config_path='../configs', config_name='example1_debug.yaml')
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。
