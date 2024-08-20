@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from src.evaluation import evaluate
-from src.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer
+from src.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 from src.utils import Decode
 
 
@@ -59,6 +59,7 @@ class SLRModel(L.LightningModule):
         conv1d_output = self.conv1d(convolved, lengths)
         visual_features = conv1d_output['visual_feat']
         feature_lengths = conv1d_output['feat_len']
+        conv1d_logits = conv1d_output['conv_logits']
 
         # 通过双向 LSTM 层
         lstm_output = self.temporal_model(visual_features, feature_lengths)
@@ -67,7 +68,7 @@ class SLRModel(L.LightningModule):
         # 通过分类器
         output_logits = self.classifier(predictions)
 
-        return output_logits, feature_lengths
+        return conv1d_logits, output_logits, feature_lengths
 
     def _init_networks(self):
         """
@@ -144,7 +145,9 @@ class SLRModel(L.LightningModule):
 
         使用CTC损失函数，其设置为不合并损失输出且不允许无穷大值作为损失。
         """
-        self.loss_fn = nn.CTCLoss(reduction='none', zero_infinity=False)
+        self.loss_fn = dict()
+        self.loss_fn["CTCLoss"] = nn.CTCLoss(reduction='none', zero_infinity=False)
+        self.loss_fn['Distillation'] = SeqKD(T=8)
 
     def handle_nan_gradients(self, module, grad_input, grad_output):
         """
@@ -169,10 +172,15 @@ class SLRModel(L.LightningModule):
         # 解包批处理数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型正向传播
-        y_hat, y_hat_lgt = self(x, x_lgt)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         # 计算损失
-        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        # TODO: move loss weights to hyperparameters
+        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
+                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):
@@ -193,24 +201,29 @@ class SLRModel(L.LightningModule):
     def validation_step(self, batch, batch_idx):
         """
         执行单个验证步骤，其中包含计算模型的损失和收集预测结果。
-    
+
         参数:
         - batch: 当前批次的数据，包含输入和目标
         - batch_idx: 当前批次的索引
-    
+
         返回:
         - loss: 当前批次的损失值
         """
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        y_hat, y_hat_lgt = self(x, x_lgt)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         # 解码
         decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
 
         # 计算验证损失
-        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        # TODO: move loss weights to hyperparameters
+        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
+                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):
@@ -230,7 +243,7 @@ class SLRModel(L.LightningModule):
     def on_validation_epoch_end(self):
         """
         在每个验证周期结束时执行特定操作。
-        
+
         主要功能包括：
         - 从所有GPU上收集数据并合并。
         - 根据训练器的状态准备保存路径。
@@ -348,13 +361,18 @@ class SLRModel(L.LightningModule):
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        y_hat, y_hat_lgt = self(x, x_lgt)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         # 解码
         decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
 
         # 计算损失
-        loss = self.loss_fn(y_hat.log_softmax(-1), y.cpu().int(), y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean()
+        # TODO: move loss weights to hyperparameters
+        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
+                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):

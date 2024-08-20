@@ -7,7 +7,7 @@ max_epochs: 40
 accelerator: "gpu"
 
 # 指定使用的GPU设备编号，此处仅使用第一个GPU
-devices: [ 1 ]
+devices: [ 0 ]
 
 # 精度模式，"16-mixed" 表示使用混合精度训练，有助于加速训练和减少内存使用
 precision: "16-mixed"
