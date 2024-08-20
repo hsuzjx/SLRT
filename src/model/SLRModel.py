@@ -179,7 +179,7 @@ class SLRModel(L.LightningModule):
         loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
@@ -187,6 +187,8 @@ class SLRModel(L.LightningModule):
             print('\nWARNING:Detected NaN in loss.')
 
         # 日志记录
+        self.log('lr', self.trainer.optimizers[0].param_groups[0]['lr'], on_step=True, on_epoch=True, prog_bar=True,
+                 batch_size=x.shape[0], sync_dist=True)
         self.log('train_loss', loss, on_step=True, on_epoch=True, prog_bar=True, batch_size=x.shape[0],
                  sync_dist=True)
 
@@ -222,7 +224,7 @@ class SLRModel(L.LightningModule):
         loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
@@ -371,7 +373,7 @@ class SLRModel(L.LightningModule):
         loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                              y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
+                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
                25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
