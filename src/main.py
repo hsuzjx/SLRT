@@ -190,6 +190,7 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
         conv_type=model_cfg.get('conv_type', 2),  # 卷积类型
         use_bn=model_cfg.get('use_bn', False),  # 不使用批量归一化
         hidden_size=model_cfg.get('hidden_size', 1024),  # 隐藏层大小
+        share_classifier=model_cfg.get('share_classifier', False),
 
         # for decoder
         gloss_dict=gloss_dict,  # 标签字典

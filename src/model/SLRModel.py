@@ -77,7 +77,10 @@ class SLRModel(L.LightningModule):
         self.conv2d = self._init_conv2d()
         self.conv1d = self._init_conv1d()
         self.temporal_model = self._init_bilstm()
-        self.classifier = self._init_classifier()
+        if self.hparams.share_classifier:
+            self.classifier = self.conv1d.fc
+        else:
+            self.classifier = self._init_classifier()
 
     def _init_conv2d(self):
         """
