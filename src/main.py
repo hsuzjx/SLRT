@@ -6,6 +6,11 @@ import hydra
 import lightning as L
 import numpy as np
 import torch
+import torch_npu.utils.tensor_methods
+
+from lightning_npu.accelerators.npu import NPUAccelerator
+from lightning_npu.strategies.npu import SingleNPUStrategy
+
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
@@ -226,12 +231,12 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     # 根据配置文件创建 Trainer 实例
     trainer = L.Trainer(
         max_epochs=trainer_cfg.get('max_epochs', 1),  # 最大训练周期数
-        accelerator=trainer_cfg.get('accelerator', 'cpu'),  # 训练所使用的加速器类型
+        accelerator=NPUAccelerator(),  # 训练所使用的加速器类型
         devices=trainer_cfg.get('devices', 1),  # 使用的设备数量
         precision=trainer_cfg.get('precision', 32),  # 训练的精度，如32位或16位
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
-        strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
+        strategy=SingleNPUStrategy(),
         # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
@@ -241,7 +246,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     return trainer
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
+@hydra.main(version_base=None, config_path='../configs', config_name='example1_npu.yaml')
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。
@@ -249,7 +254,7 @@ def main(cfg: DictConfig):
     :param cfg: 包含所有配置信息的对象
     """
     # 配置设置
-    torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
+    # torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
 
     # 随机种子设置
     seed = cfg.get('seed', -1)
@@ -329,8 +334,9 @@ def main(cfg: DictConfig):
 
     # 异常处理
     try:
-        trainer.fit(model, datamodule=data_module)
-        trainer.test(model, datamodule=data_module)
+        # trainer.fit(model, datamodule=data_module)
+        # trainer.test(model, datamodule=data_module)
+        trainer.train(model, datamodule=data_module)
     except Exception as e:
         print(f"训练过程中出错: {e}")
         wandb.finish(exit_code=1)

@@ -1,6 +1,6 @@
 from itertools import groupby
 
-import ctcdecode
+# import ctcdecode
 import torch
 
 
@@ -28,33 +28,34 @@ class Decode(object):
         # 生成对应数量的字符，用于CTC解码器
         vocab = [chr(x) for x in range(20000, 20000 + num_classes)]
 
-        # 初始化CTC束搜索解码器
-        self.ctc_decoder = ctcdecode.CTCBeamDecoder(vocab, beam_width=beam_width,
-                                                    blank_id=blank_id,
-                                                    num_processes=num_processes)
+        # # 初始化CTC束搜索解码器
+        # self.ctc_decoder = ctcdecode.CTCBeamDecoder(vocab, beam_width=beam_width,
+        #                                             blank_id=blank_id,
+        #                                             num_processes=num_processes)
 
     def decode(self, nn_output, vid_lgt, batch_first=True, probs=False):
-        """
-        解码神经网络的输出。
-        
-        参数:
-        - nn_output: 神经网络的输出，形状为(batch_size, seq_len, num_classes)或(seq_len, batch_size, num_classes)。
-        - vid_lgt: 每个样本的序列长度。
-        - batch_first: 如果为True，输入的维度顺序为(batch_size, seq_len, num_classes)，否则为(seq_len, batch_size, num_classes)。
-        - probs: 如果为True，将输出概率，否则输出对数概率。
-        
-        返回:
-        - 根据搜索模式，返回相应的解码结果。
-        """
-        # 如果不是批量优先，调整输入维度顺序
-        if not batch_first:
-            nn_output = nn_output.permute(1, 0, 2)
-
-        # 根据搜索模式选择解码方法
-        if self.search_mode == "max":
-            return self.MaxDecode(nn_output, vid_lgt)
-        else:
-            return self.BeamSearch(nn_output, vid_lgt, probs)
+        # """
+        # 解码神经网络的输出。
+        #
+        # 参数:
+        # - nn_output: 神经网络的输出，形状为(batch_size, seq_len, num_classes)或(seq_len, batch_size, num_classes)。
+        # - vid_lgt: 每个样本的序列长度。
+        # - batch_first: 如果为True，输入的维度顺序为(batch_size, seq_len, num_classes)，否则为(seq_len, batch_size, num_classes)。
+        # - probs: 如果为True，将输出概率，否则输出对数概率。
+        #
+        # 返回:
+        # - 根据搜索模式，返回相应的解码结果。
+        # """
+        # # 如果不是批量优先，调整输入维度顺序
+        # if not batch_first:
+        #     nn_output = nn_output.permute(1, 0, 2)
+        #
+        # # 根据搜索模式选择解码方法
+        # if self.search_mode == "max":
+        #     return self.MaxDecode(nn_output, vid_lgt)
+        # else:
+        #     return self.BeamSearch(nn_output, vid_lgt, probs)
+        return None
 
     def BeamSearch(self, nn_output, vid_lgt, probs=False):
         '''
