@@ -1,5 +1,6 @@
 import os
 import random
+import subprocess
 from datetime import datetime
 
 import hydra
@@ -8,8 +9,9 @@ import numpy as np
 import torch
 import torch_npu.utils.tensor_methods
 
-from lightning_npu.accelerators.npu import NPUAccelerator
-from lightning_npu.strategies.npu import SingleNPUStrategy
+# from lightning_npu.accelerators.npu import NPUAccelerator
+# from lightning_npu.strategies.npu import SingleNPUStrategy
+from lightning.pytorch.accelerators.npu import NPUAccelerator
 
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -236,7 +238,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
         precision=trainer_cfg.get('precision', 32),  # 训练的精度，如32位或16位
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
-        strategy=SingleNPUStrategy(),
+        strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
         # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
@@ -334,9 +336,8 @@ def main(cfg: DictConfig):
 
     # 异常处理
     try:
-        # trainer.fit(model, datamodule=data_module)
-        # trainer.test(model, datamodule=data_module)
-        trainer.train(model, datamodule=data_module)
+        trainer.fit(model, datamodule=data_module)
+        trainer.test(model, datamodule=data_module)
     except Exception as e:
         print(f"训练过程中出错: {e}")
         wandb.finish(exit_code=1)
@@ -347,6 +348,41 @@ def main(cfg: DictConfig):
             print(f"wandb.finish() 出现问题: {finish_error}")
 
 
+def source_command(script_path):
+    # 使用 `subprocess` 模拟 `source` 命令
+    # 注意这里的 `env` 参数用于确保新的 shell 实例继承当前环境变量
+    p = subprocess.Popen(['bash', '-c', f'. "{script_path}" && env'],
+                         stdout=subprocess.PIPE,
+                         stderr=subprocess.PIPE,
+                         env=os.environ)
+
+    out, err = p.communicate()
+    if p.returncode != 0:
+        print(f"Error sourcing script: {err.decode('utf-8')}")
+        return
+
+    # 解析输出中的环境变量
+    new_env = {}
+    for line in out.decode('utf-8').splitlines():
+        (key, _, value) = line.partition('=')
+        new_env[key] = value
+
+    # 更新当前进程的环境变量
+    os.environ.update(new_env)
+
+
 if __name__ == '__main__':
+    # exit_status = os.system("source /home/ma-user/work/xzj23/Ascend/nnrt/set_env.sh")
+    # print(f"Exit Status: {exit_status}")
+    # exit_status = os.system("source /home/ma-user/work/xzj23/Ascend/nnae/set_env.sh")
+    # print(f"Exit Status: {exit_status}")
+    # exit_status = os.system("source /home/ma-user/work/xzj23/Ascend/ascend-toolkit/set_env.sh")
+    # print(f"Exit Status: {exit_status}")
+
+    source_command('/home/ma-user/work/xzj23/Ascend/nnrt/set_env.sh')
+    source_command('/home/ma-user/work/xzj23/Ascend/nnae/set_env.sh')
+    source_command('/home/ma-user/work/xzj23/Ascend/ascend-toolkit/set_env.sh')
+    print(os.getenv('LD_LIBRARY_PATH'))
+
     # TODO: **kwargs参数形式的函数
     main()
