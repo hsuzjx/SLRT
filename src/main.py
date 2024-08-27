@@ -7,11 +7,11 @@ import hydra
 import lightning as L
 import numpy as np
 import torch
-import torch_npu.utils.tensor_methods
 
 # from lightning_npu.accelerators.npu import NPUAccelerator
 # from lightning_npu.strategies.npu import SingleNPUStrategy
 from lightning.pytorch.accelerators.npu import NPUAccelerator
+from lightning.pytorch.strategies.single_device import SingleDeviceStrategy
 
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -229,6 +229,8 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     :param trainer_cfg: 训练器配置字典，包含训练的各种设置
     :return: 配置好的 Trainer 对象，用于执行训练过程
     """
+    # torch._register_device_module('npu', NPUAccelerator)
+    # devices = torch.device('npu:0')
 
     # 根据配置文件创建 Trainer 实例
     trainer = L.Trainer(
@@ -239,6 +241,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
         strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
+        # strategy=SingleDeviceStrategy(),
         # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
@@ -335,17 +338,17 @@ def main(cfg: DictConfig):
     )
 
     # 异常处理
-    try:
-        trainer.fit(model, datamodule=data_module)
-        trainer.test(model, datamodule=data_module)
-    except Exception as e:
-        print(f"训练过程中出错: {e}")
-        wandb.finish(exit_code=1)
-    finally:
-        try:
-            wandb.finish()  # 确保资源被释放
-        except Exception as finish_error:
-            print(f"wandb.finish() 出现问题: {finish_error}")
+    # try:
+    # trainer.fit(model, datamodule=data_module)
+    trainer.test(model, datamodule=data_module)
+    # except Exception as e:
+    #     print(f"训练过程中出错: {e}")
+    #     wandb.finish(exit_code=1)
+    # finally:
+    #     try:
+    #         wandb.finish()  # 确保资源被释放
+    #     except Exception as finish_error:
+    #         print(f"wandb.finish() 出现问题: {finish_error}")
 
 
 def source_command(script_path):
@@ -383,6 +386,7 @@ if __name__ == '__main__':
     source_command('/home/ma-user/work/xzj23/Ascend/nnae/set_env.sh')
     source_command('/home/ma-user/work/xzj23/Ascend/ascend-toolkit/set_env.sh')
     print(os.getenv('LD_LIBRARY_PATH'))
+    os.putenv('HYDRA_FULL_ERROR', '1')
 
     # TODO: **kwargs参数形式的函数
     main()
