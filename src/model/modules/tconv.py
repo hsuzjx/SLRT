@@ -95,7 +95,7 @@ class TemporalConv(nn.Module):
         for layer_idx, ks in enumerate(self.kernel_size):
             input_sz = self.input_size if layer_idx == 0 or self.conv_type == 6 and layer_idx == 1 or self.conv_type == 7 and layer_idx == 1 or self.conv_type == 8 and layer_idx == 2 else self.hidden_size
             if ks[0] == 'P':
-                modules.append(nn.MaxPool1d(kernel_size=int(ks[1]), ceil_mode=False))
+                modules.append(nn.AvgPool1d(kernel_size=int(ks[1]), ceil_mode=False))
             elif ks[0] == 'K':
                 modules.append(
                     nn.Conv1d(input_sz, self.hidden_size, kernel_size=int(ks[1]), stride=1, padding=0)

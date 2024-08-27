@@ -95,10 +95,10 @@ class Phoenix2014Dataset(data.Dataset):
     def collate_fn(batch):
         """
         动态padding函数，用于将一批数据进行padding对齐。
-
+    
         参数:
         - batch: 一批数据
-
+    
         返回:
         - padded_video: 填充后的视频数据
         - video_length: 每个视频的原始长度
@@ -106,14 +106,23 @@ class Phoenix2014Dataset(data.Dataset):
         - label_length: 每个标签的原始长度
         - info: 数据的额外信息
         """
+        # 按视频长度降序排序批次数据
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
+        # 解压缩batch，分别获取视频数据、标签数据和额外信息
         video, label, info = list(zip(*batch))
+        # 对视频数据进行padding处理
         if len(video[0].shape) > 3:
+            # 找到批次中最长的视频长度
             max_len = len(video[0])
+            # 计算每个视频的padding后长度
             video_length = torch.LongTensor([np.ceil(len(vid) / 4.0) * 4 + 12 for vid in video])
+            # 左侧padding大小
             left_pad = 6
+            # 右侧padding大小
             right_pad = int(np.ceil(max_len / 4.0)) * 4 - max_len + 6
+            # 更新最大长度以包括padding
             max_len = max_len + left_pad + right_pad
+            # 对每个视频进行padding
             padded_video = [torch.cat(
                 (
                     vid[0][None].expand(left_pad, -1, -1, -1),
@@ -122,10 +131,14 @@ class Phoenix2014Dataset(data.Dataset):
                 )
                 , dim=0)
                 for vid in video]
+            # 将padding后的视频数据堆叠成张量
             padded_video = torch.stack(padded_video)
         else:
+            # 找到批次中最长的视频长度
             max_len = len(video[0])
+            # 计算每个视频的原始长度
             video_length = torch.LongTensor([len(vid) for vid in video])
+            # 对每个视频进行padding
             padded_video = [torch.cat(
                 (
                     vid,
@@ -133,11 +146,15 @@ class Phoenix2014Dataset(data.Dataset):
                 )
                 , dim=0)
                 for vid in video]
+            # 将padding后的视频数据堆叠成张量并转换维度
             padded_video = torch.stack(padded_video).permute(0, 2, 1)
+        # 计算每个标签的长度
         label_length = torch.LongTensor([len(lab) for lab in label])
+        # 根据是否有标签数据进行处理
         if max(label_length) == 0:
             return padded_video, video_length, [], [], info
         else:
+            # 对标签数据进行padding
             padded_label = []
             for lab in label:
                 padded_label.extend(lab)
