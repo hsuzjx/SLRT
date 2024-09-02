@@ -7,7 +7,6 @@ import threading
 import cv2
 import gradio as gr
 import pandas as pd
-from translate import Translator
 
 TEMP_DIR = '../.tmp'
 SERVER_NAME = '10.12.44.154'

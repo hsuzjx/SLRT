@@ -1,7 +1,7 @@
 import unittest
-import os
 
 import numpy as np
+
 from src.data.Phoenix2014DataModule import Phoenix2014DataModule
 
 # 定义数据特征和注释的路径以及手势词典的路径

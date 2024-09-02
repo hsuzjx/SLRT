@@ -1,13 +1,14 @@
 import atexit
+import os
+import pickle
 import shutil
 import tempfile
-import os
 import threading
 from glob import glob
-import numpy as np
+
 import cv2
-import pickle
 import gradio as gr
+import numpy as np
 
 # 读取配置文件，获取数据目录、临时目录和服务器地址
 config_path = '../configs/visualizer_config.txt'

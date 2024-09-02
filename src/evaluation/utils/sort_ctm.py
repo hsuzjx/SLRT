@@ -1,8 +1,5 @@
 import subprocess
 
-from .read_file import read_file
-from .write_file import write_file
-
 
 def sort_ctm(input_file, output_file):
     """

@@ -1,6 +1,6 @@
 import unittest
-from unittest.mock import patch, mock_open
-from src.evaluation.utils import modify_phoenix2014_output, read_file, write_file
+
+from src.evaluation.utils import modify_phoenix2014_output
 
 
 class TestModifyPhoenix2014Output(unittest.TestCase):

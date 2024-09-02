@@ -1,6 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
+
 from src.evaluation.wer_calculation import evaluate
+
 
 # TODO: 添加测试用例
 class TestEvaluate(unittest.TestCase):

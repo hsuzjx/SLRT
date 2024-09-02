@@ -1,9 +1,9 @@
 import os
 from datetime import datetime
 
-from .utils import merge_ctm_stm, sort_ctm
 # Import utility functions for modifying, merging, and sorting CTM files
 from .utils import format_phoenix2014_output
+from .utils import merge_ctm_stm, sort_ctm
 
 
 def process_phoenix2014_output(file, ground_truth_file, processed_file, remove_tmp_file=True):
