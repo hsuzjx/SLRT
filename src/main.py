@@ -8,10 +8,10 @@ import lightning as L
 import numpy as np
 import torch
 
-# from lightning_npu.accelerators.npu import NPUAccelerator
-# from lightning_npu.strategies.npu import SingleNPUStrategy
 from lightning.pytorch.accelerators.npu import NPUAccelerator
 from lightning.pytorch.strategies.single_device import SingleDeviceStrategy
+# from lightning_npu.strategies.npu import SingleNPUStrategy
+# from lightning_npu.strategies.npu_parallel import NPUParallelStrategy
 
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -212,7 +212,6 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
 
         # for evaluation
         dataset_name=dataset_name,  # 数据集名称
-        evaluation_sh_path=os.path.abspath(model_cfg.get('evaluation_sh_path')),  # 评估脚本路径
         ground_truth_path=ground_truth_path,  # 真实标签路径
         evaluation_sclite_path=os.path.abspath(model_cfg.get('evaluation_sclite_path')),  # sclite评估工具路径
         remove_eval_tmp_file=model_cfg.get('remove_eval_tmp_file')
@@ -240,8 +239,8 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
         precision=trainer_cfg.get('precision', 32),  # 训练的精度，如32位或16位
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
-        strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
-        # strategy=SingleDeviceStrategy(),
+        # strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
+        strategy=SingleNPUStrategy(),
         # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
@@ -339,7 +338,7 @@ def main(cfg: DictConfig):
 
     # 异常处理
     # try:
-    # trainer.fit(model, datamodule=data_module)
+    trainer.fit(model, datamodule=data_module)
     trainer.test(model, datamodule=data_module)
     # except Exception as e:
     #     print(f"训练过程中出错: {e}")
@@ -382,11 +381,11 @@ if __name__ == '__main__':
     # exit_status = os.system("source /home/ma-user/work/xzj23/Ascend/ascend-toolkit/set_env.sh")
     # print(f"Exit Status: {exit_status}")
 
-    source_command('/home/ma-user/work/xzj23/Ascend/nnrt/set_env.sh')
-    source_command('/home/ma-user/work/xzj23/Ascend/nnae/set_env.sh')
-    source_command('/home/ma-user/work/xzj23/Ascend/ascend-toolkit/set_env.sh')
-    print(os.getenv('LD_LIBRARY_PATH'))
-    os.putenv('HYDRA_FULL_ERROR', '1')
+    # source_command('/home/ma-user/Ascend/nnrt/set_env.sh')
+    # source_command('/home/ma-user/Ascend/nnae/set_env.sh')
+    # source_command('/home/ma-user/Ascend/ascend-toolkit/set_env.sh')
+    # print(os.getenv('LD_LIBRARY_PATH'))
+    # os.putenv('HYDRA_FULL_ERROR', '1')
 
     # TODO: **kwargs参数形式的函数
     main()

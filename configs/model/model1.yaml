@@ -19,6 +19,5 @@ lr_scheduler_gamma: 0.2
 last_epoch: -1
 
 # for evaluation
-evaluation_sh_path: './evaluation'  # 评估脚本路径
 evaluation_sclite_path: '../.bin/sclite'  # sclite评估工具路径
 remove_eval_tmp_file: false
