@@ -1,4 +1,4 @@
-# configs/data/phoenix2014.yaml
+# configs/data/phoenix2014_npu.yaml
 name: "phoenix2014"
 # base_dir: "../data/phoenix2014" # 基础目录
 

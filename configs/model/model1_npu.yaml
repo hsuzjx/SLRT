@@ -1,4 +1,4 @@
-# configs/model/model1.yaml
+# configs/model/model1_npu.yaml
 
 # for common
 test_param: false

@@ -1,0 +1,4 @@
+# configs/datamodule/phoenix2014_npu.yaml
+
+num_workers: 50
+batch_size: 2

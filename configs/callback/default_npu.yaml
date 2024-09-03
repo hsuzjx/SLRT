@@ -1,4 +1,4 @@
-# configs/callback/default.yaml
+# configs/callback/default_npu.yaml
 # 定义模型训练过程中的回调配置
 
 # 监控指标，用于判断模型性能

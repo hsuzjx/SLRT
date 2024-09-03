@@ -1,11 +1,11 @@
 # experiments/example1.yaml
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
-  - data: phoenix2014 # 数据集配置
-  - datamodule: phoenix2014 # 数据模块配置
-  - model: model1 # 模型配置
+  - data: phoenix2014_npu # 数据集配置
+  - datamodule: phoenix2014_npu # 数据模块配置
+  - model: model1_npu # 模型配置
   - trainer: use_npu # 训练配置
-  - callback: default # 回调函数配置
+  - callback: default_npu # 回调函数配置
   - logger: wandb_npu # 日志记录器配置
 
 
