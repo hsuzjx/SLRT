@@ -1,0 +1,3 @@
+# configs/logger/wandb_debug.yaml
+# 指定是否离线模式，如果为true，则不会将日志上传到wandb的云平台
+offline: true

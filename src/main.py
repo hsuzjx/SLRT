@@ -241,6 +241,35 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     return trainer
 
 
+def convert_to_onnx(model, file_path):
+    """
+    将给定的模型转换为ONNX格式并保存到指定的文件路径。
+
+    参数:
+    - model: 需要转换的PyTorch模型。
+    - file_path: 保存转换后的ONNX模型的文件路径。
+
+    返回值:
+    无
+    """
+    try:
+        # 将模型移动到CPU
+        model = model.to('cpu')
+
+        # 设置模型为评估模式
+        model.eval()
+
+        # 定义输入样例。这里的样例包括两个输入张量和对应的标签张量。
+        input_sample = (torch.randn(2, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100, 100]).to('cpu'))
+
+        # 导出模型到ONNX格式。export_params=True表示将模型的参数一起导出。
+        model.to_onnx(file_path, input_sample, export_params=True)
+
+    except Exception as e:
+        # 捕获并打印可能发生的异常
+        print(f"Error occurred: {e}")
+
+
 @hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
 def main(cfg: DictConfig):
     """
@@ -327,18 +356,35 @@ def main(cfg: DictConfig):
         trainer_cfg=trainer_cfg
     )
 
-    # 异常处理
+    # train model
     try:
         trainer.fit(model, datamodule=data_module)
-        trainer.test(model, datamodule=data_module)
     except Exception as e:
         print(f"训练过程中出错: {e}")
-        wandb.finish(exit_code=1)
-    finally:
-        try:
-            wandb.finish()  # 确保资源被释放
-        except Exception as finish_error:
-            print(f"wandb.finish() 出现问题: {finish_error}")
+
+    # test the best model
+    try:
+        best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+        best_model.eval()
+        trainer.test(best_model, datamodule=data_module)
+    except Exception as e:
+        print(f"测试过程中出错: {e}")
+
+    # 确保wandb.finish()被执行，以释放资源
+    try:
+        wandb.finish()
+    except Exception as finish_error:
+        print(f"wandb.finish() 出现问题: {finish_error}")
+
+    # 根据配置决定是否将模型转换为ONNX格式
+    if cfg.get('convert_to_onnx', False):
+        # 加载最佳模型以进行ONNX转换
+        best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+        # 创建保存ONNX模型的目录
+        onnx_save_dir = os.path.join(save_dir, 'onnx')
+        os.makedirs(onnx_save_dir, exist_ok=True)
+        # 执行模型到ONNX的转换
+        convert_to_onnx(best_model, os.path.join(onnx_save_dir, 'best_model.onnx'))
 
 
 if __name__ == '__main__':

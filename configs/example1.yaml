@@ -24,3 +24,4 @@ timestamp: ${now:%Y-%m-%d_%H-%M-%S} # 更新时间戳格式为带下划线分隔
 seed: -1 # 随机数种子
 save_dir: ../experiments
 torch_float32_matmul_precision: high
+convert_to_onnx: true

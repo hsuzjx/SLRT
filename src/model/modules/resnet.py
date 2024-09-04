@@ -1,3 +1,5 @@
+import os.path
+
 import torch
 import torch.nn as nn
 import torch.utils.model_zoo as model_zoo
@@ -288,7 +290,7 @@ class ResNet(nn.Module):
         return x
 
 
-def resnet18(pretrained=True, **kwargs):
+def resnet18(pretrained=True, model_dir='./.models', **kwargs):
     """构建一个基于ResNet-18的模型。
     
     参数:
@@ -300,8 +302,10 @@ def resnet18(pretrained=True, **kwargs):
     # 创建ResNet-18模型实例，使用BasicBlock作为基础块，层数配置为[2, 2, 2, 2]
     model = ResNet(BasicBlock, [2, 2, 2, 2], **kwargs)
     if pretrained:
+        model_dir = os.path.abspath(model_dir)
+        os.makedirs(model_dir, exist_ok=True)
         # 从预训练模型URL中加载ResNet-18的参数
-        checkpoint = model_zoo.load_url(model_urls['resnet18'])
+        checkpoint = model_zoo.load_url(model_urls['resnet18'], model_dir=model_dir)
         # 获取模型参数的层名称列表
         layer_name = list(checkpoint.keys())
         # 遍历层名称列表，对特定层的权重进行维度扩展

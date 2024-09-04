@@ -6,7 +6,7 @@ defaults:
   - model: model1 # 模型配置
   - trainer: use_gpu_debug # 训练配置
   - callback: default # 回调函数配置
-  - logger: wandb # 日志记录器配置
+  - logger: wandb_debug # 日志记录器配置
 
 
 # Hydra 运行配置
@@ -24,3 +24,4 @@ timestamp: ${now:%Y-%m-%d_%H-%M-%S} # 更新时间戳格式为带下划线分隔
 seed: -1 # 随机数种子
 save_dir: ../experiments
 torch_float32_matmul_precision: high
+convert_to_onnx: true
