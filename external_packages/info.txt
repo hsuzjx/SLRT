@@ -1,0 +1,2 @@
+git clone https://github.com/parlance/ctcdecode.git
+git clone https://github.com/hipudding/pytorch-lightning.git -b npu_support

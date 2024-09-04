@@ -5,6 +5,7 @@ from datetime import datetime
 
 import lightning as L
 import torch
+import torch_npu
 from torch import nn
 
 from src.evaluation import evaluate
@@ -68,6 +69,8 @@ class SLRModel(L.LightningModule):
         # 通过分类器
         output_logits = self.classifier(predictions)
 
+        torch_npu.npu.empty_cache()
+
         return conv1d_logits, output_logits, feature_lengths
 
     def _init_networks(self):
@@ -88,7 +91,7 @@ class SLRModel(L.LightningModule):
         返回:
             - conv2d: 使用ResNet-18作为2D卷积层，去除其全连接层。
         """
-        conv2d = resnet18()
+        conv2d = resnet18(pretrained=False)
         conv2d.fc = Identity()  # 将全连接层替换为身份映射
         return conv2d
 
@@ -179,11 +182,7 @@ class SLRModel(L.LightningModule):
 
         # 计算损失
         # TODO: move loss weights to hyperparameters
-        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
+        loss = 25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):
@@ -224,11 +223,7 @@ class SLRModel(L.LightningModule):
 
         # 计算验证损失
         # TODO: move loss weights to hyperparameters
-        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
+        loss = 25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):
@@ -375,11 +370,7 @@ class SLRModel(L.LightningModule):
 
         # 计算损失
         # TODO: move loss weights to hyperparameters
-        loss = 1.0 * self.loss_fn['CTCLoss'](conv1d_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               1.0 * self.loss_fn['CTCLoss'](y_hat.log_softmax(-1), y.cpu().int(),
-                                             y_hat_lgt.cpu().int(), y_lgt.cpu().int()).mean() + \
-               25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
+        loss = 25.0 * self.loss_fn['Distillation'](conv1d_hat, y_hat.detach(), use_blank=False)
 
         # 检查是否有 NaN 值
         if torch.isnan(loss):

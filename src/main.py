@@ -7,11 +7,10 @@ import hydra
 import lightning as L
 import numpy as np
 import torch
+import torch_npu
 
 from lightning.pytorch.accelerators.npu import NPUAccelerator
 from lightning.pytorch.strategies.single_device import SingleDeviceStrategy
-# from lightning_npu.strategies.npu import SingleNPUStrategy
-# from lightning_npu.strategies.npu_parallel import NPUParallelStrategy
 
 import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
@@ -23,6 +22,9 @@ from src.data import Phoenix2014TDataModule
 
 from src.model import SLRModel
 from src.utils import preprocess
+from src.data.transforms import *
+
+import transfer_to_npu
 
 
 def safe_get_config(cfg, section, default=None):
@@ -235,12 +237,13 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
     trainer = L.Trainer(
         max_epochs=trainer_cfg.get('max_epochs', 1),  # 最大训练周期数
         accelerator=NPUAccelerator(),  # 训练所使用的加速器类型
+        # accelerator='cpu',
         devices=trainer_cfg.get('devices', 1),  # 使用的设备数量
         precision=trainer_cfg.get('precision', 32),  # 训练的精度，如32位或16位
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
         # strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
-        strategy=SingleNPUStrategy(),
+        strategy=SingleDeviceStrategy(device=torch.device('npu:0')),
         # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
@@ -336,6 +339,18 @@ def main(cfg: DictConfig):
         trainer_cfg=trainer_cfg
     )
 
+    # train_dataset = Phoenix2014Dataset(
+    #     features_path='/home/ma-user/work/workspace/SLR/data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px',
+    #     annotations_path='/home/ma-user/work/workspace/SLR/data/phoenix2014/phoenix-2014-multisigner/annotations/manual',
+    #     gloss_dict=gloss_dict,
+    #     mode='train',
+    #     drop_ids=['13April_2011_Wednesday_tagesschau_default-14'],
+    #     transform=Compose([RandomCrop(224), RandomHorizontalFlip(0.5), ToTensor(), TemporalRescale(0.2)])
+    # )
+    #
+    # train_dataloader = torch.utils.data.DataLoader(train_dataset, batch_size=2, shuffle=True, num_workers=10,
+    #                                                collate_fn=train_dataset.collate_fn, pin_memory=True, drop_last=True)
+
     # 异常处理
     # try:
     trainer.fit(model, datamodule=data_module)
@@ -387,5 +402,22 @@ if __name__ == '__main__':
     # print(os.getenv('LD_LIBRARY_PATH'))
     # os.putenv('HYDRA_FULL_ERROR', '1')
 
+    # os.environ['ASCEND_LAUNCH_BLOCKING'] = '1'
+
+    # os.environ['LD_LIBRARY_PATH'] = '/home/ma-user/Ascend/ascend-toolkit/latest/tools/aml/lib64:/home/ma-user/Ascend/ascend-toolkit/latest/tools/aml/lib64/plugin:/home/ma-user/Ascend/ascend-toolkit/latest/lib64:/home/ma-user/Ascend/ascend-toolkit/latest/lib64/plugin/opskernel:/home/ma-user/Ascend/ascend-toolkit/latest/lib64/plugin/nnengine:/home/ma-user/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/linux/aarch64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/home/ma-user/Ascend/nnrt/latest/lib64:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/home/ma-user/Ascend/nnae/latest/lib64:/home/ma-user/Ascend/nnae/latest/lib64/plugin/opskernel:/home/ma-user/Ascend/nnae/latest/lib64/plugin/nnengine:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/toolbox/latest/Ascend-DMI/lib64:/usr/lib/aarch64-linux-gnu/hdf5/serial:/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:/usr/local/Ascend/ascend-toolkit/latest/lib64:/usr/local/Ascend/ascend-toolkit/latest/compiler/lib64/plugin/opskernel:/usr/local/Ascend/ascend-toolkit/latest/compiler/lib64/plugin/nnengine:/usr/local/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe/op_tiling/lib/:/usr/local/seccomponent/lib/:/usr/local/seccomponent/lib/openssl/'
+    # os.environ['ASCEND_NNAE_HOME'] = '/home/ma-user/Ascend/nnae/latest'
+    # os.environ['ASCEND_NNRT_HOME'] = '/home/ma-user/Ascend/nnrt/latest'
+    # os.environ['ASCEND_TOOLKIT_HOME'] = '/home/ma-user/Ascend/ascend-toolkit/latest'
+    # os.environ['PYTHONPATH'] = '/home/ma-user/Ascend/ascend-toolkit/latest/python/site-packages:/home/ma-user/Ascend/ascend-toolkit/latest/opp/built-in/op_impl/ai_core/tbe:/home/ma-user/Ascend/nnrt/latest/python/site-packages:/home/ma-user/Ascend/nnae/latest/python/site-packages:/home/ma-user/Ascend/nnae/latest/opp/built-in/op_impl/ai_core/tbe:/usr/local/Ascend/tfplugin/latest/python/site-packages:/usr/local/Ascend/ascend-toolkit/latest/python/site-packages:/usr/local/Ascend/ascend-toolkit/latest/opp/op_impl/built-in/ai_core/tbe:/usr/local/seccomponent/lib:/home/ma-user/infer/model/1'
+    # os.environ['ASCEND_AICPU_PATH'] = '/home/ma-user/Ascend/ascend-toolkit/latest'
+    # os.environ['ASCEND_OPP_PATH'] = '/home/ma-user/Ascend/ascend-toolkit/latest/opp'
+    # os.environ['TOOLCHAIN_HOME'] = '/home/ma-user/Ascend/ascend-toolkit/latest/toolkit'
+    # os.environ['ASCEND_HOME_PATH'] = '/home/ma-user/Ascend/ascend-toolkit/latest'
+    # os.environ['PATH'] = '/home/ma-user/anaconda3/envs/slr/bin:/home/ma-user/Ascend/ascend-toolkit/latest/bin:/home/ma-user/Ascend/ascend-toolkit/latest/compiler/ccec_compiler/bin:/home/ma-user/Ascend/ascend-toolkit/latest/tools/ccec_compiler/bin:/home/ma-user/Ascend/nnae/latest/bin:/home/ma-user/Ascend/nnae/latest/compiler/ccec_compiler/bin:/home/ma-user/anaconda3/envs/PyTorch-1.11.0/bin:/home/ma-user/anaconda3/envs/PyTorch-1.11.0/bin:/usr/local/openmpi/bin:/usr/local/ffmpeg/bin:/usr/local/Ascend/toolbox/latest/Ascend-DMI/bin:/usr/local/Ascend/ascend-toolkit/latest/bin:/usr/local/Ascend/ascend-toolkit/latest/compiler/ccec_compiler/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/home/ma-user/.local/bin:/modelarts/authoring/notebook-conda/bin:/home/ma-user/modelarts-dev/ma-cli/bin:/modelarts/authoring/script/entrypoint/deps/ssh/bin:/home/ma-user/anaconda3/envs/PyTorch-1.11.0/bin'
+
+    # print(os.environ['LD_LIBRARY_PATH'])
+    # print(os.environ['ASCEND_OPP_PATH'])
+
     # TODO: **kwargs参数形式的函数
+    torch.set_default_device('npu:0')
     main()

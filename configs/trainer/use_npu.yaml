@@ -10,7 +10,7 @@ accelerator: "npu"
 devices: 1
 
 # 精度模式，"16-mixed" 表示使用混合精度训练，有助于加速训练和减少内存使用
-precision: 32
+precision: '16-true'
 
 # 指定训练策略，此处使用 'ddp_find_unused_parameters_true' 策略
 strategy: 'ddp_find_unused_parameters_true'
