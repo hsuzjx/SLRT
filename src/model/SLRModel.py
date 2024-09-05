@@ -43,7 +43,7 @@ class SLRModel(L.LightningModule):
         # 注册后向传播钩子
         self.register_full_backward_hook(self.handle_nan_gradients)
 
-    def forward(self, inputs, lengths):
+    def forward(self, inputs, lengths, tgt):
         """
         模型的前向传播函数。
         :param inputs: 输入数据，形状为[batch_size, sequence_length, channels, height, width]。
@@ -61,9 +61,12 @@ class SLRModel(L.LightningModule):
         feature_lengths = conv1d_output['feat_len']
         conv1d_logits = conv1d_output['conv_logits']
 
-        # 通过双向 LSTM 层
-        lstm_output = self.temporal_model(visual_features, feature_lengths)
-        predictions = lstm_output['predictions']
+        # # 通过双向 LSTM 层
+        # lstm_output = self.temporal_model(visual_features, feature_lengths)
+        # predictions = lstm_output['predictions']
+
+        # predictions = self.transformer(visual_features, self.word_aug(tgt))
+        predictions = self.transformer(self.word_aug(tgt), visual_features)
 
         # 通过分类器
         output_logits = self.classifier(predictions)
@@ -76,11 +79,14 @@ class SLRModel(L.LightningModule):
         """
         self.conv2d = self._init_conv2d()
         self.conv1d = self._init_conv1d()
-        self.temporal_model = self._init_bilstm()
+        # self.temporal_model = self._init_bilstm()
+        self.transformer = self._init_transformer()
         if self.hparams.share_classifier:
             self.classifier = self.conv1d.fc
         else:
             self.classifier = self._init_classifier()
+
+        self.word_aug = nn.Linear(1296, 1024)
 
     def _init_conv2d(self):
         """
@@ -123,8 +129,20 @@ class SLRModel(L.LightningModule):
         )
 
     def _init_transformer(self):
-        # TODO: ...
-        pass
+        return torch.nn.Transformer(
+            d_model=self.hparams.d_model,
+            nhead=self.hparams.nhead,
+            num_encoder_layers=self.hparams.num_encoder_layers,
+            num_decoder_layers=self.hparams.num_decoder_layers,
+            dim_feedforward=self.hparams.dim_feedforward,
+            dropout=self.hparams.dropout,
+            activation=self.hparams.activation,
+            custom_encoder=None,
+            custom_decoder=None,
+            layer_norm_eps=self.hparams.layer_norm_eps,
+            batch_first=False,
+            norm_first=False,
+        )
 
     def _init_classifier(self):
         """
@@ -179,7 +197,20 @@ class SLRModel(L.LightningModule):
         # 解包批处理数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型正向传播
-        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        # conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        max_lgt = torch.max(y_lgt)
+        idx = 0
+        lst = []
+        for lgt in y_lgt:
+            seq = y[idx:idx + lgt]
+            if lgt < max_lgt:
+                seq = torch.cat([seq, torch.zeros(max_lgt - lgt).long().to(self.device)])
+            lst.append(seq)
+            idx += lgt
+
+        tgt = torch.stack(lst).to(self.device)
+        tgt = torch.nn.functional.one_hot(tgt, num_classes=1296).permute(1, 0, 2).to(torch.float32)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt, tgt.to(self.device))
 
         # 计算损失
         # TODO: move loss weights to hyperparameters
@@ -221,7 +252,10 @@ class SLRModel(L.LightningModule):
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        # conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        tgt = torch.zeros(y_lgt.shape[0], torch.max(y_lgt)).to(torch.long)
+        tgt = torch.nn.functional.one_hot(tgt, num_classes=1296).permute(1, 0, 2).to(torch.float32)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt, tgt.to(self.device))
 
         # 解码
         decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
@@ -370,7 +404,10 @@ class SLRModel(L.LightningModule):
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
-        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        # conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        tgt = torch.zeros(y_lgt.shape[0], torch.max(y_lgt)).to(torch.long)
+        tgt = torch.nn.functional.one_hot(tgt, num_classes=1296).permute(1, 0, 2).to(torch.float32)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt, tgt.to(self.device))
 
         # 解码
         decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)

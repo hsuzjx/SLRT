@@ -208,7 +208,17 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
         evaluation_sh_path=os.path.abspath(model_cfg.get('evaluation_sh_path')),  # 评估脚本路径
         ground_truth_path=ground_truth_path,  # 真实标签路径
         evaluation_sclite_path=os.path.abspath(model_cfg.get('evaluation_sclite_path')),  # sclite评估工具路径
-        remove_eval_tmp_file=model_cfg.get('remove_eval_tmp_file')
+        remove_eval_tmp_file=model_cfg.get('remove_eval_tmp_file'),
+
+        # for transformer
+        d_model=model_cfg.get('d_model', 512),
+        nhead=model_cfg.get('nhead', 8),
+        num_encoder_layers=model_cfg.get('num_encoder_layers', 8),
+        num_decoder_layers=model_cfg.get('num_decoder_layers', 8),
+        dim_feedforward=model_cfg.get('dim_feedforward', 2048),
+        dropout=model_cfg.get('dropout', 0.1),
+        activation=model_cfg.get('activation', 'relu'),
+        layer_norm_eps=model_cfg.get('layer_norm_eps', 1e-6),
     )
     return model
 
@@ -357,18 +367,18 @@ def main(cfg: DictConfig):
     )
 
     # train model
-    try:
-        trainer.fit(model, datamodule=data_module)
-    except Exception as e:
-        print(f"训练过程中出错: {e}")
+    # try:
+    trainer.fit(model, datamodule=data_module)
+    # except Exception as e:
+    #     print(f"训练过程中出错: {e}")
 
     # test the best model
-    try:
-        best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
-        best_model.eval()
-        trainer.test(best_model, datamodule=data_module)
-    except Exception as e:
-        print(f"测试过程中出错: {e}")
+    # try:
+    best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+    best_model.eval()
+    trainer.test(best_model, datamodule=data_module)
+    # except Exception as e:
+    #     print(f"测试过程中出错: {e}")
 
     # 确保wandb.finish()被执行，以释放资源
     try:
