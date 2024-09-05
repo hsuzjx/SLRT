@@ -25,7 +25,7 @@ class Phoenix2014DataModule(L.LightningDataModule):
         annotations_path -- 注释文件的路径
         gloss_dict -- 手势词汇表
         batch_size -- 批处理大小（默认2）
-        num_workers -- 加载数据的工人数量（默认8）
+        num_workers -- 加载数据的线程数量（默认8）
         train_transform -- 训练数据的预处理流程
         dev_transform -- 验证数据的预处理流程
         test_transform -- 测试数据的预处理流程

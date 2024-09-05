@@ -122,6 +122,10 @@ class SLRModel(L.LightningModule):
             bidirectional=True
         )
 
+    def _init_transformer(self):
+        # TODO: ...
+        pass
+
     def _init_classifier(self):
         """
         初始化分类器。
