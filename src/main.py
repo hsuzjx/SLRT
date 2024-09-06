@@ -74,8 +74,8 @@ def init_wandb_logger(save_dir, wandb_project, wandb_name, logger_cfg: DictConfi
     wandb_logger = WandbLogger(
         project=wandb_project,
         name=wandb_name,
-        offline=logger_cfg.get('offline', False),
-        save_dir=save_dir
+        save_dir=save_dir,
+        **logger_cfg
     )
 
     # 如果有配置更新，更新WandbLogger的配置
@@ -101,10 +101,7 @@ def setup_checkpoint_callback(save_dir, callback_cfg: DictConfig):
     # 初始化ModelCheckpoint实例
     checkpoint_callback = ModelCheckpoint(
         dirpath=dirpath,
-        monitor=callback_cfg.get('monitor', 'DEV_WER'),
-        mode=callback_cfg.get('mode', 'min'),
-        save_last=callback_cfg.get('save_last', True),
-        save_top_k=callback_cfg.get('save_top_k', 1)
+        **callback_cfg
     )
     # 返回ModelCheckpoint实例
     return checkpoint_callback
@@ -148,8 +145,7 @@ def setup_datamodule(dataset_name, features_path, annotations_path, gloss_dict_p
             features_path=features_path,
             annotations_path=annotations_path,
             gloss_dict=gloss_dict,  # 词汇表，例如 {'gloss1': 0, 'gloss2': 1}
-            num_workers=datamodule_cfg.get('num_workers', 8),  # 获取配置中的工作线程数，默认为 8
-            batch_size=datamodule_cfg.get('batch_size', 2)  # 获取配置中的批次大小，默认为 2
+            **datamodule_cfg
         )
         return datamodule
     elif dataset_name == 'phoenix2014T':
@@ -181,44 +177,11 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
 
     # 构造模型
     model = SLRModel(
-        # for common
         save_path=save_path,  # wer保存路径
-        test_param=model_cfg.get('test_param', False),  # 是否测试参数
-
-        # for network
-        num_classes=model_cfg.get('num_classes', -1),  # 分类数
-        conv_type=model_cfg.get('conv_type', 2),  # 卷积类型
-        use_bn=model_cfg.get('use_bn', False),  # 不使用批量归一化
-        hidden_size=model_cfg.get('hidden_size', 1024),  # 隐藏层大小
-        share_classifier=model_cfg.get('share_classifier', False),
-
-        # for decoder
-        gloss_dict=gloss_dict,  # 标签字典
-
-        # for optimizer and lr_scheduler
-        lr=model_cfg.get('lr', 0.0001),  # 学习率，默认值0.0001
-        weight_norm=model_cfg.get('weight_norm', True),  # 是否使用权重归一化
-        weight_decay=model_cfg.get('weight_decay', 0.0001),  # 权重衰减，默认值0.0001
-        lr_scheduler_milestones=model_cfg.get('lr_scheduler_milestones', None),  # 学习率调度的里程碑，默认为空列表
-        lr_scheduler_gamma=model_cfg.get('lr_scheduler_gamma', 0.2),  # 学习率调度的因子
-        last_epoch=model_cfg.get('last_epoch', -1),  # 上一个训练周期
-
-        # for evaluation
         dataset_name=dataset_name,  # 数据集名称
-        evaluation_sh_path=os.path.abspath(model_cfg.get('evaluation_sh_path')),  # 评估脚本路径
+        gloss_dict=gloss_dict,  # 标签字典
         ground_truth_path=ground_truth_path,  # 真实标签路径
-        evaluation_sclite_path=os.path.abspath(model_cfg.get('evaluation_sclite_path')),  # sclite评估工具路径
-        remove_eval_tmp_file=model_cfg.get('remove_eval_tmp_file'),
-
-        # for transformer
-        d_model=model_cfg.get('d_model', 512),
-        nhead=model_cfg.get('nhead', 8),
-        num_encoder_layers=model_cfg.get('num_encoder_layers', 8),
-        num_decoder_layers=model_cfg.get('num_decoder_layers', 8),
-        dim_feedforward=model_cfg.get('dim_feedforward', 2048),
-        dropout=model_cfg.get('dropout', 0.1),
-        activation=model_cfg.get('activation', 'relu'),
-        layer_norm_eps=model_cfg.get('layer_norm_eps', 1e-6),
+        **model_cfg
     )
     return model
 
@@ -235,17 +198,9 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
 
     # 根据配置文件创建 Trainer 实例
     trainer = L.Trainer(
-        max_epochs=trainer_cfg.get('max_epochs', 1),  # 最大训练周期数
-        accelerator=trainer_cfg.get('accelerator', 'cpu'),  # 训练所使用的加速器类型
-        devices=trainer_cfg.get('devices', 1),  # 使用的设备数量
-        precision=trainer_cfg.get('precision', 32),  # 训练的精度，如32位或16位
         logger=logger,  # 配置日志记录器
         callbacks=callbacks,  # 配置回调函数
-        strategy=trainer_cfg.get('strategy', 'ddp_find_unused_parameters_true'),
-        # 分布式训练策略，默认为 'ddp_find_unused_parameters_true'
-        limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
-        limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
-        limit_test_batches=trainer_cfg.get('limit_test_batches', 1.0),  # 测试批次的数据使用比例
+        **trainer_cfg
     )
 
     return trainer
@@ -280,7 +235,7 @@ def convert_to_onnx(model, file_path):
         print(f"Error occurred: {e}")
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
+@hydra.main(version_base=None, config_path='../configs', config_name='example1_debug.yaml')
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。
@@ -398,5 +353,4 @@ def main(cfg: DictConfig):
 
 
 if __name__ == '__main__':
-    # TODO: **kwargs参数形式的函数
     main()

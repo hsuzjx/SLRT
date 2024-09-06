@@ -22,3 +22,4 @@ limit_val_batches: 0.1
 # 限制测试集批次的比例，1.0 表示使用全部批次
 limit_test_batches: 0.1
 
+profiler: "simple"
