@@ -235,7 +235,7 @@ def convert_to_onnx(model, file_path):
         print(f"Error occurred: {e}")
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1_debug.yaml')
+@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。

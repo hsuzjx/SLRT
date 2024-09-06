@@ -65,8 +65,17 @@ class SLRModel(L.LightningModule):
         # lstm_output = self.temporal_model(visual_features, feature_lengths)
         # predictions = lstm_output['predictions']
 
-        # predictions = self.transformer(visual_features, self.word_aug(tgt))
-        predictions = self.transformer(self.word_aug(tgt), visual_features)
+        if not self.training:
+            tgt = torch.zeros(batch_size, visual_features.shape[0]).to(torch.long)
+            tgt = torch.nn.functional.one_hot(tgt, num_classes=self.hparams.num_classes).permute(1, 0, 2).to(
+                torch.float32).to(self.device)
+        else:
+            if tgt.shape[0] < visual_features.shape[0]:
+                tgt = torch.nn.utils.rnn.pad_sequence(
+                    [torch.zeros(visual_features.shape[0], visual_features.shape[1], tgt.shape[2]).to(self.device), tgt],
+                    batch_first=True, padding_value=0)[1]
+        predictions = self.transformer(visual_features, self.word_aug(tgt))
+        # predictions = self.transformer(self.word_aug(tgt), visual_features)
 
         # 通过分类器
         output_logits = self.classifier(predictions)
