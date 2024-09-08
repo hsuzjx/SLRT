@@ -32,18 +32,6 @@ class SLRBaseModel(L.LightningModule):
         # 注册后向传播钩子
         self.register_full_backward_hook(self.handle_nan_gradients)
 
-    @abstractmethod
-    def _define_decoder(self):
-        pass
-
-    @abstractmethod
-    def _define_loss_function(self):
-        pass
-
-    @abstractmethod
-    def step_forward(self, batch):
-        pass
-
     def handle_nan_gradients(self, module, grad_input, grad_output):
         """
         捕获并处理含有 NaN 值的梯度。

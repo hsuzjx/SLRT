@@ -15,6 +15,8 @@ class CorrNet(SLRBaseModel):
         """
         super().__init__(**kwargs)
         self.model_name = "CorrNet"
+
+        # 定义网络
         self._init_networks()
 
         # 定义解码器
