@@ -11,11 +11,14 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 
+import src
 from src.data import Phoenix2014DataModule
 from src.data import Phoenix2014TDataModule
-
 from src.model import SLRModel
 from src.utils import preprocess
+
+CONFIG_PATH = '../configs'
+CONFIG_NAME = 'CorrNet_experiment.yaml'
 
 
 def safe_get_config(cfg, section, default=None):
@@ -159,10 +162,13 @@ def setup_datamodule(dataset_name, features_path, annotations_path, gloss_dict_p
         raise ValueError(f"不支持的数据集: {dataset_name}")
 
 
-def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg: DictConfig):
+def setup_model(
+        save_dir, dataset_name, gloss_dict, ground_truth_path, model_name, model_cfg: DictConfig
+):
     """
     根据配置设置和初始化模型。
-
+    
+    :param model_name: 字符串，表示模型的名称。
     :param save_dir: 字符串，表示模型保存的目录。
     :param gloss_dict: 字典，表示词汇表。
     :param dataset_name: 字符串，表示数据集的名称。
@@ -170,19 +176,21 @@ def setup_model(save_dir, gloss_dict, dataset_name, ground_truth_path, model_cfg
     :param model_cfg: DictConfig 对象，包含模型的配置。
     :return: 返回初始化后的模型对象。
     """
-
     # 创建保存路径
     save_path = os.path.join(save_dir, 'hypothesis')
     os.makedirs(save_path, exist_ok=True)
-
-    # 构造模型
-    model = SLRModel(
-        save_path=save_path,  # wer保存路径
-        dataset_name=dataset_name,  # 数据集名称
-        gloss_dict=gloss_dict,  # 标签字典
-        ground_truth_path=ground_truth_path,  # 真实标签路径
-        **model_cfg
-    )
+    try:
+        model = getattr(src.model, model_name)(
+            save_path=save_path,  # 模型保存路径
+            dataset_name=dataset_name,  # 数据集名称
+            gloss_dict=gloss_dict,  # 标签字典
+            ground_truth_path=ground_truth_path,  # 真实标签路径
+            **model_cfg
+        )
+    except AttributeError as e:
+        raise ValueError(f"Model '{model_name}' not found in src.model.") from e
+    except Exception as e:
+        raise RuntimeError(f"Failed to initialize the model with name '{model_name}'.") from e
     return model
 
 
@@ -235,7 +243,7 @@ def convert_to_onnx(model, file_path):
         print(f"Error occurred: {e}")
 
 
-@hydra.main(version_base=None, config_path='../configs', config_name='example1.yaml')
+@hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(cfg: DictConfig):
     """
     主函数，用于执行整个训练流程。
@@ -308,9 +316,10 @@ def main(cfg: DictConfig):
     # 模型初始化
     model = setup_model(
         save_dir=save_dir,
-        gloss_dict=gloss_dict,
         dataset_name=dataset_name,
+        gloss_dict=gloss_dict,
         ground_truth_path=ground_truth_dir,
+        model_name=cfg.get('model_name'),
         model_cfg=model_cfg
     )
 
