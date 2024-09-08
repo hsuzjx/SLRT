@@ -7,7 +7,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import Dataset
 
-from src.data.transforms import Compose, ToTensor
+from slr.data.transforms import Compose, ToTensor
 
 
 # TODO: Implement the CSLDailyDataset class

@@ -7,9 +7,9 @@ import lightning as L
 import torch
 from torch import nn
 
-from src.evaluation import evaluate
-from src.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
-from src.utils import Decode
+from slr.evaluation import evaluate
+from slr.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
+from slr.utils import Decode
 
 
 class SLRModel(L.LightningModule):

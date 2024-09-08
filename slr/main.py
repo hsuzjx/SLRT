@@ -11,11 +11,11 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers.wandb import WandbLogger
 from omegaconf import DictConfig, OmegaConf
 
-import src
-from src.data import Phoenix2014DataModule
-from src.data import Phoenix2014TDataModule
-from src.model import SLRModel
-from src.utils import preprocess
+import slr
+from slr.data import Phoenix2014DataModule
+from slr.data import Phoenix2014TDataModule
+from slr.model import SLRModel
+from slr.utils import preprocess
 
 CONFIG_PATH = '../configs'
 CONFIG_NAME = 'CorrNet_experiment.yaml'
@@ -180,7 +180,7 @@ def setup_model(
     save_path = os.path.join(save_dir, 'hypothesis')
     os.makedirs(save_path, exist_ok=True)
     try:
-        model = getattr(src.model, model_name)(
+        model = getattr(slr.model, model_name)(
             save_path=save_path,  # 模型保存路径
             dataset_name=dataset_name,  # 数据集名称
             gloss_dict=gloss_dict,  # 标签字典

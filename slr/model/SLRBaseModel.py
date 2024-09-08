@@ -7,7 +7,7 @@ from datetime import datetime
 import lightning as L
 import torch
 
-from src.evaluation import evaluate
+from slr.evaluation import evaluate
 
 
 class SLRBaseModel(L.LightningModule):

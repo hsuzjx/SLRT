@@ -1,15 +1,15 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from src.evaluation.wer_calculation import evaluate
+from slr.evaluation.wer_calculation import evaluate
 
 
 # TODO: 添加测试用例
 class TestEvaluate(unittest.TestCase):
 
-    @patch('src.evaluation.wer_calculation.os')
-    @patch('src.evaluation.wer_calculation.subprocess')
-    @patch('src.evaluation.wer_calculation.merge_ctm_stm')
+    @patch('slr.evaluation.wer_calculation.os')
+    @patch('slr.evaluation.wer_calculation.subprocess')
+    @patch('slr.evaluation.wer_calculation.merge_ctm_stm')
     def test_evaluate(self, mock_merge_ctm_stm, mock_subprocess, mock_os):
         # 设置模拟值
         mock_os.path.abspath.side_effect = lambda x: x

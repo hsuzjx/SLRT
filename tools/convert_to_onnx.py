@@ -1,6 +1,6 @@
 import torch
 import argparse
-from src.model import SLRModel
+from slr.model import SLRModel
 
 
 def convert_to_onnx(model, file_path):

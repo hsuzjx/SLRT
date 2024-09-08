@@ -48,7 +48,7 @@ setup(
     ],
     entry_points={  # 入口点
         'console_scripts': [
-            'slr-run=src.main:main',  # 命令行入口点
+            'slr-run=slr.main:main',  # 命令行入口点
         ],
     },
 )
