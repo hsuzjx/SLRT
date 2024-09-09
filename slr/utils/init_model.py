@@ -3,7 +3,7 @@ import os
 import slr
 
 
-def setup_model(
+def init_model(
         save_dir, dataset_name, gloss_dict, ground_truth_path, model_name, model_cfg: DictConfig
 ):
     """

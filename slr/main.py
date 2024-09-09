@@ -25,8 +25,7 @@ def main(cfg: DictConfig):
     torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
 
     # 随机种子设置
-    seed = cfg.get('seed', -1)
-    seed = setup_seed(seed, workers=True)
+    seed = set_seed(cfg.get('seed', -1), workers=True)
 
     # 获取项目名称、名称和时间戳
     project = cfg.get('project', 'default_project')
@@ -49,14 +48,14 @@ def main(cfg: DictConfig):
     # TODO: 修改参数名字，使其无歧义
     wandb_logger = init_wandb_logger(
         save_dir=save_dir,
-        wandb_project=project,
-        wandb_name=f'{name}_{timestamp}',
+        project=project,
+        name=f'{name}_{timestamp}',
         update_config={'random_seed': seed},
         logger_cfg=logger_cfg
     )
 
     # 检查点回调设置
-    checkpoint_callback = setup_checkpoint_callback(
+    checkpoint_callback = init_checkpoint_callback(
         save_dir=save_dir,
         callback_cfg=callback_cfg
     )
@@ -72,7 +71,7 @@ def main(cfg: DictConfig):
     os.makedirs(ground_truth_dir, exist_ok=True)
 
     # 数据模块初始化
-    data_module = setup_datamodule(
+    data_module = init_datamodule(
         dataset_name=dataset_name,
         features_path=features_dir,
         annotations_path=annotations_dir,
@@ -85,7 +84,7 @@ def main(cfg: DictConfig):
         gloss_dict = np.load(f, allow_pickle=True).item()
 
     # 模型初始化
-    model = setup_model(
+    model = init_model(
         save_dir=save_dir,
         dataset_name=dataset_name,
         gloss_dict=gloss_dict,
@@ -95,7 +94,7 @@ def main(cfg: DictConfig):
     )
 
     # trainer
-    trainer = setup_trainer(
+    trainer = init_trainer(
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
         trainer_cfg=trainer_cfg

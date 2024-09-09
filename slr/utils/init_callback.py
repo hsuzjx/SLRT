@@ -4,7 +4,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from omegaconf import DictConfig
 
 
-def setup_checkpoint_callback(save_dir, callback_cfg: DictConfig):
+def init_checkpoint_callback(save_dir, callback_cfg: DictConfig):
     """
     创建并初始化模型检查点回调。
 

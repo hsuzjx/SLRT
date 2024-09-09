@@ -5,13 +5,13 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
 
-def init_wandb_logger(save_dir, wandb_project, wandb_name, logger_cfg: DictConfig, update_config=None):
+def init_wandb_logger(save_dir, project, name, logger_cfg: DictConfig, update_config=None):
     """
     创建并初始化Weights & Biases日志记录器。
 
     :param save_dir: 日志保存的目录
-    :param wandb_project: 项目名称
-    :param wandb_name: 运行名称
+    :param project: 项目名称
+    :param name: 运行名称
     :param logger_cfg: DictConfig类型的日志配置
     :param update_config: 需要更新的配置（可选）
     :return: WandbLogger实例，用于在整个训练过程中记录日志
@@ -23,8 +23,8 @@ def init_wandb_logger(save_dir, wandb_project, wandb_name, logger_cfg: DictConfi
 
     # 初始化WandbLogger实例
     wandb_logger = WandbLogger(
-        project=wandb_project,
-        name=wandb_name,
+        project=project,
+        name=name,
         save_dir=save_dir,
         **logger_cfg
     )

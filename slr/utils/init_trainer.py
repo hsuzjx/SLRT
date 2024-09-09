@@ -2,7 +2,7 @@ import lightning as L
 from omegaconf import DictConfig
 
 
-def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
+def init_trainer(logger, callbacks, trainer_cfg: DictConfig):
     """
     设置训练器配置。
 

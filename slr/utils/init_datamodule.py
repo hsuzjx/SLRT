@@ -7,8 +7,8 @@ from slr.data import Phoenix2014DataModule
 from slr.data.preprocess import preprocess
 
 
-def setup_datamodule(dataset_name, features_path, annotations_path, gloss_dict_path, ground_truth_path,
-                     datamodule_cfg: DictConfig):
+def init_datamodule(dataset_name, features_path, annotations_path, gloss_dict_path, ground_truth_path,
+                    datamodule_cfg: DictConfig):
     """
     根据提供的数据集名称和配置，设置数据模块。
 

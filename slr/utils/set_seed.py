@@ -3,7 +3,7 @@ import random
 import lightning as L
 
 
-def setup_seed(seed, workers=True):
+def set_seed(seed, workers=True):
     """
     根据配置设置全局随机种子。
 

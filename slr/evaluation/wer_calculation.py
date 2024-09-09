@@ -5,7 +5,7 @@ from datetime import datetime
 from .process_phoenix2014_output import process_phoenix2014_output
 
 
-def evaluate(dataset_name, file_save_path="./", ground_truth_file=None, ctm_file=None, sclite_path="../../.bin/sclite",
+def evaluate(dataset_name, file_save_path="./", ground_truth_file=None, ctm_file=None, sclite_path="sclite",
              remove_tmp_file=True,
              python_evaluate=False, triplet=False):
     """
