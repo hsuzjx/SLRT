@@ -15,7 +15,7 @@ import slr
 from slr.data import Phoenix2014DataModule
 from slr.data import Phoenix2014TDataModule
 from slr.model import SLRModel
-from slr.utils import preprocess
+from .data.preprocess import preprocess
 
 CONFIG_PATH = '../configs'
 CONFIG_NAME = 'CorrNet_experiment.yaml'
@@ -331,18 +331,12 @@ def main(cfg: DictConfig):
     )
 
     # train model
-    # try:
     trainer.fit(model, datamodule=data_module)
-    # except Exception as e:
-    #     print(f"训练过程中出错: {e}")
 
     # test the best model
-    # try:
     best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
     best_model.eval()
     trainer.test(best_model, datamodule=data_module)
-    # except Exception as e:
-    #     print(f"测试过程中出错: {e}")
 
     # 确保wandb.finish()被执行，以释放资源
     try:

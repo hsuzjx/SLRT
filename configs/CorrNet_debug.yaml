@@ -1,9 +1,9 @@
-# experiments/example1.yaml
+# /configs/CorrNet_experiment.yaml
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - data: phoenix2014 # 数据集配置
   - datamodule: phoenix2014 # 数据模块配置
-  - model: model1 # 模型配置
+  - model: CorrNet # 模型配置
   - trainer: use_gpu # 训练配置
   - callback: default # 回调函数配置
   - logger: wandb # 日志记录器配置
@@ -17,11 +17,13 @@ hydra:
 
 # 项目相关配置
 project: Phoenix2014 # 项目名称
-name: experiment_t9_transformer_s2t # 实验名称
+name: CorrNet # 实验名称
 timestamp: ${now:%Y-%m-%d_%H-%M-%S} # 更新时间戳格式为带下划线分隔
+model_name: CorrNet
 
 # 其他配置
 seed: -1 # 随机数种子
 save_dir: ../experiments
 torch_float32_matmul_precision: high
 convert_to_onnx: true
+

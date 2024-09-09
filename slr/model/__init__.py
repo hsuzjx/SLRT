@@ -1,2 +1,2 @@
-from .SLRModel import SLRModel
 from .CorrNet import CorrNet
+from .SLRModel import SLRModel

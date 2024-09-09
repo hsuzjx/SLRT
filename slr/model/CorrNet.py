@@ -5,7 +5,7 @@ from torch import nn
 
 from .SLRBaseModel import SLRBaseModel
 from .modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
-from ..utils import Decode
+from .utils import Decode
 
 
 class CorrNet(SLRBaseModel):
