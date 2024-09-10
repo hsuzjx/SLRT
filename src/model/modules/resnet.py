@@ -248,6 +248,7 @@ class ResNet(nn.Module):
         返回:
         - x: 输出张量，模型的预测结果。
         """
+        print(x.dtype)
         # 获取输入的尺寸信息
         N, C, T, H, W = x.size()
         # 初始卷积层

@@ -1,7 +1,9 @@
 import itertools
 import os
 import re
+import time
 from datetime import datetime
+from os import times
 
 import lightning as L
 import torch
@@ -43,6 +45,7 @@ class SLRModel(L.LightningModule):
 
         # 注册后向传播钩子
         self.register_full_backward_hook(self.handle_nan_gradients)
+        self.e_time = time.time()
 
     def forward(self, inputs, lengths):
         """
@@ -360,6 +363,7 @@ class SLRModel(L.LightningModule):
         返回:
         - loss: 该批次的损失值。
         """
+        s_time = time.time()
         # 解包批次数据
         x, x_lgt, y, y_lgt, info = batch
         # 模型前向传播
@@ -385,6 +389,9 @@ class SLRModel(L.LightningModule):
         #     'predictions': [(info[i].name, decoded[i]) for i in range(len(info))]
         # })
 
+        print(f'test_step_time: {time.time() - s_time}')
+        print(f'test_step_all_time: {time.time() - self.e_time}')
+        self.e_time = time.time()
         return loss
 
     # def on_test_epoch_end(self):

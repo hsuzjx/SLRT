@@ -248,6 +248,7 @@ def setup_trainer(logger, callbacks, trainer_cfg: DictConfig):
         limit_train_batches=trainer_cfg.get('limit_train_batches', 1.0),  # 训练批次的数据使用比例
         limit_val_batches=trainer_cfg.get('limit_val_batches', 1.0),  # 验证批次的数据使用比例
         limit_test_batches=trainer_cfg.get('limit_test_batches', 1.0),  # 测试批次的数据使用比例
+        profiler="simple"
     )
 
     return trainer
@@ -353,7 +354,7 @@ def main(cfg: DictConfig):
 
     # 异常处理
     # try:
-    trainer.fit(model, datamodule=data_module)
+    # trainer.fit(model, datamodule=data_module)
     trainer.test(model, datamodule=data_module)
     # except Exception as e:
     #     print(f"训练过程中出错: {e}")

@@ -1,5 +1,7 @@
 import glob
 import os
+import time
+
 import cv2
 import numpy as np
 import pandas as pd
@@ -22,6 +24,7 @@ class Phoenix2014Dataset(data.Dataset):
     """
 
     def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None):
+        s_time = time.time()
         super().__init__()
         self.mode = mode
         self.features_path = os.path.abspath(features_path)
@@ -44,6 +47,7 @@ class Phoenix2014Dataset(data.Dataset):
             self.transform = Compose([ToTensor()])
         else:
             self.transform = transform
+        # print('dataset init time:', time.time() - s_time)
 
     def __getitem__(self, idx):
         """
@@ -57,6 +61,7 @@ class Phoenix2014Dataset(data.Dataset):
         - label_list: 标签列表
         - item.name: 数据名称
         """
+        s_time = time.time()
         item = self.corpus.iloc[idx]
         img_list_path = sorted(glob.glob(os.path.join(self.features_path, f'{self.mode}', item.folder)))
         if not img_list_path:
@@ -66,20 +71,36 @@ class Phoenix2014Dataset(data.Dataset):
         anno = [word for word in anno if word]  # 移除空字符串
         label_list = [self.dict.get(w, 0) for w in anno]  # 默认为0，如果单词不在字典中
 
+        time1 = time.time()
+
         imgs = []
+        imread_time = 0
+        cvt_time = 0
+        append_time = 0
         for img_path in img_list_path:
+            t = time.time()
             img = cv2.imread(img_path)
+            imread_time += time.time() - t
             if img is None:
                 raise FileNotFoundError(f"Image not found or failed to load: {img_path}")
+            t = time.time()
             img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            cvt_time += time.time() - t
+            t = time.time()
             imgs.append(img)
-
+            append_time += time.time() - t
+        # print('imread_time:', imread_time, 'cvt_time:', cvt_time, 'append_time:', append_time)
+        time2 = time.time()
         if self.transform:
             imgs, label_list = self.transform(imgs, label_list)
 
+        time3 = time.time()
+
         imgs = imgs.float() / 127.5 - 1
         label_list = torch.LongTensor(label_list)
-
+        time4 = time.time()
+        # print('dataset getitem time:', time.time() - s_time)
+        # print('dataset getitem time:', time4 - time3, time3 - time2, time2 - time1, time1 - s_time)
         return imgs, label_list, item
 
     def __len__(self):

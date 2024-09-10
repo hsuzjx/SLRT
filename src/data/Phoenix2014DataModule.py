@@ -91,6 +91,8 @@ class Phoenix2014DataModule(L.LightningDataModule):
         if stage == 'validate':
             self.dev_dataset = self.load_dataset("dev", self.dev_transform)
         if stage == 'test':
+            self.train_dataset = self.load_dataset("train", self.train_transform,
+                                                   drop_ids=['13April_2011_Wednesday_tagesschau_default-14'])
             self.test_dataset = self.load_dataset("test", self.test_transform)
 
     def train_dataloader(self):
@@ -120,5 +122,5 @@ class Phoenix2014DataModule(L.LightningDataModule):
         返回:
         DataLoader实例
         """
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False,
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False,
                           collate_fn=self.test_dataset.collate_fn, pin_memory=True, drop_last=True)
