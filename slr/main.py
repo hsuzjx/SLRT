@@ -7,11 +7,11 @@ import torch
 import wandb
 from omegaconf import DictConfig
 
-from slr.model import SLRModel
-from .utils import *
+import slr.model
+from slr.utils import *
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_experiment.yaml'
+CONFIG_NAME = 'CorrNet_debug.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
@@ -83,13 +83,15 @@ def main(cfg: DictConfig):
     with open(os.path.join(gloss_dict_dir, f'{dataset_name}_gloss_dict.npy'), 'rb') as f:
         gloss_dict = np.load(f, allow_pickle=True).item()
 
+    model_name = cfg.get('model_name')
+
     # 模型初始化
     model = init_model(
         save_dir=save_dir,
         dataset_name=dataset_name,
         gloss_dict=gloss_dict,
         ground_truth_path=ground_truth_dir,
-        model_name=cfg.get('model_name'),
+        model_name=model_name,
         model_cfg=model_cfg
     )
 
@@ -104,7 +106,7 @@ def main(cfg: DictConfig):
     trainer.fit(model, datamodule=data_module)
 
     # test the best model
-    best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+    best_model = getattr(slr.model, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
     best_model.eval()
     trainer.test(best_model, datamodule=data_module)
 
@@ -117,12 +119,13 @@ def main(cfg: DictConfig):
     # 根据配置决定是否将模型转换为ONNX格式
     if cfg.get('convert_to_onnx', False):
         # 加载最佳模型以进行ONNX转换
-        best_model = SLRModel.load_from_checkpoint(checkpoint_callback.best_model_path)
+        best_model = getattr(slr.model, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
         # 创建保存ONNX模型的目录
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
+        onnx_file_name = os.path.basename(checkpoint_callback.best_model_path).replace('.ckpt', '.onnx')
         # 执行模型到ONNX的转换
-        convert_to_onnx(best_model, os.path.join(onnx_save_dir, 'best_model.onnx'))
+        convert_to_onnx(best_model, os.path.join(onnx_save_dir, onnx_file_name))
 
 
 if __name__ == '__main__':

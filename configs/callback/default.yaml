@@ -13,3 +13,5 @@ save_last: true
 # 保存最优模型的数量，1表示仅保存最优的模型
 save_top_k: 1
 
+# 模型保存的文件名格式，包含epoch数和监控指标的值
+filename: '{epoch}-{DEV_WER:.2f}'

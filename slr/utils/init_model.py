@@ -1,5 +1,7 @@
 import os
 
+from omegaconf import DictConfig
+
 import slr
 
 
