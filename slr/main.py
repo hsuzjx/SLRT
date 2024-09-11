@@ -11,7 +11,7 @@ import slr.model
 from slr.utils import *
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_debug.yaml'
+CONFIG_NAME = 'CorrNet_experiment.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)

@@ -2,6 +2,7 @@ import itertools
 import os
 import re
 from datetime import datetime
+from typing import Any
 
 import lightning as L
 import torch
@@ -260,6 +261,25 @@ class SLRBaseModel(L.LightningModule):
             self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
             print(
                 f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        """
+        执行单个预测步骤，即处理一个批次的数据用于预测。
+
+        参数:
+        - batch: 一个批次的数据，包含输入等。
+        - batch_idx: 批次的索引。
+        - dataloader_idx: 当使用多个数据加载器时，标识特定的数据加载器。
+
+        返回:
+        - decoded: 解码后的预测结果。
+        """
+        _, decoded, _ = self.step_forward(batch)
+
+        # 可以在此处添加额外的逻辑来处理预测结果，例如保存到文件、返回特定格式的数据等。
+        # 示例: 将预测结果转换为易于理解的形式或直接返回预测结果。
+
+        return decoded
 
     def write2file(self, path, preds_info):
         """
