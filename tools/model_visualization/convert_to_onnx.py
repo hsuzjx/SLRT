@@ -3,7 +3,7 @@ import argparse
 import torch
 
 import slr.model
-from tools.input_sample_dict import INPUT_SAMPLE
+from tools.INPUT_SAMPLE_DICT import INPUT_SAMPLE
 
 
 def convert_to_onnx(model_name, pth_file, onnx_file):
