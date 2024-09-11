@@ -290,7 +290,7 @@ class ResNet(nn.Module):
         return x
 
 
-def resnet18(pretrained=True, model_dir='./.models', **kwargs):
+def resnet18(pretrained=False, model_dir='./.models', **kwargs):
     """构建一个基于ResNet-18的模型。
     
     参数:

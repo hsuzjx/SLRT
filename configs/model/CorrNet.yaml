@@ -9,6 +9,8 @@ conv_type: 2
 use_bn: false
 hidden_size: 1024
 share_classifier: true
+resnet_pretrained: true
+pretrained_model_dir: ./.pretrained_models
 
 # for transformer
 d_model: 1024

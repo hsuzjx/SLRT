@@ -131,7 +131,7 @@ class CorrNet(SLRBaseModel):
         返回:
             使用ResNet-18作为2D卷积层，去除其全连接层。
         """
-        conv2d = resnet18()
+        conv2d = resnet18(pretrained=self.hparams.resnet_pretrained, model_dir=self.hparams.pretrained_model_dir)
         conv2d.fc = Identity()
         return conv2d
 
