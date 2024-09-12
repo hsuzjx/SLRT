@@ -19,8 +19,8 @@ if os.path.exists(config_path):
             key, value = line.strip().split('=')
             server_config[key] = value
 
-DATA_DIR = server_config.get('data_dir', '../data/csl-daily')
-TEMP_DIR = server_config.get('temp_dir', '../.tmp')
+DATA_DIR = server_config.get('data_dir', '../../data/csl-daily')
+TEMP_DIR = server_config.get('temp_dir', '../../.tmp')
 SERVER_NAME = server_config.get('server_name', '10.12.44.154')
 SERVER_PORT = server_config.get('server_port', 7866)
 

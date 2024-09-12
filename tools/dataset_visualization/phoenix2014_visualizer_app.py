@@ -135,10 +135,10 @@ if __name__ == "__main__":
                           minimum=0),
                 gr.Checkbox(label='is add keypoints?'),
                 gr.Checkbox(label='is add heatmap?')],
-        outputs=[gr.Video(label='video', autoplay=True, show_download_button=False),
+        outputs=[gr.Video(label='video', autoplay=True, show_download_button=True),
                  gr.Text(label='annotation'),
                  gr.Text(label='info')],
         live=False,
         allow_flagging='never',
     )
-    iface.launch(share=False, server_name=SERVER_NAME, server_port=SERVER_PORT)
+    iface.launch(share=True, server_name=SERVER_NAME, server_port=SERVER_PORT)
