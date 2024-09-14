@@ -127,14 +127,18 @@ if __name__ == "__main__":
         title='Phoenix2014 Visualizer',
         # description='Visualize Phoenix2014 dataset.',
         fn=process_frames_to_video,
-        inputs=[gr.Number(label='sample index',
-                          info=f'train set: {0}~{num_of_samples["train"] - 1}, '
-                               f'dev set: {num_of_samples["train"]}~{num_of_samples["train"] + num_of_samples["dev"] - 1}, '
-                               f'test set: {num_of_samples["train"] + num_of_samples["dev"]}~{num_of_samples["train"] + num_of_samples["dev"] + num_of_samples["test"] - 1}',
-                          maximum=len(features_list) - 1,
-                          minimum=0),
-                gr.Checkbox(label='is add keypoints?'),
-                gr.Checkbox(label='is add heatmap?')],
+        inputs=[
+            gr.Number(
+                label='sample index',
+                info=f'train set: {0}~{num_of_samples["train"] - 1}, '
+                     f'dev set: {num_of_samples["train"]}~{num_of_samples["train"] + num_of_samples["dev"] - 1}, '
+                     f'test set: {num_of_samples["train"] + num_of_samples["dev"]}~{num_of_samples["train"] + num_of_samples["dev"] + num_of_samples["test"] - 1}',
+                maximum=len(features_list) - 1,
+                minimum=0
+            ),
+            # gr.Checkbox(label='is add keypoints?'),
+            # gr.Checkbox(label='is add heatmap?')
+        ],
         outputs=[gr.Video(label='video', autoplay=True, show_download_button=True),
                  gr.Text(label='annotation'),
                  gr.Text(label='info')],
