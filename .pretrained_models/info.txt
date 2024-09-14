@@ -1,0 +1,7 @@
+git lfs install
+git clone https://hf-mirror.com/google-bert/bert-base-chinese
+git clone https://hf-mirror.com/google-bert/bert-base-german-cased
+git clone https://hf-mirror.com/google-bert/bert-base-german-dbmdz-uncased
+git clone https://hf-mirror.com/google-bert/bert-base-german-dbmdz-cased
+git clone https://hf-mirror.com/openai/clip-vit-base-patch32
+git clone https://hf-mirror.com/openai/clip-vit-large-patch14
