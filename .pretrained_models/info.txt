@@ -5,3 +5,5 @@ git clone https://hf-mirror.com/google-bert/bert-base-german-dbmdz-uncased
 git clone https://hf-mirror.com/google-bert/bert-base-german-dbmdz-cased
 git clone https://hf-mirror.com/openai/clip-vit-base-patch32
 git clone https://hf-mirror.com/openai/clip-vit-large-patch14
+git clone --depth 1 https://hf-mirror.com/mattshumer/Reflection-Llama-3.1-70B
+git clone https://hf-mirror.com/microsoft/swin-base-patch4-window12-384
