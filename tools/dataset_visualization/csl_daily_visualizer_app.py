@@ -17,8 +17,7 @@ class CSLDailyVisualizer:
     负责从帧生成视频，可选择性地添加关键点和热图。
     """
 
-    def __init__(self, data_dir, temp_dir, server_name, server_port, confidence_threshold=0.3, sigma=10, fps=25,
-                 fourcc='mp4v'):
+    def __init__(self, data_dir, temp_dir, server_name, server_port, confidence_threshold=0.3, sigma=10, fps=25):
         """
         初始化CSLDailyVisualizer类的实例。
 
@@ -29,7 +28,6 @@ class CSLDailyVisualizer:
         - server_port: 服务器的端口号。
         - confidence_threshold: 关键点置信度阈值，默认为0.3。
         - sigma: 高斯模糊的sigma参数，默认为10。
-        - fourcc: 视频编解码器格式，默认为'mp4v'。
         """
         # 保存传入的参数
         self.data_dir = data_dir
@@ -39,7 +37,6 @@ class CSLDailyVisualizer:
         self.confidence_threshold = confidence_threshold
         self.sigma = sigma
         self.fps = fps
-        self.fourcc = fourcc
 
         self.frames_dir = os.path.join(self.data_dir, 'sentence_frames-512x512', 'frames_512x512')
 
@@ -81,9 +78,7 @@ class CSLDailyVisualizer:
             raise IOError(f"Failed to read the first frame from {frames[0]}")
 
         # 初始化视频写入器
-        height, width, _ = first_frame.shape
-        video_writer = VideoWriter(output_file=os.path.join(self.temp_dir, f"{name}.mp4"), fps=self.fps,
-                                   fourcc=self.fourcc)
+        video_writer = VideoWriter(output_file=os.path.join(self.temp_dir, f"{name}.mp4"), fps=self.fps)
         video_writer.init_writer(first_frame)
 
         # 遍历所有帧，进行处理并添加到视频中
@@ -204,7 +199,6 @@ def main(args):
         confidence_threshold=args.confidence_threshold,
         sigma=args.sigma,
         fps=args.fps,
-        fourcc=args.fourcc
     )
 
     # 注册一个函数，在程序退出时清理临时目录
@@ -270,9 +264,6 @@ if __name__ == "__main__":
 
     # 添加可选的命令行参数：帧率，默认为25
     parser.add_argument("--fps", type=int, default=25, help="Frames per second")
-
-    # 添加可选的命令行参数：视频编码格式，默认为'mp4v'
-    parser.add_argument("--fourcc", type=str, default='mp4v', help="Video codec format, such as 'XVID' or 'mp4v'")
 
     # 解析命令行参数
     args = parser.parse_args()
