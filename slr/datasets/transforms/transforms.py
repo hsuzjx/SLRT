@@ -12,13 +12,10 @@ class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, image, label, file_info=None):
+    def __call__(self, image):
         for t in self.transforms:
-            if file_info is not None and isinstance(t, WERAugment):
-                image, label = t(image, label, file_info)
-            else:
-                image = t(image)
-        return image, label
+            image = t(image)
+        return image
 
 
 class WERAugment(object):

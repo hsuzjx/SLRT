@@ -22,7 +22,7 @@ timestamp: ${now:%Y-%m-%d_%H-%M-%S} # 更新时间戳格式为带下划线分隔
 model_name: CorrNet
 
 # 其他配置
-seed: -1 # 随机数种子
+seed: -1 # 随机数种子，best in experiment now: 3,218,388,406
 save_dir: ../experiments
 torch_float32_matmul_precision: high
 convert_to_onnx: true
