@@ -26,7 +26,7 @@ class VideoCaptioner:
         """
         self.device = device
         # 通过模型名称和检查点文件路径加载模型，并移动到指定设备
-        self.model = getattr(slr.model, model_name).load_from_checkpoint(ckpt_file).to(self.device)
+        self.model = getattr(slr.models, model_name).load_from_checkpoint(ckpt_file).to(self.device)
 
         # 加载gloss字典
         with open("/new_home/xzj23/workspace/SLR/data/global_files/gloss_dict/phoenix2014_gloss_dict.npy", "rb") as f:
@@ -122,7 +122,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     # 初始化模型
-    model = getattr(slr.model, args.model_name).load_from_checkpoint(args.ckpt_file).to(args.device)
+    model = getattr(slr.models, args.model_name).load_from_checkpoint(args.ckpt_file).to(args.device)
     video_captioner = VideoCaptioner(args.model_name, args.ckpt_file, args.device)
 
 

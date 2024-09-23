@@ -23,7 +23,7 @@ def predict():
     datamodule.setup(stage='test')
     dls = [datamodule.train_dataloader(), datamodule.val_dataloader(), datamodule.test_dataloader()]
 
-    model = getattr(slr.model, MODEL_NAME).load_from_checkpoint(MODEL_PATH)
+    model = getattr(slr.models, MODEL_NAME).load_from_checkpoint(MODEL_PATH)
     trainer = L.Trainer(devices=[0])
     model.eval()
 

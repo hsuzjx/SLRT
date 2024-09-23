@@ -23,7 +23,7 @@ def init_model(
     save_path = os.path.join(save_dir, 'hypothesis')
     os.makedirs(save_path, exist_ok=True)
     try:
-        model = getattr(slr.model, model_name)(
+        model = getattr(slr.models, model_name)(
             save_path=save_path,  # 模型保存路径
             dataset_name=dataset_name,  # 数据集名称
             gloss_dict=gloss_dict,  # 标签字典

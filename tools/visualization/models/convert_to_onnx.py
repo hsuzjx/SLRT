@@ -24,7 +24,7 @@ def convert_to_onnx(model_name, pth_file, onnx_file):
             raise ValueError(f"Invalid model name: {model_name}")
 
         # 加载模型并转移到CPU上进行后续操作
-        model = getattr(slr.model, model_name).load_from_checkpoint(pth_file)
+        model = getattr(slr.models, model_name).load_from_checkpoint(pth_file)
         model = model.to('cpu')
         model.eval()  # 将模型设置为评估模式
 

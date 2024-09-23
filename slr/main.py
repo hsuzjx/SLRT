@@ -106,7 +106,7 @@ def main(cfg: DictConfig):
     trainer.fit(model, datamodule=data_module)
 
     # test the best model
-    best_model = getattr(slr.model, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
+    best_model = getattr(slr.models, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
     best_model.eval()
     trainer.test(best_model, datamodule=data_module)
 
@@ -119,7 +119,7 @@ def main(cfg: DictConfig):
     # 根据配置决定是否将模型转换为ONNX格式
     if cfg.get('convert_to_onnx', False):
         # 加载最佳模型以进行ONNX转换
-        best_model = getattr(slr.model, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
+        best_model = getattr(slr.models, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
         # 创建保存ONNX模型的目录
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
