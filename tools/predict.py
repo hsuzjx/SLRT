@@ -2,7 +2,7 @@ import lightning as L
 import numpy as np
 
 import slr.model
-from slr.data import Phoenix2014DataModule
+from slr.datasets import Phoenix2014DataModule
 
 MODEL_NAME = 'CorrNet'
 MODEL_PATH = '../experiments/Phoenix2014/CorrNet/2024-09-10_20-19-23/checkpoints/epoch=31-DEV_WER=19.50.ckpt'

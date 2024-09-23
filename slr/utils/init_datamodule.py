@@ -3,8 +3,8 @@ import os
 import numpy as np
 from omegaconf import DictConfig
 
-from slr.data import Phoenix2014DataModule
-from slr.data.preprocess import preprocess
+from slr.datasets import Phoenix2014DataModule
+from slr.datasets.preprocess import preprocess
 
 
 def init_datamodule(dataset_name, features_path, annotations_path, gloss_dict_path, ground_truth_path,
