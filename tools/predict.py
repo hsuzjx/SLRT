@@ -1,7 +1,7 @@
 import lightning as L
 import numpy as np
 
-import slr.model
+import slr.models
 from slr.datasets import Phoenix2014DataModule
 
 MODEL_NAME = 'CorrNet'

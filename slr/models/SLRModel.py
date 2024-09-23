@@ -8,7 +8,7 @@ import torch
 from torch import nn
 
 from slr.evaluation import evaluate
-from slr.model.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
+from slr.models.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 from .utils import Decode
 
 

@@ -7,7 +7,7 @@ import torch
 import wandb
 from omegaconf import DictConfig
 
-import slr.model
+import slr.models
 from slr.utils import *
 
 CONFIG_PATH = '../configs'

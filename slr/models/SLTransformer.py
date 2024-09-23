@@ -2,7 +2,7 @@ from typing import Any
 
 from torch import nn, Tensor
 
-from slr.model.SLRBaseModel import SLRBaseModel
+from slr.models.SLRBaseModel import SLRBaseModel
 
 
 class SLTransformer(SLRBaseModel):

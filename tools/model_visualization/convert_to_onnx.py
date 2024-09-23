@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-import slr.model
+import slr.models
 from tools.INPUT_SAMPLE_DICT import INPUT_SAMPLE
 
 

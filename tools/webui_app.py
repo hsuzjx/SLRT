@@ -7,8 +7,8 @@ import torch
 from PIL import Image
 from torchvision.transforms import Compose, Resize, ToTensor, Normalize, CenterCrop
 
-import slr.model
-from slr.model.utils import Decode
+import slr.models
+from slr.models.utils import Decode
 
 
 class VideoCaptioner:
