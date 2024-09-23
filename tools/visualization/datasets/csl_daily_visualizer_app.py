@@ -8,7 +8,7 @@ import cv2
 import gradio as gr
 import numpy as np
 
-from tools.dataset_visualization.utils import VideoWriter, TempDirManager, safe_pickle_load
+from tools.visualization.datasets.utils import VideoWriter, TempDirManager, safe_pickle_load
 
 
 class CSLDailyVisualizer:

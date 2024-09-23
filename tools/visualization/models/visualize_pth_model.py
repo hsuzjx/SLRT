@@ -1,8 +1,8 @@
 import argparse
 import tempfile
 
-from tools.model_visualization.convert_to_onnx import convert_to_onnx
-from tools.model_visualization.visualize_onnx_model import visualize_onnx_model
+from tools.visualization.models.convert_to_onnx import convert_to_onnx
+from tools.visualization.models.visualize_onnx_model import visualize_onnx_model
 
 if __name__ == '__main__':
     # 创建参数解析器
