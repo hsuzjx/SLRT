@@ -26,15 +26,17 @@ class Phoenix2014Dataset(data.Dataset):
     None
     """
 
-    def __init__(self,
-                 dataset_dir: str = None,
-                 features_path: str = None,
-                 annotations_path: str = None,
-                 mode: str = "train",
-                 frame_size: tuple = (210, 260),
-                 drop_ids: list = None,
-                 transforms=None,
-                 target_transform=None):
+    def __init__(
+            self,
+            dataset_dir: str = None,
+            features_path: str = None,
+            annotations_path: str = None,
+            mode: str = "train",
+            frame_size: tuple = (210, 260),
+            drop_ids: list = None,
+            transforms=None,
+            tokenizer=None
+    ) -> None:
         super().__init__()
 
         # Verify the correctness of the mode parameter, raise an exception if it is not one of 'train', 'dev', or 'test'
@@ -78,7 +80,7 @@ class Phoenix2014Dataset(data.Dataset):
                     print(f"ID {drop_id} not found in corpus, skipping.")
 
         self.transforms = transforms
-        self.target_transform = target_transform
+        self.tokenizer = tokenizer
 
     def __len__(self):
         """
@@ -128,8 +130,8 @@ class Phoenix2014Dataset(data.Dataset):
 
         if self.transforms:
             video = self.transforms(video)
-        if self.target_transform:
-            annotation = self.target_transform(annotation)
+        if self.tokenizer:
+            annotation = self.tokenizer(annotation)
 
         return video, annotation, info
 
