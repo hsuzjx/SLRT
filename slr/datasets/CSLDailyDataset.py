@@ -1,162 +1,148 @@
+import glob
 import os
 import pickle
 
 import cv2
-import numpy as np
-import torch
-from torch.nn.utils.rnn import pad_sequence
+import pandas as pd
 from torch.utils.data import Dataset
 
-from slr.datasets.transforms import Compose, ToTensor
 
-
-# TODO: Implement the CSLDailyDataset class
 class CSLDailyDataset(Dataset):
-    def __init__(self, features_path, annotation_file, split_file, mode, gloss2ids_file, transform=None):
-        """
+    """
+    Custom Dataset class for loading and processing the CSL Daily dataset.
 
-        """
-        self.features_path = os.path.abspath(features_path)
-        self.annotation_file = os.path.abspath(annotation_file)
-        self.gloss2ids_file = os.path.abspath(gloss2ids_file)
-        self.split_file = os.path.abspath(split_file)
+    This class is responsible for loading feature and annotation data based on provided paths.
+    It also handles data splitting according to the specified mode (e.g., train, dev, test).
+    Additionally, it supports data augmentation and tokenization.
+
+    Args:
+        dataset_dir (str): Base directory of the dataset.
+        features_dir (str): Directory containing feature files. If not provided, defaults to a subdirectory within `dataset_dir`.
+        annotation_dir (str): Directory containing annotation files. If not provided, defaults to a subdirectory within `dataset_dir`.
+        split_file (str): Path to the data split file. If not provided, defaults to "split_1.txt" in the annotation directory.
+        mode (str): Specifies the dataset mode, which can be "train", "dev", or "test".
+        transform (callable): Optional data transformation function for data augmentation or normalization.
+        tokenizer (object): Tokenizer object for text tokenization.
+    """
+
+    def __init__(
+            self,
+            dataset_dir: str,
+            features_dir: str = None,
+            annotation_dir: str = None,
+            split_file: str = None,
+            mode: str = "train",
+            transform: callable = None,
+            tokenizer: object = None
+    ):
+        # Set default or custom path for feature directory and check its validity
+        if features_dir is None and dataset_dir is not None:
+            self.features_dir = os.path.join(
+                dataset_dir, 'sentence_frames-512x512/frames_512x512'
+            )
+        else:
+            self.features_dir = os.path.abspath(features_dir) if features_dir is not None else None
+
+        # Set default or custom path for annotation directory and check its validity
+        if annotation_dir is None and dataset_dir is not None:
+            self.annotations_dir = os.path.join(
+                dataset_dir, 'sentence_label'
+            )
+        else:
+            self.annotations_dir = os.path.abspath(annotation_dir) if annotation_dir is not None else None
+
+        # Validate paths
+        if not os.path.exists(self.features_dir):
+            raise FileNotFoundError(f"Features directory not found at {self.features_dir}")
+        if not os.path.exists(self.annotations_dir):
+            raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
+
+        # Validate the mode and set it
+        if mode not in ["train", "dev", "test"]:
+            raise ValueError("mode must be one of 'train', 'dev', or 'test'")
         self.mode = mode
 
-        self.annotation = self.get_annotations()
-        self.gloss_dict = self.get_gloss_dict()
+        # Set path for split file and validate its existence
+        if split_file is not None:
+            self.split_file = os.path.abspath(split_file)
+        else:
+            self.split_file = os.path.join(self.annotations_dir, "split_1.txt")
+        if not os.path.exists(self.split_file):
+            raise FileNotFoundError(f"Split file not found at {self.split_file}")
 
+        # Load data from split file and filter samples based on mode
+        splits = pd.read_csv(self.split_file, sep='|', header=0)
+        self.sample_list = splits[splits['split'] == mode]['name'].tolist()
+
+        # Handle special cases for default split_1.txt in training mode
+        if split_file is None and mode == "train":
+            if "S000005_P0004_T00" in self.sample_list:
+                self.sample_list.remove("S000005_P0004_T00")
+            if "S000007_P0003_T00" not in self.sample_list:
+                self.sample_list.append("S000007_P0003_T00")
+
+        # Load annotation file and filter out information for current mode
+        annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
+        if not os.path.exists(annotation_file):
+            raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
+
+        with open(annotation_file, 'rb') as f:
+            data = pickle.load(f)
+        info = pd.DataFrame(data['info'])
+        self.info = info[info['name'].isin(self.sample_list)]
+
+        # Set data transformation and tokenization
         self.transform = transform
+        self.tokenizer = tokenizer
 
     def __len__(self):
         """
-        返回数据集中样本的数量。
+        Returns the number of samples in the dataset.
+
+        Returns the length of self.info to indicate the number of samples in the dataset.
         """
-        return len(self.annotation)
+        return len(self.info)
 
     def __getitem__(self, idx):
         """
-        获取指定索引的样本。
+        Retrieves a sample at the specified index.
 
-        :param idx: 样本索引。
-        :return: 处理后的图像和对应的标签。
+        :param idx: Sample index.
+        :return: Processed image and corresponding label.
         """
-        item = self.annotation[idx]
+        item = self.info.iloc[idx]
 
-        # 构建视频帧路径
-        frame_list_path = os.path.join(self.features_path, item['name'])
-        if not frame_list_path:
-            raise ValueError(f"No frames found for folder {frame_list_path}")
+        # Build the path to video frames
+        frames_dir = os.path.join(self.features_dir, item['name'])
+        # Check if the frames directory exists
+        if not os.path.exists(frames_dir):
+            raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
+        frames = self._read_frames(frames_dir)
 
-        # 加载视频帧
-        frame_files = sorted(os.listdir(frame_list_path))
+        glosses = item['label_gloss']
+
+        if self.transform is not None:
+            frames = self.transform(frames)
+        if self.tokenizer is not None:
+            glosses = self.tokenizer.encode(glosses)
+
+        return frames, glosses, item
+
+    def _read_frames(self, frames_dir):
+        """
+        Reads video frames from the specified directory and returns them as a list.
+
+        :param frames_dir: Directory containing video frames.
+        :return: List of frames read from the directory.
+        """
+        frames_file_list = sorted(glob.glob(os.path.join(frames_dir, '*.jpg')))
         frames = []
-        for frame_file in frame_files:
-            frame = cv2.imread(os.path.join(frame_list_path, frame_file))
+
+        for frame_file in frames_file_list:
+            frame = cv2.imread(frame_file)
+            if frame is None:
+                raise ValueError(f"Failed to read frame from {frame_file}")
+            # TODO: Confirm the correct frame's channels
             frames.append(frame)
-        frames = np.stack(frames, axis=0)  # (num_frames, height, width, channels)
-        if self.transform is None:
-            self.transform = Compose([ToTensor()])
-        frames, _ = self.transform(frames, [])
-        frames = frames.float() / 127.5 - 1
 
-        # 加载 标签
-        label_ids = torch.LongTensor([self.gloss_dict[gloss] for gloss in item['label_gloss']])
-
-        return frames, label_ids, item
-
-    def get_annotations(self, sep='|'):
-        """
-        根据给定的模式和分割文件，从注解文件中筛选出符合条件的数据。
-
-        :param annotation_file: 文件路径，包含注解信息
-        :param split_file: 文件路径，包含用于筛选的模式信息
-        :param mode: 模式列表，用于筛选样本
-        :param sep: 分割符，默认为'|'
-        :return: 筛选后的数据列表
-        """
-        # 尝试打开注解文件并加载数据
-        try:
-            with open(self.annotation_file, 'rb') as f:
-                annotations = pickle.load(f)
-        except Exception as e:
-            # 若发生异常，打印错误信息并返回空列表
-            print(f"Error loading annotation file: {e}")
-            return []
-
-        # 尝试打开分割文件并读取内容，分割每行数据
-        try:
-            with open(self.split_file, 'r') as file:
-                lines = [line.strip().split(sep) for line in file]
-        except Exception as e:
-            # 若发生异常，打印错误信息并返回空列表
-            print(f"Error loading split file: {e}")
-            return []
-
-        # 根据模式筛选样本名称
-        sample_names = [line[0] for line in lines if line[1] in self.mode]
-        # 根据样本名称筛选注解数据
-        filtered_data = [item for item in annotations['info'] if item['name'] in sample_names]
-
-        assert len(sample_names) == len(filtered_data)
-        # 返回筛选后的数据列表
-        return filtered_data
-
-    def get_gloss_dict(self):
-        """
-        从指定的文件中加载pickle序列化的字典数据。
-
-        :param gloss2ids_file: 字典文件路径
-        :type gloss2ids_file: str
-        :return: 加载的数据字典
-        :rtype: dict
-        """
-        try:
-            with open(self.gloss2ids_file, 'rb') as f:
-                data = pickle.load(f)
-        except FileNotFoundError:
-            print("文件未找到: ", self.gloss2ids_file)
-            return None
-        except Exception as e:
-            print("出现错误:", str(e))
-            return None
-        else:
-            return data
-
-    @staticmethod
-    def collate_fn(batch):
-        """
-        自定义的 collate 函数用于处理一批数据。
-
-        :param batch: 一批数据，每个元素是一个 (frames, labels) 元组。
-        :return: 处理后的批次数据。
-        """
-        frames, labels, info = zip(*batch)
-
-        # 假设 frames 已经是 (num_frames, height, width, channels) 形式的张量
-        # 使用 pad_sequence 来处理不同长度的视频帧
-        frames = pad_sequence([torch.from_numpy(f).permute(3, 0, 1, 2) for f in frames], batch_first=True)
-
-        # 处理标签
-        labels = [torch.tensor(l, dtype=torch.long) for l in labels]
-        # 假设所有样本的标签长度相同，如果不同则需要使用 pad_sequence
-        labels = pad_sequence(labels, batch_first=True, padding_value=-1)  # 使用 -1 作为填充值
-
-        return frames, labels
-
-
-# 示例使用
-data_dir = 'path/to/csl-daily'
-split_file = 'csl-daily.train'  # 或 'csl-daily.dev', 'csl-daily.test'
-dataset = CSLDailyDataset(data_dir, split_file)
-
-# 创建 DataLoader
-from torch.utils.data import DataLoader
-
-dataloader = DataLoader(dataset, batch_size=4, shuffle=True, collate_fn=dataset.collate_fn)
-
-# 测试 DataLoader
-for batch in dataloader:
-    frames, labels = batch
-    print("Frames shape:", frames.shape)
-    print("Labels shape:", labels.shape)
-    break
+        return frames
