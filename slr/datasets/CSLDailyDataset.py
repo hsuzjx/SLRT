@@ -6,8 +6,9 @@ import cv2
 import pandas as pd
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
-from slr.datasets.utils import pad_video_sequence, pad_label_sequence
+
 from slr.datasets.transforms import ToTensor
+from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
 class CSLDailyDataset(Dataset):

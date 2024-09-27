@@ -1,8 +1,10 @@
 import os
+
 import lightning as L
 from torch.utils.data import DataLoader
-from slr.datasets.CSLDailyDataset import CSLDailyDataset
 from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, CenterCrop
+
+from slr.datasets.CSLDailyDataset import CSLDailyDataset
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
 
