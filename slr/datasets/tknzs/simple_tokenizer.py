@@ -79,23 +79,33 @@ class SimpleTokenizer:
 
         return vocab, ids_to_vocab
 
-    def encode(self, text: Union[str, List[str]], return_type: str = 'pt') -> Union[List[int], torch.Tensor]:
+    def encode(
+            self,
+            text: Union[str, List[str]],
+            return_type: str = 'pt',
+            add_special_tokens: bool = True
+    ) -> Union[List[int], torch.Tensor]:
         """
-        Encodes a text into a list of token indices.
+        Encodes a text into a list of token indices. Optionally adds <SOS> and <EOS> tokens.
 
         Args:
             text (str or list): The text to encode (string or list of words).
             return_type (str, optional): The type of the returned tensor ('list', 'pt').
+            add_special_tokens (bool, optional): Whether to add <SOS> and <EOS> tokens.
 
         Returns:
             list or torch.Tensor: List or tensor of token indices representing the encoded text.
         """
         if isinstance(text, str):
-            tokens = [self.vocab[word] if word in self.vocab else self.vocab[self.unk_token] for word in self.tokenize(text)]
+            tokens = [self.vocab[word] if word in self.vocab else self.vocab[self.unk_token] for word in
+                      self.tokenize(text)]
         elif isinstance(text, list):
             tokens = [self.vocab[word] if word in self.vocab else self.vocab[self.unk_token] for word in text]
         else:
             raise ValueError("Unsupported text type. Expected 'str' or 'list'.")
+
+        if add_special_tokens:
+            tokens = [self.vocab[self.sos_token]] + tokens + [self.vocab[self.eos_token]]
 
         if return_type == 'list':
             return tokens
@@ -104,7 +114,10 @@ class SimpleTokenizer:
         else:
             raise ValueError(f"Unsupported return_type: {return_type}")
 
-    def decode(self, token_indices: Union[List[int], torch.Tensor]) -> List[str]:
+    def decode(
+            self,
+            token_indices: Union[List[int], torch.Tensor]
+    ) -> List[str]:
         """
         Decodes a list of token indices back into a list of tokens.
 
