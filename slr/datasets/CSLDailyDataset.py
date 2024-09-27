@@ -158,7 +158,7 @@ class CSLDailyDataset(Dataset):
             frame = cv2.imread(frame_file)
             if frame is None:
                 raise ValueError(f"Failed to read frame from {frame_file}")
-            # TODO: Confirm the correct frame's channels
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             frames.append(frame)
 
         return frames

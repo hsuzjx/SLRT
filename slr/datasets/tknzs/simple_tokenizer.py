@@ -1,5 +1,6 @@
-import torch
 from typing import List, Union, Dict, Tuple
+
+import torch
 
 
 class SimpleTokenizer:

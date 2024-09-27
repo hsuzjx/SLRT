@@ -2,7 +2,7 @@ import os
 
 import lightning as L
 from torch.utils.data import DataLoader
-from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, CenterCrop
+from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Resize, CenterCrop
 
 from slr.datasets.CSLDailyDataset import CSLDailyDataset
 from slr.datasets.transforms import ToTensor, TemporalRescale
@@ -92,9 +92,11 @@ class CSLDailyDataModule(L.LightningDataModule):
         if transform is None:
             print("Warning: 'transform' is None, using default values.")
             return {
-                'train': Compose([RandomCrop(224), RandomHorizontalFlip(), ToTensor(), TemporalRescale(224)]),
-                'dev': Compose([CenterCrop(224), ToTensor()]),
-                'test': Compose([CenterCrop(224), ToTensor()])
+                'train': Compose(
+                    [ToTensor(), Resize(256), RandomCrop(224), RandomHorizontalFlip()]  # , TemporalRescale(224)]
+                ),
+                'dev': Compose([ToTensor(), Resize(256), CenterCrop(224)]),
+                'test': Compose([ToTensor(), Resize(256), CenterCrop(224)])
             }
         elif isinstance(transform, dict):
             keys = ['train', 'dev', 'test']
