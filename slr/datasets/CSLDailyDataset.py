@@ -18,20 +18,14 @@ class CSLDailyDataset(Dataset):
     data splitting according to the specified mode (e.g., train, dev, test), and
     supports data augmentation and tokenization.
 
-    Args:
-        dataset_dir (str): Base directory of the dataset.
-        features_dir (str, optional): Directory containing feature files. Defaults
-                                      to a subdirectory within `dataset_dir`.
-        annotation_dir (str, optional): Directory containing annotation files.
-                                        Defaults to a subdirectory within `dataset_dir`.
-        split_file (str, optional): Path to the data split file. Defaults to
-                                    "split_1.txt" in the annotation directory.
-        mode (str or list, optional): Specifies the dataset mode ("train", "dev",
-                                      or "test"). Can be a single string or a list
-                                      of strings. Defaults to "train".
-        transform (callable, optional): Data transformation function for
-                                        augmentation or normalization.
-        tokenizer (object, optional): Tokenizer object for text tokenization.
+    Attributes:
+        features_dir (str): Path to the directory containing feature files.
+        annotations_dir (str): Path to the directory containing annotation files.
+        split_file (str): Path to the file that defines dataset splits.
+        mode (list): List of dataset modes ("train", "dev", or "test").
+        sample_list (list): List of sample names filtered by the specified mode.
+        transform (callable): Data transformation function for augmentation or normalization.
+        tokenizer (object): Tokenizer object for text tokenization.
     """
 
     def __init__(
@@ -50,8 +44,25 @@ class CSLDailyDataset(Dataset):
         Validates input directories and initializes instance variables.
         Converts `mode` to a list if it is a string.
         Loads the dataset split and filters samples based on the mode.
+
+        Args:
+            dataset_dir (str): Base directory of the dataset.
+            features_dir (str, optional): Directory containing feature files. Defaults
+                                          to a subdirectory within `dataset_dir`.
+            annotation_dir (str, optional): Directory containing annotation files.
+                                            Defaults to a subdirectory within `dataset_dir`.
+            split_file (str, optional): Path to the data split file. Defaults to
+                                        "split_1.txt" in the annotation directory.
+            mode (str or list, optional): Specifies the dataset mode ("train", "dev",
+                                          or "test"). Can be a single string or a list
+                                          of strings. Defaults to "train".
+            transform (callable, optional): Data transformation function for
+                                            augmentation or normalization.
+            tokenizer (object, optional): Tokenizer object for text tokenization.
         """
-        # Set and validate feature directory
+        super().__init__()
+
+        # Ensure all directory paths are set correctly
         self.features_dir = os.path.join(dataset_dir, 'sentence_frames-512x512/frames_512x512') \
             if features_dir is None and dataset_dir is not None else os.path.abspath(
             features_dir) if features_dir else None
