@@ -143,9 +143,10 @@ class Phoenix2014Dataset(Dataset):
             batch (list): List of samples returned by `__getitem__`.
 
         Returns:
-            tuple: Batched data including videos, video lengths, labels, label lengths, and info.
+            tuple: Batched data including videos, labels, video lengths, label lengths, and info.
         """
         video, label, info = list(zip(*batch))
+
         video_length = [len(v) for v in video]
         video = pad_video_sequence(video, batch_first=True, padding_value=0.0)
         label_length = [len(l) for l in label]
@@ -153,4 +154,4 @@ class Phoenix2014Dataset(Dataset):
                                    padding_value=self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token))
         info = [item.name for item in info]
 
-        return video, video_length, label, label_length, info
+        return video, label, video_length, label_length, info

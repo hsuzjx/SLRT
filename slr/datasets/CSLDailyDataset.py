@@ -171,7 +171,7 @@ class CSLDailyDataset(Dataset):
             batch (list): List of samples returned by `__getitem__`.
 
         Returns:
-            tuple: Batched data including videos, video lengths, labels, label lengths, and info.
+            tuple: Batched data including videos, labels, video lengths, label lengths, and info.
         """
         video, label, info = list(zip(*batch))
 
