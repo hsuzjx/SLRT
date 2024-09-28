@@ -186,5 +186,5 @@ class SimpleTokenizer:
             List[str]: List of tokens.
         """
         # 默认按空格分词
-        tokens = sentence.split()
+        tokens = [word for word in sentence.split(' ') if word]
         return tokens

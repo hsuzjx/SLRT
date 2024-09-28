@@ -4,13 +4,13 @@ import lightning as L
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Resize, CenterCrop
 
-from slr.datasets.CSLDailyDataset import CSLDailyDataset
-from slr.datasets.transforms import ToTensor, TemporalRescale
+from slr.datasets.Phoenix2014Dataset2 import Phoenix2014Dataset
+from slr.datasets.transforms import ToTensor
 
 
-class CSLDailyDataModule(L.LightningDataModule):
+class Phoenix2014DataModule(L.LightningDataModule):
     """
-    Data module for handling the CSL-Daily dataset within a PyTorch Lightning environment.
+    Data module for handling the Phoenix 2014 dataset within a PyTorch Lightning environment.
 
     This module encapsulates the dataset loading and preprocessing logic, including setting up
     different splits for training, validation, and testing, as well as applying transformations
@@ -20,14 +20,13 @@ class CSLDailyDataModule(L.LightningDataModule):
         dataset_dir (str): Path to the root directory of the dataset.
         features_dir (str): Path to the directory containing feature files.
         annotations_dir (str): Path to the directory containing annotation files.
-        split_file (str): Path to the file that defines dataset splits.
         batch_size (int): Batch size for dataloaders.
         num_workers (int): Number of subprocesses to use for data loading.
         transforms (dict): Dictionary of transformations for each dataset mode.
         tokenizers (dict): Dictionary of tokenizers for each dataset mode.
-        train_dataset (CSLDailyDataset): Training dataset instance.
-        dev_dataset (CSLDailyDataset): Validation dataset instance.
-        test_dataset (CSLDailyDataset): Test dataset instance.
+        train_dataset (Phoenix2014Dataset): Training dataset instance.
+        dev_dataset (Phoenix2014Dataset): Validation dataset instance.
+        test_dataset (Phoenix2014Dataset): Test dataset instance.
     """
 
     def __init__(
@@ -35,20 +34,18 @@ class CSLDailyDataModule(L.LightningDataModule):
             dataset_dir: str = None,
             features_dir: str = None,
             annotations_dir: str = None,
-            split_file: str = None,
             batch_size: int = 2,
             num_workers: int = 8,
             transform: [callable, dict] = None,
             tokenizer: [object, dict] = None
     ):
         """
-        Initializes the CSLDailyDataModule with the specified parameters.
+        Initializes the Phoenix2014DataModule with the specified parameters.
 
         Args:
             dataset_dir (str): Path to the root directory of the dataset.
             features_dir (str): Path to the directory containing feature files.
             annotations_dir (str): Path to the directory containing annotation files.
-            split_file (str): Path to the file that defines dataset splits.
             batch_size (int): Batch size for dataloaders. Defaults to 2.
             num_workers (int): Number of subprocesses to use for data loading. Defaults to 8.
             transform ([callable, dict], optional): Transformations to apply to the dataset.
@@ -62,7 +59,6 @@ class CSLDailyDataModule(L.LightningDataModule):
         self.dataset_dir = os.path.abspath(dataset_dir) if dataset_dir else None
         self.features_dir = os.path.abspath(features_dir) if features_dir else None
         self.annotations_dir = os.path.abspath(annotations_dir) if annotations_dir else None
-        self.split_file = os.path.abspath(split_file) if split_file else None
 
         # Configuration parameters
         self.batch_size = batch_size
@@ -82,10 +78,10 @@ class CSLDailyDataModule(L.LightningDataModule):
     def _process_transforms(self, transform):
         """
         Processes the transform parameter into a dictionary.
-        
+
         Args:
             transform ([callable, dict]): Transformations to apply to the dataset.
-        
+
         Returns:
             dict: A dictionary of transformations for each dataset mode.
         """
@@ -112,10 +108,10 @@ class CSLDailyDataModule(L.LightningDataModule):
     def _process_tokenizers(self, tokenizer):
         """
         Processes the tokenizer parameter into a dictionary.
-        
+
         Args:
             tokenizer ([object, dict]): Tokenizer to use for text processing.
-        
+
         Returns:
             dict: A dictionary of tokenizers for each dataset mode.
         """
@@ -141,15 +137,14 @@ class CSLDailyDataModule(L.LightningDataModule):
             mode (str): The dataset mode ('train', 'dev', or 'test').
 
         Returns:
-            CSLDailyDataset: The dataset instance for the specified mode.
+            Phoenix2014Dataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, self.transforms['test'])
         tokenizer = self.tokenizers.get(mode, self.tokenizers['test'])
-        return CSLDailyDataset(
+        return Phoenix2014Dataset(
             dataset_dir=self.dataset_dir,
             features_dir=self.features_dir,
             annotations_dir=self.annotations_dir,
-            split_file=self.split_file,
             mode=mode,
             transform=transform,
             tokenizer=tokenizer

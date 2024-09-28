@@ -33,7 +33,7 @@ class CSLDailyDataset(Dataset):
             self,
             dataset_dir: str,
             features_dir: str = None,
-            annotation_dir: str = None,
+            annotations_dir: str = None,
             split_file: str = None,
             mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
@@ -50,7 +50,7 @@ class CSLDailyDataset(Dataset):
             dataset_dir (str): Base directory of the dataset.
             features_dir (str, optional): Directory containing feature files. Defaults
                                           to a subdirectory within `dataset_dir`.
-            annotation_dir (str, optional): Directory containing annotation files.
+            annotations_dir (str, optional): Directory containing annotation files.
                                             Defaults to a subdirectory within `dataset_dir`.
             split_file (str, optional): Path to the data split file. Defaults to
                                         "split_1.txt" in the annotation directory.
@@ -72,8 +72,8 @@ class CSLDailyDataset(Dataset):
 
         # Set and validate annotation directory
         self.annotations_dir = os.path.join(dataset_dir, 'sentence_label') \
-            if annotation_dir is None and dataset_dir is not None else os.path.abspath(
-            annotation_dir) if annotation_dir else None
+            if annotations_dir is None and dataset_dir is not None else os.path.abspath(
+            annotations_dir) if annotations_dir else None
         if not os.path.exists(self.annotations_dir):
             raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
 
@@ -108,7 +108,7 @@ class CSLDailyDataset(Dataset):
         info = pd.DataFrame(data['info'])
         self.info = info[info['name'].isin(self.sample_list)]
 
-        # Set transformations and tokenizer
+        # Set transform and tokenizer
         self.transform = transform
         self.tokenizer = tokenizer
 
@@ -164,6 +164,15 @@ class CSLDailyDataset(Dataset):
         return frames
 
     def collate_fn(self, batch):
+        """
+        Collates a list of samples into a batch.
+
+        Args:
+            batch (list): List of samples returned by `__getitem__`.
+
+        Returns:
+            tuple: Batched data including videos, video lengths, labels, label lengths, and info.
+        """
         video, label, info = list(zip(*batch))
 
         video_length = [len(v) for v in video]

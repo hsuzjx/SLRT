@@ -10,9 +10,9 @@ from slr.datasets.transforms import ToTensor
 from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
-class Phoenix2014Dataset(Dataset):
+class Phoenix2014TDataset(Dataset):
     """
-    Phoenix 2014 dataset class for sign language recognition tasks.
+    Phoenix 2014 T dataset class for sign language recognition tasks.
 
     This class provides functionality to load video frames and their corresponding
     annotations, applying transformations and tokenization as needed.
@@ -36,7 +36,7 @@ class Phoenix2014Dataset(Dataset):
             tokenizer: object = None
     ) -> None:
         """
-        Initializes the Phoenix2014Dataset with the given parameters.
+        Initializes the Phoenix2014TDataset with the given parameters.
 
         Args:
             dataset_dir (str, optional): Base directory of the dataset.
@@ -52,14 +52,14 @@ class Phoenix2014Dataset(Dataset):
         super().__init__()
 
         # Ensure all directory paths are set correctly
-        self.features_dir = os.path.join(dataset_dir, 'phoenix-2014-multisigner/features/fullFrame-210x260px') \
+        self.features_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/features/fullFrame-210x260px') \
             if features_dir is None and dataset_dir is not None else os.path.abspath(
             features_dir) if features_dir else None
         if not os.path.exists(self.features_dir):
             raise FileNotFoundError(f"Features directory not found at {self.features_dir}")
 
         # Set and validate annotation directory
-        self.annotations_dir = os.path.join(dataset_dir, 'phoenix-2014-multisigner/annotations/manual') \
+        self.annotations_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/annotations/manual') \
             if annotations_dir is None and dataset_dir is not None else os.path.abspath(
             annotations_dir) if annotations_dir else None
         if not os.path.exists(self.annotations_dir):
@@ -71,8 +71,8 @@ class Phoenix2014Dataset(Dataset):
             raise ValueError("Mode must be one of 'train', 'dev', or 'test'")
 
         # Load corpus information
-        self.info = pd.read_csv(os.path.join(self.annotations_dir, f'{self.mode}.corpus.csv'),
-                                sep='|', header=0, index_col='id')
+        self.info = pd.read_csv(os.path.join(self.annotations_dir, f'PHOENIX-2014-T.{self.mode}.corpus.csv'),
+                                sep='|', header=0, index_col='name')
 
         # Special handling for training mode
         if self.mode == "train":
@@ -100,12 +100,12 @@ class Phoenix2014Dataset(Dataset):
             tuple: A tuple containing video frames, glosses, and additional info.
         """
         item = self.info.iloc[idx]
-        frames_dir = os.path.join(self.features_dir, self.mode, item.name, "1")
+        frames_dir = os.path.join(self.features_dir, self.mode, item.name)
         if not os.path.exists(frames_dir):
             raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
         frames = self._read_frames(frames_dir)
 
-        glosses = [gloss for gloss in item['annotation'].split(' ') if gloss]
+        glosses = [gloss for gloss in item['orth'].split(' ') if gloss]
 
         if self.transform:
             frames = self.transform(frames)
