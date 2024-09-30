@@ -56,27 +56,26 @@ class SimpleTokenizer:
         vocab = {}
         ids_to_vocab = {}
 
+        # Add special tokens at the beginning with specific IDs
+        special_tokens = [self.pad_token, self.unk_token, self.sos_token, self.eos_token]
+        for i, token in enumerate(special_tokens):
+            vocab[token] = i
+            ids_to_vocab[i] = token
+
         # Load tokens from the file
         with open(vocab_file, 'r', encoding='utf-8') as f:
-            index = 1
+            index = len(special_tokens)  # Start indexing after special tokens
             for line in f:
                 word = line.strip()
                 if word:  # Ignore empty lines
+                    if word in special_tokens:
+                        continue
                     if word in vocab:
                         print(f"Warning: Duplicate token '{word}' found. Skipping.")
                         continue
                     vocab[word] = index
                     ids_to_vocab[index] = word
                     index += 1
-
-        # Add special tokens at the end if not already present
-        special_tokens = [self.pad_token, self.unk_token, self.sos_token, self.eos_token]
-        start_index = len(vocab) + 1
-        for token in special_tokens:
-            if token not in vocab:
-                vocab[token] = start_index
-                ids_to_vocab[start_index] = token
-                start_index += 1
 
         return vocab, ids_to_vocab
 
