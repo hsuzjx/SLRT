@@ -11,6 +11,7 @@ class SimpleTokenizer:
         vocab (dict): Vocabulary mapping words to integers.
         vocab_size (int): Size of the vocabulary.
         ids_to_vocab (dict): Inverse mapping from integers to words.
+        special_tokens (list): List of special tokens.
     """
 
     def __init__(
@@ -36,6 +37,8 @@ class SimpleTokenizer:
         self.sos_token = sos_token
         self.eos_token = eos_token
 
+        self.special_tokens = [pad_token, unk_token, sos_token, eos_token]
+
         if vocab_file:
             self.vocab, self.ids_to_vocab = self.load_vocab(vocab_file)
         else:
@@ -57,18 +60,17 @@ class SimpleTokenizer:
         ids_to_vocab = {}
 
         # Add special tokens at the beginning with specific IDs
-        special_tokens = [self.pad_token, self.unk_token, self.sos_token, self.eos_token]
-        for i, token in enumerate(special_tokens):
+        for i, token in enumerate(self.special_tokens):
             vocab[token] = i
             ids_to_vocab[i] = token
 
         # Load tokens from the file
         with open(vocab_file, 'r', encoding='utf-8') as f:
-            index = len(special_tokens)  # Start indexing after special tokens
+            index = len(self.special_tokens)  # Start indexing after special tokens
             for line in f:
                 word = line.strip()
                 if word:  # Ignore empty lines
-                    if word in special_tokens:
+                    if word in self.special_tokens:
                         continue
                     if word in vocab:
                         print(f"Warning: Duplicate token '{word}' found. Skipping.")
@@ -184,6 +186,6 @@ class SimpleTokenizer:
         Returns:
             List[str]: List of tokens.
         """
-        # 默认按空格分词
+        # Default tokenization by space
         tokens = [word for word in sentence.split(' ') if word]
         return tokens
