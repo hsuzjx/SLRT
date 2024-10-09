@@ -1,0 +1,11 @@
+# configs/dataset/phoenix2014T.yaml
+
+dataset_dir: "../data/phoenix2014T"
+
+# special dirs
+#features_dir: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-256x256px"
+#annotations_dir: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
+
+# dataloader params
+batch_size: 2
+num_workers: 8

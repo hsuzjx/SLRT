@@ -41,7 +41,7 @@ def evaluate(ctm_file, gt_file, save_dir="./", sclite_bin="sclite", dataset=None
 
     # Preprocess the CTM file for evaluation
     if dataset is not None and dataset in preprocessing_funcs:
-        processed_ctm_file = preprocessing_funcs[dataset](ctm_file, gt_file, processed_ctm_file)
+        preprocessing_funcs[dataset](ctm_file, gt_file, processed_ctm_file)
     else:
         processed_ctm_file = ctm_file
 

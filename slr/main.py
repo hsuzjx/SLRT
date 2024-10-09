@@ -2,129 +2,129 @@ import os
 from datetime import datetime
 
 import hydra
-import numpy as np
+import lightning as L
 import torch
 import wandb
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
+from torchvision.transforms import Compose, Resize, RandomCrop, RandomHorizontalFlip, CenterCrop
 
 import slr.models
-from slr.utils import *
+from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
+from slr.datasets.transforms import ToTensor, TemporalRescale
+from slr.utils import convert_to_onnx, set_seed
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_debug.yaml'
+CONFIG_NAME = 'CorrNet_Phoenix2014_experiment.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(cfg: DictConfig):
     """
-    主函数，用于执行整个训练流程。
+    Main function for training and testing a model using Hydra configuration.
 
-    :param cfg: 包含所有配置信息的对象
+    Initializes the training environment, sets up logging, checkpoints, and
+    data modules, then trains and tests the model based on the provided config.
     """
-    # 配置设置
+    # Set precision for float32 matmul operations
     torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
-
-    # 随机种子设置
     seed = set_seed(cfg.get('seed', -1), workers=True)
 
-    # 获取项目名称、名称和时间戳
+    # Define project, name, and timestamp
     project = cfg.get('project', 'default_project')
     name = cfg.get('name', 'default_name')
     timestamp = cfg.get('timestamp', datetime.now().strftime('%Y-%m-%d_%H-%M-%S'))
 
-    # 创建保存目录
+    # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, timestamp)
     os.makedirs(save_dir, exist_ok=True)
 
-    # 获取配置
-    data_cfg = safe_get_config(cfg, 'data')
-    datamodule_cfg = safe_get_config(cfg, 'datamodule')
-    logger_cfg = safe_get_config(cfg, 'logger')
-    callback_cfg = safe_get_config(cfg, 'callback')
-    model_cfg = safe_get_config(cfg, 'model')
-    trainer_cfg = safe_get_config(cfg, 'trainer')
-
-    # Wandb日志记录器设置
-    # TODO: 修改参数名字，使其无歧义
-    wandb_logger = init_wandb_logger(
+    # Initialize WandbLogger
+    wandb.require("core")
+    wandb_logger = WandbLogger(
         save_dir=save_dir,
         project=project,
         name=f'{name}_{timestamp}',
-        update_config={'random_seed': seed},
-        logger_cfg=logger_cfg
+        **cfg.logger
+    )
+    # Update wandb config with random seed
+    if isinstance(wandb_logger.experiment, wandb.sdk.wandb_run.Run):
+        wandb_logger.experiment.config.update({'random_seed': seed}, allow_val_change=True)
+
+    # Setup checkpoint callback
+    dirpath = os.path.join(save_dir, 'checkpoints')
+    os.makedirs(dirpath, exist_ok=True)
+    checkpoint_callback = ModelCheckpoint(
+        dirpath=dirpath,
+        **cfg.callback
     )
 
-    # 检查点回调设置
-    checkpoint_callback = init_checkpoint_callback(
-        save_dir=save_dir,
-        callback_cfg=callback_cfg
+    # Common parameters
+    dataset_name = cfg.dataset_name
+    model_name = cfg.model_name
+    ground_truth_dir = cfg.gt_dir
+    tokenizer = SimpleTokenizer(vocab_file=cfg.vocab_file)
+
+    # Initialize data module
+    DataModelClassDict = {
+        "phoenix2014": slr.datasets.Phoenix2014DataModule,
+        "phoenix2014T": slr.datasets.Phoenix2014TDataModule,
+        "csl-daily": slr.datasets.CSLDailyDataModule
+    }
+    transform = {
+        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2)]),
+        'dev': Compose([ToTensor(), CenterCrop(224)]),
+        'test': Compose([ToTensor(), CenterCrop(224)])
+    }
+    data_module = DataModelClassDict[dataset_name](
+        transform=transform,
+        tokenizer=tokenizer,
+        **cfg.dataset
     )
 
-    # 共用参数
-    dataset_name = data_cfg.get('name')
-    features_dir = os.path.abspath(data_cfg.get('features_dir'))
-    annotations_dir = os.path.abspath(data_cfg.get('annotations_dir'))
-
-    gloss_dict_dir = os.path.abspath(data_cfg.get('gloss_dict_dir'))
-    ground_truth_dir = os.path.abspath(data_cfg.get('ground_truth_dir'))
-    os.makedirs(gloss_dict_dir, exist_ok=True)
-    os.makedirs(ground_truth_dir, exist_ok=True)
-
-    # 数据模块初始化
-    data_module = init_datamodule(
+    # Initialize model
+    ModelClassDict = {
+        "CorrNet": slr.models.CorrNet,
+        # "SLRTransformer": slr.models.SLRTransformer,
+    }
+    eval_res_save_dir = os.path.join(save_dir, 'hypothesis')
+    os.makedirs(eval_res_save_dir, exist_ok=True)
+    model = ModelClassDict[model_name](
+        save_dir=eval_res_save_dir,
         dataset_name=dataset_name,
-        features_path=features_dir,
-        annotations_path=annotations_dir,
-        gloss_dict_path=gloss_dict_dir,
-        ground_truth_path=ground_truth_dir,
-        datamodule_cfg=datamodule_cfg
+        ground_truth_dir=ground_truth_dir,
+        tokenizer=tokenizer,
+        **cfg.model
     )
 
-    with open(os.path.join(gloss_dict_dir, f'{dataset_name}_gloss_dict.npy'), 'rb') as f:
-        gloss_dict = np.load(f, allow_pickle=True).item()
-
-    model_name = cfg.get('model_name')
-
-    # 模型初始化
-    model = init_model(
-        save_dir=save_dir,
-        dataset_name=dataset_name,
-        gloss_dict=gloss_dict,
-        ground_truth_path=ground_truth_dir,
-        model_name=model_name,
-        model_cfg=model_cfg
-    )
-
-    # trainer
-    trainer = init_trainer(
+    # Initialize trainer
+    trainer = L.Trainer(
         logger=wandb_logger,
         callbacks=[checkpoint_callback],
-        trainer_cfg=trainer_cfg
+        **cfg.trainer
     )
 
-    # train model
+    # Train model
     trainer.fit(model, datamodule=data_module)
 
-    # test the best model
+    # Test the best model
     best_model = getattr(slr.models, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
     best_model.eval()
     trainer.test(best_model, datamodule=data_module)
 
-    # 确保wandb.finish()被执行，以释放资源
+    # Ensure wandb.finish() is called
     try:
         wandb.finish()
     except Exception as finish_error:
-        print(f"wandb.finish() 出现问题: {finish_error}")
+        print(f"wandb.finish() encountered an issue: {finish_error}")
 
-    # 根据配置决定是否将模型转换为ONNX格式
+    # Optionally convert model to ONNX format
     if cfg.get('convert_to_onnx', False):
-        # 加载最佳模型以进行ONNX转换
         best_model = getattr(slr.models, model_name).load_from_checkpoint(checkpoint_callback.best_model_path)
-        # 创建保存ONNX模型的目录
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
         onnx_file_name = os.path.basename(checkpoint_callback.best_model_path).replace('.ckpt', '.onnx')
-        # 执行模型到ONNX的转换
         convert_to_onnx(best_model, os.path.join(onnx_save_dir, onnx_file_name))
 
 

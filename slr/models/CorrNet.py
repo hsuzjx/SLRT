@@ -38,7 +38,6 @@ class CorrNet(SLRBaseModel):
                 - conv_type (str): Type of convolution to use in the 1D convolutional layers.
                 - use_bn (bool): Whether to use batch normalization in the 1D convolutional layers.
                 - share_classifier (bool): Whether to share the classifier between 1D and 2D convolutional layers.
-                - num_classes (int): Number of classes for classification.
                 - gloss_dict (dict): Dictionary mapping glosses to indices.
                 - loss_weights (list): Weights for different loss components.
         """
@@ -69,10 +68,10 @@ class CorrNet(SLRBaseModel):
             hidden_size=self.hparams.hidden_size,
             conv_type=self.hparams.conv_type,
             use_bn=self.hparams.use_bn,
-            num_classes=self.hparams.num_classes
+            num_classes=self.hparams.tokenizer.vocab_size
         )
         self.temporal_feature_extractor.fc = NormLinear(self.hparams.hidden_size,
-                                                        self.hparams.num_classes)  # Set the classifier
+                                                        self.hparams.tokenizer.vocab_size)  # Set the classifier
 
         # Initialize BiLSTM Layers
         self.sequence_modeler = BiLSTMLayer(
@@ -145,7 +144,7 @@ class CorrNet(SLRBaseModel):
         Returns:
             Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
-        x, x_lgt, y, y_lgt, info = batch
+        x, y, x_lgt, y_lgt, info = batch
         conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         loss = (

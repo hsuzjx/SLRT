@@ -63,14 +63,14 @@ class SLRBaseModel(L.LightningModule):
 
         # Log learning rate
         self.log(
-            'Train/Learning Rate', self.trainer.optimizers[0].param_groups[0]['lr'],
-            on_step=False, on_epoch=True, prog_bar=True, sync_dist=True
+            'Train/Learning-Rate', self.trainer.optimizers[0].param_groups[0]['lr'],
+            on_step=False, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[-1])
         )
 
         # Log training loss
         self.log(
             'Train/Loss', loss,
-            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[-1])
         )
 
         return loss
@@ -92,7 +92,7 @@ class SLRBaseModel(L.LightningModule):
         # Log the validation loss
         self.log(
             'Val/Loss', loss,
-            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[-1])
         )
 
         # Decode the predictions
@@ -131,7 +131,7 @@ class SLRBaseModel(L.LightningModule):
         # Log test loss
         self.log(
             'Test/Loss', loss,
-            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True, batch_size=len(batch[-1])
         )
 
         # Decode the predictions
@@ -207,55 +207,55 @@ class SLRBaseModel(L.LightningModule):
             assert item is not None
 
         # TODO: 检查是否为主进程
-        # if self.trainer.is_global_zero:
+        if self.trainer.is_global_zero:
 
-        # Merge collected data into a single list
-        all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))
-        total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
+            # Merge collected data into a single list
+            all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))
+            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
 
-        # Check for duplicate names
-        total_names = [name for name, _ in total_predictions]
-        assert len(total_names) == len(set(total_names))
+            # Check for duplicate names
+            total_names = [name for name, _ in total_predictions]
+            assert len(total_names) == len(set(total_names))
 
-        try:
-            # Prepare save path and output file
-            if self.trainer.sanity_checking:
-                file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
-            else:
-                file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
-            if not os.path.exists(file_save_dir):
-                os.makedirs(file_save_dir, exist_ok=True)
-            output_file = os.path.join(file_save_dir, f'output-hypothesis-dev-rank{self.trainer.global_rank}.ctm')
+            try:
+                # Prepare save path and output file
+                if self.trainer.sanity_checking:
+                    file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
+                else:
+                    file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
+                if not os.path.exists(file_save_dir):
+                    os.makedirs(file_save_dir, exist_ok=True)
+                output_file = os.path.join(file_save_dir, f'output-hypothesis-dev-rank{self.trainer.global_rank}.ctm')
 
-            # Write predictions to file and compute WER
-            self.write2file(output_file, total_predictions)
+                # Write predictions to file and compute WER
+                self.write2file(output_file, total_predictions)
 
-            # Call evaluate function to compute WER
-            wer = evaluate(
-                ctm_file=output_file,
-                gt_file=os.path.join(
-                    self.hparams.ground_truth_dir,
-                    f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
-                save_dir=file_save_dir,
-                sclite_bin=self.hparams.sclite_bin,
-                dataset=self.hparams.dataset_name,
-                cleanup=self.hparams.cleanup
-            )
-        except Exception as e:
-            # Handle exceptions and log error information
-            print(f"Exception occurred at the end of validation epoch: {e}, please check detailed error message.")
-            wer = '100.0'
-        finally:
-            # Process WER logging, ensuring even string values are logged correctly
-            if isinstance(wer, str):
-                wer = float(re.findall("\d+\.?\d*", wer)[0])
-            # Log DEV_WER metric
-            self.log('Val/Word Error Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
-            # Print different messages based on whether it's a sanity check
-            if self.trainer.sanity_checking:
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
-            else:
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
+                # Call evaluate function to compute WER
+                wer = evaluate(
+                    ctm_file=output_file,
+                    gt_file=os.path.join(
+                        self.hparams.ground_truth_dir,
+                        f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
+                    save_dir=file_save_dir,
+                    sclite_bin=self.hparams.sclite_bin,
+                    dataset=self.hparams.dataset_name,
+                    cleanup=self.hparams.cleanup
+                )
+            except Exception as e:
+                # Handle exceptions and log error information
+                print(f"Exception occurred at the end of validation epoch: {e}, please check detailed error message.")
+                wer = '100.0'
+            finally:
+                # Process WER logging, ensuring even string values are logged correctly
+                if isinstance(wer, str):
+                    wer = float(re.findall("\d+\.?\d*", wer)[0])
+                # Log DEV_WER metric
+                self.log('Val/Word-Error-Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                # Print different messages based on whether it's a sanity check
+                if self.trainer.sanity_checking:
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
+                else:
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
 
     def on_test_epoch_end(self):
         """
@@ -272,49 +272,51 @@ class SLRBaseModel(L.LightningModule):
             assert item is not None
 
         # TODO: 检查是否为主进程
-        # if self.trainer.is_global_zero:
+        if self.trainer.is_global_zero:
 
-        # Merge collected data into a single list
-        all_items = list(itertools.chain.from_iterable(all_test_step_outputs))
-        total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
+            # Merge collected data into a single list
+            all_items = list(itertools.chain.from_iterable(all_test_step_outputs))
+            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
 
-        # Check for duplicate names
-        total_names = [name for name, _ in total_predictions]
-        assert len(total_names) == len(set(total_names)), "Duplicate names found in predictions."
+            # Check for duplicate names
+            total_names = [name for name, _ in total_predictions]
+            assert len(total_names) == len(set(total_names)), "Duplicate names found in predictions."
 
-        try:
-            # Prepare save path and output file
-            file_save_dir = os.path.join(self.hparams.save_dir, "test", f"test_after_epoch_{self.current_epoch - 1}")
-            if not os.path.exists(file_save_dir):
-                os.makedirs(file_save_dir, exist_ok=True)
-            output_file = os.path.join(file_save_dir, f'output-hypothesis-test-rank{self.trainer.global_rank}.ctm')
+            try:
+                # Prepare save path and output file
+                file_save_dir = os.path.join(self.hparams.save_dir, "test",
+                                             f"test_after_epoch_{self.current_epoch - 1}")
+                if not os.path.exists(file_save_dir):
+                    os.makedirs(file_save_dir, exist_ok=True)
+                output_file = os.path.join(file_save_dir, f'output-hypothesis-test-rank{self.trainer.global_rank}.ctm')
 
-            # Write predictions to file and compute WER
-            self.write2file(output_file, total_predictions)
+                # Write predictions to file and compute WER
+                self.write2file(output_file, total_predictions)
 
-            # Call evaluate function to compute WER
-            wer = evaluate(
-                ctm_file=output_file,
-                gt_file=os.path.join(self.hparams.ground_truth_dir,
-                                     f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
-                save_dir=file_save_dir,
-                sclite_bin=self.hparams.sclite_bin,
-                dataset=self.hparams.dataset_name,
-                cleanup=self.hparams.cleanup
-            )
-        except Exception as e:
-            # Handle exceptions and log error information
-            print(f"An exception occurred at the end of the test epoch: {e}. Please check the detailed error message.")
-            wer = '100.0'
-        finally:
-            # Process WER logging, ensuring even string values are logged correctly
-            if isinstance(wer, str):
-                wer = float(re.findall(r"\d+\.?\d*", wer)[0])
-            # Log TEST_WER metric
-            self.log('Test/Word Error Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
-            # Print messages
-            print(
-                f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
+                # Call evaluate function to compute WER
+                wer = evaluate(
+                    ctm_file=output_file,
+                    gt_file=os.path.join(self.hparams.ground_truth_dir,
+                                         f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
+                    save_dir=file_save_dir,
+                    sclite_bin=self.hparams.sclite_bin,
+                    dataset=self.hparams.dataset_name,
+                    cleanup=self.hparams.cleanup
+                )
+            except Exception as e:
+                # Handle exceptions and log error information
+                print(
+                    f"An exception occurred at the end of the test epoch: {e}. Please check the detailed error message.")
+                wer = '100.0'
+            finally:
+                # Process WER logging, ensuring even string values are logged correctly
+                if isinstance(wer, str):
+                    wer = float(re.findall(r"\d+\.?\d*", wer)[0])
+                # Log TEST_WER metric
+                self.log('Test/Word-Error-Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                # Print messages
+                print(
+                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
 
     def write2file(self, path: str, preds_info: List[Tuple[str, List[Tuple[str, int]]]]):
         """
@@ -326,7 +328,7 @@ class SLRBaseModel(L.LightningModule):
         """
         contents = []
         for name, preds in preds_info:
-            for word, word_idx in preds:
+            for word_idx, word in enumerate(preds):
                 line = f"{name} 1 {word_idx * 1.0 / 100:.2f} {(word_idx + 1) * 1.0 / 100:.2f} {word}\n"
                 contents.append(line)
         content = "".join(contents)
@@ -350,8 +352,8 @@ class SLRBaseModel(L.LightningModule):
             # Retrieve hyperparameters
             learning_rate = self.hparams.lr
             weight_decay = self.hparams.weight_decay
-            lr_scheduler_milestones = self.hparams.lr_scheduler_milestones
-            lr_scheduler_gamma = self.hparams.lr_scheduler_gamma
+            milestones = self.hparams.milestones
+            gamma = self.hparams.gamma
             last_epoch = getattr(self.hparams, 'last_epoch', -1)  # Default value
         except AttributeError as e:
             # Raise an error if required hyperparameters are missing
@@ -363,8 +365,8 @@ class SLRBaseModel(L.LightningModule):
         # Define the learning rate scheduler
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer=optimizer,
-            milestones=lr_scheduler_milestones,
-            gamma=lr_scheduler_gamma,
+            milestones=milestones,
+            gamma=gamma,
             last_epoch=last_epoch
         )
 

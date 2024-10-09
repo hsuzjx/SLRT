@@ -2,7 +2,7 @@
 # 定义模型训练过程中的回调配置
 
 # 监控指标，用于判断模型性能
-monitor: "DEV_WER"
+monitor: "Val/Word-Error-Rate"
 
 # 优化目标，min表示追求指标的最小值
 mode: "min"
@@ -14,4 +14,4 @@ save_last: true
 save_top_k: 1
 
 # 模型保存的文件名格式，包含epoch数和监控指标的值
-filename: '{epoch}-{DEV_WER:.2f}'
+filename: '{epoch}_{DEV_WER:.2f}'

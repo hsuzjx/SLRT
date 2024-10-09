@@ -1,7 +1,7 @@
 # configs/trainer/use_gpu.yaml
 
 # 进行训练的周期数，即模型在全部训练集上迭代的次数
-max_epochs: 40
+max_epochs: 2
 
 # 训练使用的加速器类型，此处指定为GPU加速
 accelerator: "gpu"
@@ -13,7 +13,7 @@ devices: [ 1 ]
 precision: "16-mixed"
 
 # 指定训练策略，此处使用 'ddp_find_unused_parameters_true' 策略
-strategy: 'ddp_find_unused_parameters_true'
+strategy: 'ddp'
 
 # 限制训练集批次的比例，1.0 表示使用全部批次
 limit_train_batches: 1.0

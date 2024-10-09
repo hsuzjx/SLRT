@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 
 
@@ -13,15 +14,16 @@ def pad_video_sequence(sequences, batch_first=False, padding_value=0.0, left_pad
     - right_pad_length: Length of padding on the right side (default: 6).
 
     Returns:
-    - A Tensor with all sequences padded to the same length in the first dimension.
+    - A tuple containing the padded Tensor and a list of original sequence lengths.
     """
     # Handle empty list
     if not sequences:
-        return torch.tensor([], dtype=torch.float32)
+        return torch.tensor([], dtype=torch.float32), []
 
     # Get the length of each sequence
     lengths = [seq.shape[0] for seq in sequences]  # Assuming the length dimension is the first one (T)
-    max_length = max(lengths)
+    padded_lengths = [int(left_pad_length + np.ceil(l / 4.0) * 4.0 + right_pad_length) for l in lengths]
+    max_padded_length = max(padded_lengths)
     batch_size = len(sequences)
 
     # Get the size of other dimensions
@@ -29,7 +31,7 @@ def pad_video_sequence(sequences, batch_first=False, padding_value=0.0, left_pad
 
     # Create padded tensor
     batch = torch.full(
-        (left_pad_length + max_length + right_pad_length, batch_size, *other_dims),
+        (max_padded_length, batch_size, *other_dims),
         padding_value, dtype=sequences[0].dtype
     )
 
@@ -43,7 +45,7 @@ def pad_video_sequence(sequences, batch_first=False, padding_value=0.0, left_pad
     if batch_first:
         batch = batch.transpose(0, 1)  # Swap dimensions to (B, T, ...)
 
-    return batch
+    return batch, padded_lengths
 
 
 def pad_label_sequence(sequences, batch_first=False, padding_value=0.0):
@@ -56,11 +58,11 @@ def pad_label_sequence(sequences, batch_first=False, padding_value=0.0):
     - padding_value: Value used for padding (default: 0.0).
 
     Returns:
-    - A Tensor with all sequences padded to the same length in the first dimension.
+    - A tuple containing the padded Tensor and a list of original sequence lengths.
     """
     # Handle empty list
     if not sequences:
-        return torch.tensor([], dtype=torch.float32)
+        return torch.tensor([], dtype=torch.float32), []
 
     # Get the length of each sequence
     lengths = [seq.shape[0] for seq in sequences]  # Assuming the length dimension is the first one (T)
@@ -78,4 +80,4 @@ def pad_label_sequence(sequences, batch_first=False, padding_value=0.0):
     if batch_first:
         batch = batch.transpose(0, 1)  # Swap dimensions to (B, T)
 
-    return batch
+    return batch, lengths

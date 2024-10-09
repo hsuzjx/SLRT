@@ -1,0 +1,34 @@
+# /configs/CorrNet_Phoenix2014_experiment.yaml
+defaults:
+  - _self_ # 自引用，确保此配置文件被包含
+  - dataset: phoenix2014 # 数据集配置
+  - model: CorrNet # 模型配置
+  - trainer: use_gpu # 训练配置
+  - callback: default # 回调函数配置
+  - logger: wandb # 日志记录器配置
+
+
+# Hydra 运行配置
+hydra:
+  run:
+    # 实验目录结构
+    dir: ../experiments/${project}/${name}/${timestamp}/hydra
+
+
+# 项目相关配置
+project: Phoenix2014_new
+name: CorrNet
+timestamp: ${now:%Y-%m-%d_%H-%M-%S}
+
+model_name: CorrNet
+dataset_name: phoenix2014
+vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt
+gt_dir: ../data/global_files/ground_truth
+
+# 其他配置
+seed: -1 # best in experiment now: 3,218,388,406
+save_dir: ../experiments
+
+torch_float32_matmul_precision: high
+convert_to_onnx: true
+

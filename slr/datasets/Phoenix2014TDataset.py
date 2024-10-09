@@ -3,6 +3,7 @@ import os
 
 import cv2
 import pandas as pd
+import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
 
@@ -145,13 +146,15 @@ class Phoenix2014TDataset(Dataset):
         Returns:
             tuple: Batched data including videos, labels, video lengths, label lengths, and info.
         """
+        batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
         video, label, info = list(zip(*batch))
 
-        video_length = [len(v) for v in video]
-        video = pad_video_sequence(video, batch_first=True, padding_value=0.0)
-        label_length = [len(l) for l in label]
-        label = pad_label_sequence(label, batch_first=True,
-                                   padding_value=self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token))
+        video, video_length = pad_video_sequence(video, batch_first=True, padding_value=0.0)
+        video_length = torch.LongTensor(video_length)
+        label, label_length = pad_label_sequence(label, batch_first=True,
+                                                 padding_value=self.tokenizer.convert_tokens_to_ids(
+                                                     self.tokenizer.pad_token))
+        label_length = torch.LongTensor(label_length)
         info = [item.name for item in info]
 
         return video, label, video_length, label_length, info
