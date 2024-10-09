@@ -48,20 +48,6 @@ class SLRBaseModel(L.LightningModule):
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
 
-    def handle_nan_gradients(self, module, grad_input, grad_output):
-        """
-        Logs any NaN values found in gradients.
-
-        Args:
-            module: The module for which backward is called.
-            grad_input: Gradients w.r.t. the inputs.
-            grad_output: Gradients w.r.t. the outputs.
-        """
-        for index, gradient in enumerate(grad_input):
-            if gradient is not None and torch.isnan(gradient).any():
-                print(f"Warning: NaN values detected in gradient {index}.")
-        return grad_input
-
     def training_step(self, batch, batch_idx):
         """
         Training step for the model.
@@ -88,12 +74,6 @@ class SLRBaseModel(L.LightningModule):
         )
 
         return loss
-
-    def on_validation_epoch_start(self):
-        """
-        Called at the start of each validation epoch.
-        """
-        self.validation_step_outputs = []
 
     def validation_step(self, batch, batch_idx):
         """
@@ -133,6 +113,84 @@ class SLRBaseModel(L.LightningModule):
 
         # Return the loss value
         return loss
+
+    def test_step(self, batch, batch_idx):
+        """
+        Test step for the model.
+
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
+
+        Returns:
+            Loss value.
+        """
+        # Perform forward pass and compute loss, predictions, and additional info
+        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
+
+        # Log test loss
+        self.log(
+            'Test/Loss', loss,
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
+        )
+
+        # Decode the predictions
+        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+
+        # Remove special tokens from the decoded predictions
+        for tokens in decoded:
+            for token in self.probs_decoder.tokenizer.special_tokens:
+                if token == self.probs_decoder.tokenizer.unk_token:
+                    continue
+                while token in tokens:
+                    tokens.remove(token)
+
+        # Collect the current batch's information and predictions
+        self.test_step_outputs.append({
+            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
+        })
+
+        # Return the loss value
+        return loss
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        """
+        Performs prediction on a batch of data.
+
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
+            dataloader_idx: Index of the dataloader.
+
+        Returns:
+            Decoded predictions.
+        """
+        _, y_hat, y_hat_lgt, info = self.step_forward(batch)
+        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+
+        for tokens in decoded:
+            for token in self.probs_decoder.tokenizer.special_tokens:
+                if token == self.probs_decoder.tokenizer.unk_token:
+                    continue
+                while token in tokens:
+                    tokens.remove(token)
+
+        # Additional logic can be added here to process predictions, such as saving to a file or returning specific formats.
+        # Example: Convert predictions to a more readable form or directly return predictions.
+
+        return decoded
+
+    def on_validation_epoch_start(self):
+        """
+        Called at the start of each validation epoch.
+        """
+        self.validation_step_outputs = []
+
+    def on_test_epoch_start(self):
+        """
+        Called at the start of each test epoch.
+        """
+        self.test_step_outputs = []
 
     def on_validation_epoch_end(self):
         """
@@ -199,51 +257,6 @@ class SLRBaseModel(L.LightningModule):
             else:
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
 
-    def on_test_epoch_start(self):
-        """
-        Called at the start of each test epoch.
-        """
-        self.test_step_outputs = []
-
-    def test_step(self, batch, batch_idx):
-        """
-        Test step for the model.
-
-        Args:
-            batch: Batch of data.
-            batch_idx: Index of the batch.
-
-        Returns:
-            Loss value.
-        """
-        # Perform forward pass and compute loss, predictions, and additional info
-        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
-
-        # Log test loss
-        self.log(
-            'Test/Loss', loss,
-            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
-        )
-
-        # Decode the predictions
-        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
-
-        # Remove special tokens from the decoded predictions
-        for tokens in decoded:
-            for token in self.probs_decoder.tokenizer.special_tokens:
-                if token == self.probs_decoder.tokenizer.unk_token:
-                    continue
-                while token in tokens:
-                    tokens.remove(token)
-
-        # Collect the current batch's information and predictions
-        self.test_step_outputs.append({
-            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
-        })
-
-        # Return the loss value
-        return loss
-
     def on_test_epoch_end(self):
         """
         Called at the end of each test epoch.
@@ -303,33 +316,6 @@ class SLRBaseModel(L.LightningModule):
             print(
                 f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
-        """
-        Performs prediction on a batch of data.
-
-        Args:
-            batch: Batch of data.
-            batch_idx: Index of the batch.
-            dataloader_idx: Index of the dataloader.
-
-        Returns:
-            Decoded predictions.
-        """
-        _, y_hat, y_hat_lgt, info = self.step_forward(batch)
-        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
-
-        for tokens in decoded:
-            for token in self.probs_decoder.tokenizer.special_tokens:
-                if token == self.probs_decoder.tokenizer.unk_token:
-                    continue
-                while token in tokens:
-                    tokens.remove(token)
-
-        # Additional logic can be added here to process predictions, such as saving to a file or returning specific formats.
-        # Example: Convert predictions to a more readable form or directly return predictions.
-
-        return decoded
-
     def write2file(self, path: str, preds_info: List[Tuple[str, List[Tuple[str, int]]]]):
         """
         Writes predictions to a file.
@@ -387,6 +373,21 @@ class SLRBaseModel(L.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": scheduler
         }
+
+    @staticmethod
+    def handle_nan_gradients(module, grad_input, grad_output):
+        """
+        Logs any NaN values found in gradients.
+
+        Args:
+            module: The module for which backward is called.
+            grad_input: Gradients w.r.t. the inputs.
+            grad_output: Gradients w.r.t. the outputs.
+        """
+        for index, gradient in enumerate(grad_input):
+            if gradient is not None and torch.isnan(gradient).any():
+                print(f"Warning: NaN values detected in gradient {index}.")
+        return grad_input
 
     def on_after_backward(self) -> None:
         """
