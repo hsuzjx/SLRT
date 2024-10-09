@@ -2,304 +2,332 @@ import itertools
 import os
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, List, Tuple
 
 import lightning as L
 import torch
 
-from slr.evaluation import evaluate
+from slr.evaluation.wer_calculation import evaluate
+from slr.models.decoders import CTCBeamSearchDecoder
 
 
 class SLRBaseModel(L.LightningModule):
     """
-    手语识别模型，继承自PyTorch Lightning的LightningModule。
+    Base LightningModule for Sign Language Recognition models.
+
+    This class provides common functionalities such as logging metrics, handling gradients,
+    and evaluating model performance during training and testing phases.
     """
 
     def __init__(self, **kwargs):
         """
-        初始化模型参数和组件。
+        Initializes the base model with hyperparameters and sets up necessary components.
+
+        Args:
+            kwargs: Hyperparameters needed for model initialization.
         """
-        super().__init__()  # 调用父类的初始化方法
-        self.save_hyperparameters()  # 保存超参数
+        super().__init__()
 
-        # 确保保存目录存在
-        os.makedirs(os.path.abspath(self.hparams.save_path), exist_ok=True)
+        # Save hyperparameters
+        self.save_hyperparameters()
 
-        # 初始化模型验证和测试阶段的输出容器
-        self.validation_step_outputs = None
-        self.test_step_outputs = None
+        # Ensure save path exists
+        os.makedirs(os.path.abspath(self.hparams.save_dir), exist_ok=True)
 
-        # 注册后向传播钩子
+        # Initialize CTC decoder
+        self.probs_decoder = CTCBeamSearchDecoder(
+            tokenizer=self.hparams.tokenizer,
+            beam_width=self.hparams.beam_width,
+            num_processes=self.hparams.num_processes
+        )
+
+        # Initialize outputs lists
+        self.validation_step_outputs = []
+        self.test_step_outputs = []
+
+        # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
-
-    def handle_nan_gradients(self, module, grad_input, grad_output):
-        """
-        捕获并处理含有 NaN 值的梯度。
-        """
-        for index, gradient in enumerate(grad_input):
-            if gradient is not None and torch.isnan(gradient).any():
-                print(f"NaN values detected in gradient {index}.")
-        return grad_input
 
     def training_step(self, batch, batch_idx):
         """
-        执行一个训练步骤，包括正向传播、损失计算等。
+        Training step for the model.
 
-        参数:
-        - batch: 一个批处理的数据，包含输入和目标等。
-        - batch_idx: 批处理的索引。
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
 
-        返回:
-        - loss_mean: 该批处理的平均损失。
+        Returns:
+            Loss value.
         """
-        loss = self.step_forward(batch)
+        loss, _, _, _ = self.step_forward(batch)
 
-        # 日志记录
+        # Log learning rate
         self.log(
-            'lr', self.trainer.optimizers[0].param_groups[0]['lr'],
+            'Train/Learning Rate', self.trainer.optimizers[0].param_groups[0]['lr'],
             on_step=False, on_epoch=True, prog_bar=True, sync_dist=True
         )
+
+        # Log training loss
         self.log(
-            'train_loss', loss,
+            'Train/Loss', loss,
             on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
         )
 
         return loss
-
-    def on_validation_epoch_start(self):
-        """
-        在每个验证周期开始时重置句子和信息列表。
-        """
-        self.validation_step_outputs = []
 
     def validation_step(self, batch, batch_idx):
         """
-        执行单个验证步骤，其中包含计算模型的损失和收集预测结果。
+        Validation step for the model.
 
-        参数:
-        - batch: 当前批次的数据，包含输入和目标
-        - batch_idx: 当前批次的索引
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
 
-        返回:
-        - loss: 当前批次的损失值
+        Returns:
+            Loss value.
         """
-        loss, decoded, info = self.step_forward(batch)
+        # Perform forward pass and compute loss, predictions, and additional info
+        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
 
-        # 记录当前批次的损失，以便后续分析
+        # Log the validation loss
         self.log(
-            'val_loss', loss,
+            'Val/Loss', loss,
             on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
         )
 
-        # 收集当前批次的信息和预测结果
+        # Decode the predictions
+        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+
+        # Remove special tokens from the decoded predictions
+        for tokens in decoded:
+            for token in self.probs_decoder.tokenizer.special_tokens:
+                if token == self.probs_decoder.tokenizer.unk_token:
+                    continue
+                while token in tokens:
+                    tokens.remove(token)
+
+        # Collect the current batch's information and predictions
         self.validation_step_outputs.append({
-            'predictions': [(info[i].name, decoded[i]) for i in range(len(info))]
+            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
         })
 
+        # Return the loss value
         return loss
+
+    def test_step(self, batch, batch_idx):
+        """
+        Test step for the model.
+
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
+
+        Returns:
+            Loss value.
+        """
+        # Perform forward pass and compute loss, predictions, and additional info
+        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
+
+        # Log test loss
+        self.log(
+            'Test/Loss', loss,
+            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
+        )
+
+        # Decode the predictions
+        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+
+        # Remove special tokens from the decoded predictions
+        for tokens in decoded:
+            for token in self.probs_decoder.tokenizer.special_tokens:
+                if token == self.probs_decoder.tokenizer.unk_token:
+                    continue
+                while token in tokens:
+                    tokens.remove(token)
+
+        # Collect the current batch's information and predictions
+        self.test_step_outputs.append({
+            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
+        })
+
+        # Return the loss value
+        return loss
+
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        """
+        Performs prediction on a batch of data.
+
+        Args:
+            batch: Batch of data.
+            batch_idx: Index of the batch.
+            dataloader_idx: Index of the dataloader.
+
+        Returns:
+            Decoded predictions.
+        """
+        _, y_hat, y_hat_lgt, info = self.step_forward(batch)
+        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+
+        for tokens in decoded:
+            for token in self.probs_decoder.tokenizer.special_tokens:
+                if token == self.probs_decoder.tokenizer.unk_token:
+                    continue
+                while token in tokens:
+                    tokens.remove(token)
+
+        # Additional logic can be added here to process predictions, such as saving to a file or returning specific formats.
+        # Example: Convert predictions to a more readable form or directly return predictions.
+
+        return decoded
+
+    def on_validation_epoch_start(self):
+        """
+        Called at the start of each validation epoch.
+        """
+        self.validation_step_outputs = []
+
+    def on_test_epoch_start(self):
+        """
+        Called at the start of each test epoch.
+        """
+        self.test_step_outputs = []
 
     def on_validation_epoch_end(self):
         """
-        在每个验证周期结束时执行特定操作。
-
-        主要功能包括：
-        - 从所有GPU上收集数据并合并。
-        - 根据训练器的状态准备保存路径。
-        - 将预测结果写入文件并计算WER（字错率）。
-        - 记录DEV_WER指标。
+        Called at the end of each validation epoch.
         """
-        # 收集所有GPU上的数据
+        # Gather data from all GPUs
         all_validation_step_outputs = [None for _ in range(self.trainer.world_size)]
         torch.distributed.all_gather_object(all_validation_step_outputs, self.validation_step_outputs)
-        # 确保所有进程完成数据收集
+        # Ensure all processes have finished gathering data
         torch.distributed.barrier()
 
-        # 确保所有收集的数据都不是None
+        # Ensure all collected data is not None
         for item in all_validation_step_outputs:
             assert item is not None
 
         # TODO: 检查是否为主进程
         # if self.trainer.is_global_zero:
 
-        # 将收集到的数据合并成一个列表
-        all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))  # 合并列表
+        # Merge collected data into a single list
+        all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))
         total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
 
-        # 检查是否有重复的name
+        # Check for duplicate names
         total_names = [name for name, _ in total_predictions]
         assert len(total_names) == len(set(total_names))
 
         try:
-            # 准备保存路径和输出文件
+            # Prepare save path and output file
             if self.trainer.sanity_checking:
-                file_save_path = os.path.join(self.hparams.save_path, "dev", "sanity_check")
+                file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
             else:
-                file_save_path = os.path.join(self.hparams.save_path, "dev", f"epoch_{self.current_epoch}")
-            if not os.path.exists(file_save_path):  # 使用更安全的方式检查路径
-                os.makedirs(file_save_path, exist_ok=True)  # 添加 exist_ok 参数避免异常
-            output_file = os.path.join(file_save_path, f'output-hypothesis-dev-rank{self.trainer.global_rank}.ctm')
+                file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
+            if not os.path.exists(file_save_dir):
+                os.makedirs(file_save_dir, exist_ok=True)
+            output_file = os.path.join(file_save_dir, f'output-hypothesis-dev-rank{self.trainer.global_rank}.ctm')
 
-            # 写入预测结果到文件并计算WER
+            # Write predictions to file and compute WER
             self.write2file(output_file, total_predictions)
 
-            # 调用evaluate函数计算WER
+            # Call evaluate function to compute WER
             wer = evaluate(
-                dataset_name=self.hparams.dataset_name,
-                file_save_path=file_save_path,
-                ground_truth_file=os.path.join(
-                    self.hparams.ground_truth_path,
-                    f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
                 ctm_file=output_file,
-                sclite_path=self.hparams.evaluation_sclite_path,
-                remove_tmp_file=self.hparams.remove_eval_tmp_file
+                gt_file=os.path.join(
+                    self.hparams.ground_truth_dir,
+                    f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
+                save_dir=file_save_dir,
+                sclite_bin=self.hparams.sclite_bin,
+                dataset=self.hparams.dataset_name,
+                cleanup=self.hparams.cleanup
             )
         except Exception as e:
-            # 异常处理，记录错误信息并设置WER为默认值
-            print(f"在验证阶段结束时发生异常: {e}, 请检查详细错误信息。")
+            # Handle exceptions and log error information
+            print(f"Exception occurred at the end of validation epoch: {e}, please check detailed error message.")
             wer = '100.0'
         finally:
-            # 处理WER记录，确保即使是字符串形式也能正确记录
+            # Process WER logging, ensuring even string values are logged correctly
             if isinstance(wer, str):
                 wer = float(re.findall("\d+\.?\d*", wer)[0])
-            # 记录DEV_WER指标
-            self.log('DEV_WER', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
-            # 根据是否为sanity check打印不同信息
+            # Log DEV_WER metric
+            self.log('Val/Word Error Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+            # Print different messages based on whether it's a sanity check
             if self.trainer.sanity_checking:
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
             else:
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
 
-    def on_test_epoch_start(self):
-        """
-        在测试阶段开始时重置统计信息。
-        """
-        self.test_step_outputs = []
-
-    def test_step(self, batch, batch_idx):
-        """
-        执行单个测试步骤，即处理一个批次的数据。
-
-        参数:
-        - batch: 一个批次的数据，包含输入和目标等。
-        - batch_idx: 批次的索引。
-
-        返回:
-        - loss: 该批次的损失值。
-        """
-        loss, decoded, info = self.step_forward(batch)
-
-        # 记录损失
-        self.log(
-            'test_loss', loss,
-            on_step=True, on_epoch=True, prog_bar=True, sync_dist=True
-        )
-
-        # 收集当前批次的信息和预测结果
-        assert len(info) == len(decoded)
-        self.test_step_outputs.append({
-            'predictions': [(info[i].name, decoded[i]) for i in range(len(info))]
-        })
-
-        return loss
-
     def on_test_epoch_end(self):
         """
-        在测试阶段结束时进行汇总和计算WER（词错误率）。
+        Called at the end of each test epoch.
         """
-        # 收集所有GPU上的数据
+        # Gather data from all GPUs
         all_test_step_outputs = [None for _ in range(self.trainer.world_size)]
         torch.distributed.all_gather_object(all_test_step_outputs, self.test_step_outputs)
-        # 确保所有进程完成数据收集
+        # Ensure all processes have finished gathering data
         torch.distributed.barrier()
 
-        # 确保所有收集的数据都不是None
+        # Ensure all collected data is not None
         for item in all_test_step_outputs:
             assert item is not None
 
         # TODO: 检查是否为主进程
         # if self.trainer.is_global_zero:
 
-        # 将收集到的数据合并成一个列表
-        all_items = list(itertools.chain.from_iterable(all_test_step_outputs))  # 合并列表
+        # Merge collected data into a single list
+        all_items = list(itertools.chain.from_iterable(all_test_step_outputs))
         total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
 
-        # 检查是否有重复的name
+        # Check for duplicate names
         total_names = [name for name, _ in total_predictions]
-        assert len(total_names) == len(set(total_names))
+        assert len(total_names) == len(set(total_names)), "Duplicate names found in predictions."
 
         try:
-            # 构造保存路径并创建目录
-            file_save_path = os.path.join(self.hparams.save_path, "test",
-                                          f"test_after_epoch_{self.current_epoch - 1}")
-            if not os.path.exists(file_save_path):
-                os.makedirs(file_save_path, exist_ok=True)
-            # 定义输出文件路径
-            output_file = os.path.join(file_save_path, f'output-hypothesis-test-rank{self.trainer.global_rank}.ctm')
+            # Prepare save path and output file
+            file_save_dir = os.path.join(self.hparams.save_dir, "test", f"test_after_epoch_{self.current_epoch - 1}")
+            if not os.path.exists(file_save_dir):
+                os.makedirs(file_save_dir, exist_ok=True)
+            output_file = os.path.join(file_save_dir, f'output-hypothesis-test-rank{self.trainer.global_rank}.ctm')
 
-            # 将预测结果写入文件
+            # Write predictions to file and compute WER
             self.write2file(output_file, total_predictions)
 
-            # 调用evaluate函数计算WER
+            # Call evaluate function to compute WER
             wer = evaluate(
-                dataset_name=self.hparams.dataset_name,
-                file_save_path=file_save_path,
-                ground_truth_file=os.path.join(
-                    self.hparams.ground_truth_path,
-                    f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
                 ctm_file=output_file,
-                sclite_path=self.hparams.evaluation_sclite_path,
-                remove_tmp_file=self.hparams.remove_eval_tmp_file
+                gt_file=os.path.join(self.hparams.ground_truth_dir,
+                                     f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
+                save_dir=file_save_dir,
+                sclite_bin=self.hparams.sclite_bin,
+                dataset=self.hparams.dataset_name,
+                cleanup=self.hparams.cleanup
             )
-        except Exception as e:  # 捕获更具体的异常，提供更多信息
-            print(f"在测试阶段结束时发生异常: {e}, 请检查详细错误信息。")
+        except Exception as e:
+            # Handle exceptions and log error information
+            print(f"An exception occurred at the end of the test epoch: {e}. Please check the detailed error message.")
             wer = '100.0'
         finally:
-            # 提取数字部分
+            # Process WER logging, ensuring even string values are logged correctly
             if isinstance(wer, str):
-                wer = float(re.findall("\d+\.?\d*", wer)[0])
-            # 记录和输出TEST_WER
-            self.log('TEST_WER', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                wer = float(re.findall(r"\d+\.?\d*", wer)[0])
+            # Log TEST_WER metric
+            self.log('Test/Word Error Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+            # Print messages
             print(
                 f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
 
-    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+    def write2file(self, path: str, preds_info: List[Tuple[str, List[Tuple[str, int]]]]):
         """
-        执行单个预测步骤，即处理一个批次的数据用于预测。
+        Writes predictions to a file.
 
-        参数:
-        - batch: 一个批次的数据，包含输入等。
-        - batch_idx: 批次的索引。
-        - dataloader_idx: 当使用多个数据加载器时，标识特定的数据加载器。
-
-        返回:
-        - decoded: 解码后的预测结果。
-        """
-        _, decoded, _ = self.step_forward(batch)
-
-        # 可以在此处添加额外的逻辑来处理预测结果，例如保存到文件、返回特定格式的数据等。
-        # 示例: 将预测结果转换为易于理解的形式或直接返回预测结果。
-
-        return decoded
-
-    def write2file(self, path, preds_info):
-        """
-        将预测结果写入指定文件。
-
-        参数:
-        - path: 文件路径
-        - info: 附加信息列表
-        - output: 预测结果列表
+        Args:
+            path: Path to the output file.
+            preds_info: List of tuples containing the name and predicted words.
         """
         contents = []
-        # 构建文件内容
         for name, preds in preds_info:
             for word, word_idx in preds:
-                line = "{} 1 {:.2f} {:.2f} {}\n".format(
-                    name,
-                    word_idx * 1.0 / 100,
-                    (word_idx + 1) * 1.0 / 100,
-                    word
-                )
+                line = f"{name} 1 {word_idx * 1.0 / 100:.2f} {(word_idx + 1) * 1.0 / 100:.2f} {word}\n"
                 contents.append(line)
         content = "".join(contents)
 
@@ -307,54 +335,64 @@ class SLRBaseModel(L.LightningModule):
             with open(path, "w") as file:
                 file.write(content)
         except IOError as e:
-            print(f"写入文件时发生错误: {e}")
-            # 考虑记录到日志文件
+            print(f"An error occurred while writing to the file: {e}")
+            # Consider logging to a log file
             # ...
 
     def configure_optimizers(self):
-        # 定义模型优化器
+        """
+        Configures the optimizers and learning rate schedulers.
+
+        Returns:
+            A dictionary containing the optimizer and learning rate scheduler.
+        """
         try:
-            # 从模型超参数中获取学习率、权重衰减、学习率调度器的里程碑和伽马值，以及上一个训练周期
-            lr = self.hparams.lr
+            # Retrieve hyperparameters
+            learning_rate = self.hparams.lr
             weight_decay = self.hparams.weight_decay
             lr_scheduler_milestones = self.hparams.lr_scheduler_milestones
             lr_scheduler_gamma = self.hparams.lr_scheduler_gamma
-            last_epoch = getattr(self.hparams, 'last_epoch', -1)  # 设置默认值
+            last_epoch = getattr(self.hparams, 'last_epoch', -1)  # Default value
         except AttributeError as e:
-            # 如果模型超参数中缺少必要的属性，抛出ValueError异常
-            raise ValueError("Missing required hparam: {}".format(e))
+            # Raise an error if required hyperparameters are missing
+            raise ValueError(f"Missing required hparam: {e}")
 
-        # 使用Adam优化器初始化优化器，使用从超参数获取的学习率和权重衰减
-        optimizer = torch.optim.Adam(self.parameters(), lr=lr, weight_decay=weight_decay)
+        # Initialize the Adam optimizer
+        optimizer = torch.optim.Adam(self.parameters(), lr=learning_rate, weight_decay=weight_decay)
 
-        # 定义学习率调度器
+        # Define the learning rate scheduler
         scheduler = torch.optim.lr_scheduler.MultiStepLR(
-            optimizer=optimizer,  # 优化器
-            milestones=lr_scheduler_milestones,  # 学习率衰减的里程碑
-            gamma=lr_scheduler_gamma,  # 学习率衰减的比例
-            last_epoch=last_epoch,  # 上一个训练周期
-            # verbose=True,  # 可选参数，设置为True以输出调度信息
+            optimizer=optimizer,
+            milestones=lr_scheduler_milestones,
+            gamma=lr_scheduler_gamma,
+            last_epoch=last_epoch
         )
 
-        # 返回优化器和学习率调度器的字典
+        # Return the optimizer and learning rate scheduler
         return {
             "optimizer": optimizer,
             "lr_scheduler": scheduler
         }
 
-    # def configure_custom_metrics(self):
-    #     self.acc = Accuracy()
-    #     self.loss = nn.BCEWithLogitsLoss()
-    #     self.metrics = {
-    #         'acc': self.acc,
-    #         'loss': self.loss,
-    #         'loss': self.loss,
-    #         'loss': self.loss,
-    #         'acc': self.acc,
-    #     }
-    #     return self.metrics
+    @staticmethod
+    def handle_nan_gradients(module, grad_input, grad_output):
+        """
+        Logs any NaN values found in gradients.
+
+        Args:
+            module: The module for which backward is called.
+            grad_input: Gradients w.r.t. the inputs.
+            grad_output: Gradients w.r.t. the outputs.
+        """
+        for index, gradient in enumerate(grad_input):
+            if gradient is not None and torch.isnan(gradient).any():
+                print(f"Warning: NaN values detected in gradient {index}.")
+        return grad_input
 
     def on_after_backward(self) -> None:
+        """
+        Checks for parameters without gradients after backpropagation.
+        """
         if self.hparams.test_param:
             for name, param in self.named_parameters():
                 if param.grad is None:

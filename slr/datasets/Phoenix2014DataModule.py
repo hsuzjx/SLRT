@@ -1,124 +1,187 @@
-import os.path
+import os
 
 import lightning as L
 from torch.utils.data import DataLoader
+from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Resize, CenterCrop
 
-# 导入自定义的数据集和数据预处理模块
-from .Phoenix2014Dataset import Phoenix2014Dataset
-from .transforms import Compose, RandomCrop, RandomHorizontalFlip, CenterCrop, \
-    TemporalRescale, ToTensor
+from slr.datasets.Phoenix2014Dataset import Phoenix2014Dataset
+from slr.datasets.transforms import ToTensor
 
 
-# 定义用于处理Phoenix2014数据集的数据模块
 class Phoenix2014DataModule(L.LightningDataModule):
+    """
+    Data module for handling the Phoenix 2014 dataset within a PyTorch Lightning environment.
 
-    def __init__(self, features_path, annotations_path, gloss_dict, batch_size=2, num_workers=8,
-                 train_transform=Compose(
-                     [RandomCrop(224), RandomHorizontalFlip(0.5), ToTensor(), TemporalRescale(0.2)]),
-                 dev_transform=Compose([CenterCrop(224), ToTensor()]),
-                 test_transform=Compose([CenterCrop(224), ToTensor()])):
+    This module encapsulates the dataset loading and preprocessing logic, including setting up
+    different splits for training, validation, and testing, as well as applying transformations
+    and tokenization as required.
+
+    Attributes:
+        dataset_dir (str): Path to the root directory of the dataset.
+        features_dir (str): Path to the directory containing feature files.
+        annotations_dir (str): Path to the directory containing annotation files.
+        batch_size (int): Batch size for dataloaders.
+        num_workers (int): Number of subprocesses to use for data loading.
+        transforms (dict): Dictionary of transformations for each dataset mode.
+        tokenizers (dict): Dictionary of tokenizers for each dataset mode.
+        train_dataset (Phoenix2014Dataset): Training dataset instance.
+        dev_dataset (Phoenix2014Dataset): Validation dataset instance.
+        test_dataset (Phoenix2014Dataset): Test dataset instance.
+    """
+
+    def __init__(
+            self,
+            dataset_dir: str = None,
+            features_dir: str = None,
+            annotations_dir: str = None,
+            batch_size: int = 2,
+            num_workers: int = 8,
+            transform: [callable, dict] = None,
+            tokenizer: [object, dict] = None
+    ):
         """
-        初始化数据模块，设置路径、参数和变换。
+        Initializes the Phoenix2014DataModule with the specified parameters.
 
-        参数:
-        features_path -- 特征文件的路径
-        annotations_path -- 注释文件的路径
-        gloss_dict -- 手势词汇表
-        batch_size -- 批处理大小（默认2）
-        num_workers -- 加载数据的线程数量（默认8）
-        train_transform -- 训练数据的预处理流程
-        dev_transform -- 验证数据的预处理流程
-        test_transform -- 测试数据的预处理流程
+        Args:
+            dataset_dir (str): Path to the root directory of the dataset.
+            features_dir (str): Path to the directory containing feature files.
+            annotations_dir (str): Path to the directory containing annotation files.
+            batch_size (int): Batch size for dataloaders. Defaults to 2.
+            num_workers (int): Number of subprocesses to use for data loading. Defaults to 8.
+            transform ([callable, dict], optional): Transformations to apply to the dataset.
+                Can be a callable or a dictionary of callables for different modes. Defaults to None.
+            tokenizer ([object, dict], optional): Tokenizer to use for text processing.
+                Can be a tokenizer object or a dictionary of tokenizer objects for different modes. Defaults to None.
         """
         super().__init__()
 
-        # 确保路径是合法和存在的
-        if not os.path.exists(features_path) or not os.path.exists(annotations_path):
-            raise FileNotFoundError("Features or annotations path does not exist.")
-        self.features_path = os.path.abspath(features_path)
-        self.annotations_path = os.path.abspath(annotations_path)
+        # Ensure all directory paths are set correctly
+        self.dataset_dir = os.path.abspath(dataset_dir) if dataset_dir else None
+        self.features_dir = os.path.abspath(features_dir) if features_dir else None
+        self.annotations_dir = os.path.abspath(annotations_dir) if annotations_dir else None
 
-        # 确保参数是合法的
-        if batch_size <= 0 or num_workers <= 0:
-            raise ValueError("Batch size and number of workers must be greater than 0.")
+        # Configuration parameters
         self.batch_size = batch_size
         self.num_workers = num_workers
 
-        self.gloss_dict = gloss_dict
-
-        # 数据集初始化为空
-        self.test_dataset = None
-        self.dev_dataset = None
+        # Initialize datasets
         self.train_dataset = None
+        self.dev_dataset = None
+        self.test_dataset = None
 
-        # 变换初始化
-        self.train_transform = train_transform
-        self.dev_transform = dev_transform
-        self.test_transform = test_transform
+        # Process transformations
+        self.transforms = self._process_transforms(transform)
 
-    def load_dataset(self, mode, transform, drop_ids=None):
+        # Process tokenizers
+        self.tokenizers = self._process_tokenizers(tokenizer)
+
+    def _process_transforms(self, transform):
         """
-        封装数据集加载逻辑，提高代码复用性。
+        Processes the transform parameter into a dictionary.
 
-        参数:
-        mode -- 数据集的模式（"train", "dev", "test"）
-        transform -- 数据预处理流程
+        Args:
+            transform ([callable, dict]): Transformations to apply to the dataset.
 
-        返回:
-        数据集实例
+        Returns:
+            dict: A dictionary of transformations for each dataset mode.
         """
-        try:
-            return Phoenix2014Dataset(features_path=self.features_path,
-                                      annotations_path=self.annotations_path,
-                                      gloss_dict=self.gloss_dict,
-                                      mode=mode,
-                                      drop_ids=drop_ids,
-                                      transform=transform)
-        except Exception as e:
-            raise RuntimeError(f"Failed to load dataset with mode {mode}: {e}")
+        if transform is None:
+            print("Warning: 'transform' is None, using default values.")
+            return {
+                'train': Compose(
+                    [ToTensor(), Resize(256), RandomCrop(224), RandomHorizontalFlip()]  # , TemporalRescale(224)]
+                ),
+                'dev': Compose([ToTensor(), Resize(256), CenterCrop(224)]),
+                'test': Compose([ToTensor(), Resize(256), CenterCrop(224)])
+            }
+        elif isinstance(transform, dict):
+            keys = ['train', 'dev', 'test']
+            for key in keys:
+                if key not in transform:
+                    print(f"Warning: '{key}' key missing from transform dict, setting to None.")
+            return {key: transform.get(key, None) for key in keys}
+        elif isinstance(transform, Compose):
+            return {'train': transform, 'dev': transform, 'test': transform}
+        else:
+            raise ValueError("Invalid transform type. Expected dict or Compose instance.")
+
+    def _process_tokenizers(self, tokenizer):
+        """
+        Processes the tokenizer parameter into a dictionary.
+
+        Args:
+            tokenizer ([object, dict]): Tokenizer to use for text processing.
+
+        Returns:
+            dict: A dictionary of tokenizers for each dataset mode.
+        """
+        if tokenizer is None:
+            print("Warning: 'tokenizer' is None, using default values.")
+            return {'train': None, 'dev': None, 'test': None}
+        elif isinstance(tokenizer, dict):
+            keys = ['train', 'dev', 'test']
+            for key in keys:
+                if key not in tokenizer:
+                    print(f"Warning: '{key}' key missing from tokenizer dict, setting to None.")
+            return {key: tokenizer.get(key, None) for key in keys}
+        elif tokenizer is not None:
+            return {'train': tokenizer, 'dev': tokenizer, 'test': tokenizer}
+        else:
+            raise ValueError("Invalid tokenizer type. Expected dict or Tokenizer object.")
+
+    def load_dataset(self, mode):
+        """
+        Load the dataset for the specified mode with appropriate transformations and tokenization.
+
+        Args:
+            mode (str): The dataset mode ('train', 'dev', or 'test').
+
+        Returns:
+            Phoenix2014Dataset: The dataset instance for the specified mode.
+        """
+        transform = self.transforms.get(mode, self.transforms['test'])
+        tokenizer = self.tokenizers.get(mode, self.tokenizers['test'])
+        return Phoenix2014Dataset(
+            dataset_dir=self.dataset_dir,
+            features_dir=self.features_dir,
+            annotations_dir=self.annotations_dir,
+            mode=mode,
+            transform=transform,
+            tokenizer=tokenizer
+        )
 
     def setup(self, stage=None):
         """
-        根据运行阶段加载相应的数据集。
+        Prepare the datasets for training, validation, and testing.
 
-        参数:
-        stage -- 运行阶段（"fit", "test"）
+        Args:
+            stage (str, optional): The stage to set up ('fit', 'validate', 'test'). If None, set up all stages.
         """
-        if stage == 'fit':
-            self.train_dataset = self.load_dataset("train", self.train_transform,
-                                                   drop_ids=['13April_2011_Wednesday_tagesschau_default-14'])
-            self.dev_dataset = self.load_dataset("dev", self.dev_transform)
-        if stage == 'validate':
-            self.dev_dataset = self.load_dataset("dev", self.dev_transform)
-        if stage == 'test':
-            self.test_dataset = self.load_dataset("test", self.test_transform)
+        if stage == 'fit' or stage is None:
+            self.train_dataset = self.load_dataset('train')
+            self.dev_dataset = self.load_dataset('dev')
+        if stage == 'validate' or stage is None:
+            self.dev_dataset = self.load_dataset('dev')
+        if stage == 'test' or stage is None:
+            self.test_dataset = self.load_dataset('test')
 
     def train_dataloader(self):
         """
-        返回训练数据加载器。
-
-        返回:
-        DataLoader实例
+        Returns a DataLoader for the training dataset.
         """
-        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=True,
-                          collate_fn=self.train_dataset.collate_fn, pin_memory=True, drop_last=True)
+        return DataLoader(self.train_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          shuffle=True, pin_memory=True, drop_last=True, collate_fn=self.train_dataset.collate_fn)
 
     def val_dataloader(self):
         """
-        返回验证数据加载器。
-
-        返回:
-        DataLoader实例
+        Returns a DataLoader for the validation dataset.
         """
-        return DataLoader(self.dev_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False,
-                          collate_fn=self.dev_dataset.collate_fn, pin_memory=True, drop_last=True)
+        return DataLoader(self.dev_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          shuffle=False, pin_memory=True, drop_last=True, collate_fn=self.dev_dataset.collate_fn)
 
     def test_dataloader(self):
         """
-        返回测试数据加载器。
-
-        返回:
-        DataLoader实例
+        Returns a DataLoader for the test dataset.
         """
-        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers, shuffle=False,
-                          collate_fn=self.test_dataset.collate_fn, pin_memory=True, drop_last=True)
+        return DataLoader(self.test_dataset, batch_size=self.batch_size, num_workers=self.num_workers,
+                          shuffle=False, pin_memory=True, drop_last=True, collate_fn=self.test_dataset.collate_fn)

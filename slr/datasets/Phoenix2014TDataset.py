@@ -2,154 +2,156 @@ import glob
 import os
 
 import cv2
-import numpy as np
 import pandas as pd
-import torch
-import torch.utils.data as data
+from torch.utils.data import Dataset
+from torchvision.transforms import Compose
 
-from .transforms import Compose, ToTensor
+from slr.datasets.transforms import ToTensor
+from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
-class Phoenix2014TDataset(data.Dataset):
+class Phoenix2014TDataset(Dataset):
     """
-    Phoenix2014T数据集类，继承自PyTorch的Dataset类。
+    Phoenix 2014 T dataset class for sign language recognition tasks.
 
-    参数:
-    - features_path: 特征文件路径
-    - annotations_path: 注释文件路径
-    - gloss_dict: 手势词汇字典
-    - mode: 数据集模式，"train"或"test"或"dev"
-    - transform: 数据变换，如果为None，则使用默认变换
+    This class provides functionality to load video frames and their corresponding
+    annotations, applying transformations and tokenization as needed.
+
+    Attributes:
+        features_dir (str): Path to the directory containing video frame features.
+        annotations_dir (str): Path to the directory containing annotations.
+        mode (str): The dataset mode ("train", "dev", or "test").
+        info (pd.DataFrame): DataFrame containing dataset information.
+        transform (callable): Transformation function applied to video frames.
+        tokenizer (object): Tokenizer used for encoding labels.
     """
 
-    def __init__(self, features_path, annotations_path, gloss_dict, mode="train", drop_ids=None, transform=None,
-                 return_translation=False):
+    def __init__(
+            self,
+            dataset_dir: str = None,
+            features_dir: str = None,
+            annotations_dir: str = None,
+            mode: str = "train",
+            transform: callable = Compose([ToTensor()]),
+            tokenizer: object = None
+    ) -> None:
+        """
+        Initializes the Phoenix2014TDataset with the given parameters.
+
+        Args:
+            dataset_dir (str, optional): Base directory of the dataset.
+            features_dir (str, optional): Directory containing video frame features.
+                                          Defaults to a subdirectory within `dataset_dir`.
+            annotations_dir (str, optional): Directory containing annotations.
+                                             Defaults to a subdirectory within `dataset_dir`.
+            mode (str, optional): The dataset mode ("train", "dev", or "test").
+                                  Defaults to "train".
+            transform (callable, optional): Transformation function applied to video frames.
+            tokenizer (object, optional): Tokenizer used for encoding labels.
+        """
         super().__init__()
+
+        # Ensure all directory paths are set correctly
+        self.features_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/features/fullFrame-210x260px') \
+            if features_dir is None and dataset_dir is not None else os.path.abspath(
+            features_dir) if features_dir else None
+        if not os.path.exists(self.features_dir):
+            raise FileNotFoundError(f"Features directory not found at {self.features_dir}")
+
+        # Set and validate annotation directory
+        self.annotations_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/annotations/manual') \
+            if annotations_dir is None and dataset_dir is not None else os.path.abspath(
+            annotations_dir) if annotations_dir else None
+        if not os.path.exists(self.annotations_dir):
+            raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
+
+        # mode must be one of 'train', 'dev', or 'test'
         self.mode = mode
-        self.features_path = os.path.abspath(features_path)
-        self.annotations_path = os.path.abspath(annotations_path)
-        self.dict = gloss_dict
+        if self.mode not in ["train", "dev", "test"]:
+            raise ValueError("Mode must be one of 'train', 'dev', or 'test'")
 
-        corpus_file_path = os.path.join(self.annotations_path, f'PHOENIX-2014-T.{self.mode}.corpus.csv')
-        try:
-            self.corpus = pd.read_csv(corpus_file_path, sep='|', header=0, index_col='name')
-        except FileNotFoundError:
-            raise FileNotFoundError(f"Corpus file not found at {corpus_file_path}")
+        # Load corpus information
+        self.info = pd.read_csv(os.path.join(self.annotations_dir, f'PHOENIX-2014-T.{self.mode}.corpus.csv'),
+                                sep='|', header=0, index_col='name')
 
-        # Drop specific ID if needed
-        if drop_ids is not None:
-            for drop_id in drop_ids:
-                if drop_id in self.corpus.index:
-                    self.corpus.drop(drop_id, axis=0, inplace=True)
+        # Special handling for training mode
+        if self.mode == "train":
+            if "13April_2011_Wednesday_tagesschau_default-14" in self.info.index:
+                self.info.drop("13April_2011_Wednesday_tagesschau_default-14", axis=0, inplace=True)
 
-        if transform is None:
-            self.transform = Compose([ToTensor()])
-        else:
-            self.transform = transform
-
-    def __getitem__(self, idx):
-        """
-        获取数据集中的第idx项数据。
-
-        参数:
-        - idx: 数据索引
-
-        返回:
-        - imgs: 图像数据
-        - label_list: 标签列表
-        - item.name: 数据名称
-        """
-        item = self.corpus.iloc[idx]
-        img_list_path = sorted(glob.glob(os.path.join(self.features_path, f'{self.mode}', item.name, '*.png')))
-        if not img_list_path:
-            raise ValueError(f"No images found for folder {item.name}/*.png")
-
-        orth = item.orth.split(' ')
-        orth = [word for word in orth if word]  # 移除空字符串
-        orth_label_list = [self.dict.get(w, 0) for w in orth]  # 默认为0，如果单词不在字典中
-        # TODO: translation
-        # translation = item.translation.split(' ')
-        # translation = [word for word in translation if word]
-        # translation_label_list = [self.dict.get(w, 0) for w in translation]
-
-        imgs = []
-        for img_path in img_list_path:
-            img = cv2.imread(img_path)
-            if img is None:
-                raise FileNotFoundError(f"Image not found or failed to load: {img_path}")
-            img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            imgs.append(img)
-
-        if self.transform:
-            imgs, orth_label_list = self.transform(imgs, orth_label_list)
-
-        imgs = imgs.float() / 127.5 - 1
-        orth_label_list = torch.LongTensor(orth_label_list)
-
-        # TODO: return translation
-        # if self.return_translation:
-        #     ...
-
-        return imgs, orth_label_list, item
+        # Set transform and tokenizer
+        self.transform = transform
+        self.tokenizer = tokenizer
 
     def __len__(self):
         """
-        返回数据集的大小。
-
-        返回:
-        - 数据集大小
+        Returns the number of samples in the dataset.
         """
-        return len(self.corpus)
+        return len(self.info)
 
-    @staticmethod
-    def collate_fn(batch):
+    def __getitem__(self, idx):
         """
-        动态padding函数，用于将一批数据进行padding对齐。
+        Retrieves a sample from the dataset given its index.
 
-        参数:
-        - batch: 一批数据
+        Args:
+            idx (int): Index of the sample.
 
-        返回:
-        - padded_video: 填充后的视频数据
-        - video_length: 每个视频的原始长度
-        - padded_label: 填充后的标签数据（如果存在）
-        - label_length: 每个标签的原始长度
-        - info: 数据的额外信息
+        Returns:
+            tuple: A tuple containing video frames, glosses, and additional info.
         """
-        batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        video, orth_label, info = list(zip(*batch))
-        if len(video[0].shape) > 3:
-            max_len = len(video[0])
-            video_length = torch.LongTensor([np.ceil(len(vid) / 4.0) * 4 + 12 for vid in video])
-            left_pad = 6
-            right_pad = int(np.ceil(max_len / 4.0)) * 4 - max_len + 6
-            max_len = max_len + left_pad + right_pad
-            padded_video = [torch.cat(
-                (
-                    vid[0][None].expand(left_pad, -1, -1, -1),
-                    vid,
-                    vid[-1][None].expand(max_len - len(vid) - left_pad, -1, -1, -1),
-                )
-                , dim=0)
-                for vid in video]
-            padded_video = torch.stack(padded_video)
-        else:
-            max_len = len(video[0])
-            video_length = torch.LongTensor([len(vid) for vid in video])
-            padded_video = [torch.cat(
-                (
-                    vid,
-                    vid[-1][None].expand(max_len - len(vid), -1),
-                )
-                , dim=0)
-                for vid in video]
-            padded_video = torch.stack(padded_video).permute(0, 2, 1)
-        orth_label_length = torch.LongTensor([len(lab) for lab in orth_label])
-        if max(orth_label_length) == 0:
-            return padded_video, video_length, [], [], info
-        else:
-            padded_orth_label = []
-            for lab in orth_label:
-                padded_orth_label.extend(lab)
-            padded_orth_label = torch.LongTensor(padded_orth_label)
-            return padded_video, video_length, padded_orth_label, orth_label_length, info
+        item = self.info.iloc[idx]
+        frames_dir = os.path.join(self.features_dir, self.mode, item.name)
+        if not os.path.exists(frames_dir):
+            raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
+        frames = self._read_frames(frames_dir)
+
+        glosses = [gloss for gloss in item['orth'].split(' ') if gloss]
+
+        if self.transform:
+            frames = self.transform(frames)
+        if self.tokenizer:
+            glosses = self.tokenizer.encode(glosses)
+
+        return frames, glosses, item
+
+    def _read_frames(self, frames_dir):
+        """
+        Reads video frames from the specified directory.
+
+        Args:
+            frames_dir (str): Directory containing video frames.
+
+        Returns:
+            list: List of frames read from the directory.
+        """
+        frames_file_list = sorted(glob.glob(os.path.join(frames_dir, '*.png')))
+        frames = []
+        for frame_file in frames_file_list:
+            frame = cv2.imread(frame_file)
+            if frame is None:
+                raise ValueError(f"Failed to read frame from {frame_file}")
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            frames.append(frame)
+
+        return frames
+
+    def collate_fn(self, batch):
+        """
+        Collates a list of samples into a batch.
+
+        Args:
+            batch (list): List of samples returned by `__getitem__`.
+
+        Returns:
+            tuple: Batched data including videos, labels, video lengths, label lengths, and info.
+        """
+        video, label, info = list(zip(*batch))
+
+        video_length = [len(v) for v in video]
+        video = pad_video_sequence(video, batch_first=True, padding_value=0.0)
+        label_length = [len(l) for l in label]
+        label = pad_label_sequence(label, batch_first=True,
+                                   padding_value=self.tokenizer.convert_tokens_to_ids(self.tokenizer.pad_token))
+        info = [item.name for item in info]
+
+        return video, label, video_length, label_length, info
