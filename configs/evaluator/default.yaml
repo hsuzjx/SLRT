@@ -1,9 +1,0 @@
-# configs/evaluator/default.yaml
-
-gt_file:
-  - train: ../data/global_files/ground_truth/test_gloss_en.txt
-  - dev: ../data/global_files/ground_truth/test_gloss_en.txt
-  - test: ../data/global_files/ground_truth/test_gloss_en.txt
-
-sclite_bin: '../.bin/sclite'
-cleanup: false

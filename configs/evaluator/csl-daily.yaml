@@ -1,0 +1,9 @@
+# configs/evaluator/csl-daily.yaml
+
+gt_file:
+  train: ../data/global_files/ground_truth/csl-daily-groundtruth-train.stm
+  dev: ../data/global_files/ground_truth/csl-daily-groundtruth-dev.stm
+  test: ../data/global_files/ground_truth/csl-daily-groundtruth-test.stm
+
+sclite_bin: '../.bin/sclite'
+cleanup: false

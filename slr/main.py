@@ -15,6 +15,9 @@ from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
 from slr.datasets.transforms import ToTensor, TemporalRescale
 from slr.utils import convert_to_onnx, set_seed
 
+from slr.models.decoders import CTCBeamSearchDecoder
+from slr.evaluation import Evaluator
+
 CONFIG_PATH = '../configs'
 CONFIG_NAME = 'CorrNet_Phoenix2014_experiment.yaml'
 
@@ -63,8 +66,10 @@ def main(cfg: DictConfig):
     # Common parameters
     dataset_name = cfg.dataset_name
     model_name = cfg.model_name
-    ground_truth_dir = cfg.gt_dir
     tokenizer = SimpleTokenizer(**cfg.tokenizer)
+
+    ctc_decoder = CTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
+    evaluator = Evaluator(dataset=dataset_name, **cfg.evaluator)
 
     # Initialize data module
     DataModelClassDict = {
@@ -73,7 +78,8 @@ def main(cfg: DictConfig):
         "csl-daily": slr.datasets.CSLDailyDataModule
     }
     transform = {
-        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
+        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2),
+                          Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
         'dev': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
         'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
     }
@@ -92,9 +98,8 @@ def main(cfg: DictConfig):
     os.makedirs(eval_res_save_dir, exist_ok=True)
     model = ModelClassDict[model_name](
         save_dir=eval_res_save_dir,
-        dataset_name=dataset_name,
-        ground_truth_dir=ground_truth_dir,
-        tokenizer=tokenizer,
+        probs_decoder=ctc_decoder,
+        evaluator=evaluator,
         **cfg.model
     )
 

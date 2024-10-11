@@ -1,1 +1,1 @@
-from .wer_calculation import evaluate
+from .Evaluator import Evaluator

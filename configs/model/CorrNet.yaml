@@ -20,13 +20,6 @@ milestones: [ 20, 35 ]
 gamma: 0.2
 last_epoch: -1
 
-# for evaluation
-sclite_bin: '../.bin/sclite'
-cleanup: false
-
 # for loss
-loss_weights: [1.0, 1.0, 25.0]
+loss_weights: [ 1.0, 1.0, 25.0 ]
 
-# for beam search decoder
-beam_width: 10
-num_processes: 10

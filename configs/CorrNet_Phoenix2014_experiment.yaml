@@ -5,7 +5,7 @@ defaults:
   - tokenizer: phoenix2014
   - model: CorrNet # 模型配置
   - decoder: ctc_beam_search
-  - evaluator: default
+  - evaluator: phoenix2014
   - trainer: use_gpu # 训练配置
   - callback: default # 回调函数配置
   - logger: wandb # 日志记录器配置
@@ -19,14 +19,12 @@ hydra:
 
 
 # 项目相关配置
-project: Phoenix2014_new
-name: CorrNet_with_normalization
+project: Phoenix2014_debug
+name: CorrNet_with_normalization_debug
 timestamp: ${now:%Y-%m-%d_%H-%M-%S}
 
 model_name: CorrNet
 dataset_name: phoenix2014
-vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt
-gt_dir: ../data/global_files/ground_truth
 
 # 其他配置
 seed: 3218388406 # best in experiment now: 3,218,388,406

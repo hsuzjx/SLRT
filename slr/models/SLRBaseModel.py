@@ -2,13 +2,11 @@ import itertools
 import os
 import re
 from datetime import datetime
-from typing import Any, List, Tuple
+from typing import Any
 
+import fcntl
 import lightning as L
 import torch
-
-from slr.evaluation.wer_calculation import evaluate
-from slr.models.decoders import CTCBeamSearchDecoder
 
 
 class SLRBaseModel(L.LightningModule):
@@ -34,16 +32,10 @@ class SLRBaseModel(L.LightningModule):
         # Ensure save path exists
         os.makedirs(os.path.abspath(self.hparams.save_dir), exist_ok=True)
 
-        # Initialize CTC decoder
-        self.probs_decoder = CTCBeamSearchDecoder(
-            tokenizer=self.hparams.tokenizer,
-            beam_width=self.hparams.beam_width,
-            num_processes=self.hparams.num_processes
-        )
-
-        # Initialize outputs lists
-        self.validation_step_outputs = []
-        self.test_step_outputs = []
+        # Initialize variables
+        self.file_save_dir = None
+        self.output_file = None
+        self.lock_file = "./file_lock"
 
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
@@ -96,20 +88,19 @@ class SLRBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         # Remove special tokens from the decoded predictions
         for tokens in decoded:
-            for token in self.probs_decoder.tokenizer.special_tokens:
-                if token == self.probs_decoder.tokenizer.unk_token:
+            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
+                if token == self.hparams.probs_decoder.tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
 
-        # Collect the current batch's information and predictions
-        self.validation_step_outputs.append({
-            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
-        })
+        # Write the decoded predictions to the output file
+        for i in range(len(info)):
+            self.write_to_file(f"{info[i]} {decoded[i]}\n")
 
         # Return the loss value
         return loss
@@ -135,20 +126,19 @@ class SLRBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         # Remove special tokens from the decoded predictions
         for tokens in decoded:
-            for token in self.probs_decoder.tokenizer.special_tokens:
-                if token == self.probs_decoder.tokenizer.unk_token:
+            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
+                if token == self.hparams.probs_decoder.tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
 
-        # Collect the current batch's information and predictions
-        self.test_step_outputs.append({
-            'predictions': [(info[i], decoded[i]) for i in range(len(info))]
-        })
+        # Write the decoded predictions to the output file
+        for i in range(len(info)):
+            self.write_to_file(f"{info[i]} {decoded[i]}\n")
 
         # Return the loss value
         return loss
@@ -166,11 +156,11 @@ class SLRBaseModel(L.LightningModule):
             Decoded predictions.
         """
         _, y_hat, y_hat_lgt, info = self.step_forward(batch)
-        decoded = self.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         for tokens in decoded:
-            for token in self.probs_decoder.tokenizer.special_tokens:
-                if token == self.probs_decoder.tokenizer.unk_token:
+            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
+                if token == self.hparams.probs_decoder.tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
@@ -181,66 +171,67 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the start of each validation epoch.
         """
-        self.validation_step_outputs = []
+        if self.trainer.sanity_checking:
+            self.file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
+        else:
+            self.file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
+        os.makedirs(self.file_save_dir, exist_ok=True)
+
+        self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
+
+        if self.trainer.is_global_zero:
+            # 清空文件
+            self.write_to_file("", "w")
+
+        # 同步所有进程
+        torch.distributed.barrier()
 
     def on_test_epoch_start(self):
         """
         Called at the start of each test epoch.
         """
-        self.test_step_outputs = []
+        self.file_save_dir = os.path.join(self.hparams.save_dir, "test", f"test_after_epoch_{self.current_epoch}")
+        os.makedirs(self.file_save_dir, exist_ok=True)
+
+        self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
+
+        if self.trainer.is_global_zero:
+            # 清空文件
+            self.write_to_file("", "w")
+
+        # 同步所有进程
+        torch.distributed.barrier()
 
     def on_validation_epoch_end(self):
         """
         Called at the end of each validation epoch.
         """
-        # Gather data from all GPUs
-        all_validation_step_outputs = [None for _ in range(self.trainer.world_size)]
-        torch.distributed.all_gather_object(all_validation_step_outputs, self.validation_step_outputs)
-        # Ensure all processes have finished gathering data
         torch.distributed.barrier()
 
-        # Ensure all collected data is not None
-        for item in all_validation_step_outputs:
-            assert item is not None
-
-        # TODO: 检查是否为主进程
         if self.trainer.is_global_zero:
-
-            # Merge collected data into a single list
-            all_items = list(itertools.chain.from_iterable(all_validation_step_outputs))
-            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
-
-            # Check for duplicate names
-            total_names = [name for name, _ in total_predictions]
-            assert len(total_names) == len(set(total_names))
+            with open(self.lock_file, 'w') as f:
+                # 获取文件锁
+                fcntl.flock(f, fcntl.LOCK_EX)
+                try:
+                    with open(self.output_file, "r") as output_file:
+                        total_names = [line.split()[0] for line in output_file if line.strip()]
+                        assert len(total_names) == len(set(total_names))
+                finally:
+                    # 释放文件锁
+                    fcntl.flock(f, fcntl.LOCK_UN)
 
             try:
-                # Prepare save path and output file
-                if self.trainer.sanity_checking:
-                    file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
-                else:
-                    file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
-                if not os.path.exists(file_save_dir):
-                    os.makedirs(file_save_dir, exist_ok=True)
-                output_file = os.path.join(file_save_dir, f'output-hypothesis-dev-rank{self.trainer.global_rank}.ctm')
-
-                # Write predictions to file and compute WER
-                self.write2file(output_file, total_predictions)
-
                 # Call evaluate function to compute WER
-                wer = evaluate(
-                    ctm_file=output_file,
-                    gt_file=os.path.join(
-                        self.hparams.ground_truth_dir,
-                        f"{self.hparams.dataset_name}-groundtruth-dev_sorted.stm"),
-                    save_dir=file_save_dir,
-                    sclite_bin=self.hparams.sclite_bin,
-                    dataset=self.hparams.dataset_name,
-                    cleanup=self.hparams.cleanup
+                wer = self.hparams.evaluator.evaluate(
+                    save_dir=self.file_save_dir,
+                    hyp_file=self.output_file,
+                    lock_file=self.lock_file,
+                    mode="dev"
                 )
             except Exception as e:
                 # Handle exceptions and log error information
-                print(f"Exception occurred at the end of validation epoch: {e}, please check detailed error message.")
+                print(f"ERROR: Exception occurred at the end of validation epoch: {e},",
+                      f"please check detailed error message.")
                 wer = '100.0'
             finally:
                 # Process WER logging, ensuring even string values are logged correctly
@@ -258,85 +249,54 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the end of each test epoch.
         """
-        # Gather data from all GPUs
-        all_test_step_outputs = [None for _ in range(self.trainer.world_size)]
-        torch.distributed.all_gather_object(all_test_step_outputs, self.test_step_outputs)
-        # Ensure all processes have finished gathering data
         torch.distributed.barrier()
 
-        # Ensure all collected data is not None
-        for item in all_test_step_outputs:
-            assert item is not None
-
-        # TODO: 检查是否为主进程
         if self.trainer.is_global_zero:
-
-            # Merge collected data into a single list
-            all_items = list(itertools.chain.from_iterable(all_test_step_outputs))
-            total_predictions = list(itertools.chain.from_iterable(item['predictions'] for item in all_items))
-
-            # Check for duplicate names
-            total_names = [name for name, _ in total_predictions]
-            assert len(total_names) == len(set(total_names)), "Duplicate names found in predictions."
+            with open(self.lock_file, 'w') as f:
+                # 获取文件锁
+                fcntl.flock(f, fcntl.LOCK_EX)
+                try:
+                    with open(self.output_file, "r") as output_file:
+                        total_names = [line.split()[0] for line in output_file if line.strip()]
+                        assert len(total_names) == len(set(total_names))
+                finally:
+                    # 释放文件锁
+                    fcntl.flock(f, fcntl.LOCK_UN)
 
             try:
-                # Prepare save path and output file
-                file_save_dir = os.path.join(self.hparams.save_dir, "test",
-                                             f"test_after_epoch_{self.current_epoch - 1}")
-                if not os.path.exists(file_save_dir):
-                    os.makedirs(file_save_dir, exist_ok=True)
-                output_file = os.path.join(file_save_dir, f'output-hypothesis-test-rank{self.trainer.global_rank}.ctm')
-
-                # Write predictions to file and compute WER
-                self.write2file(output_file, total_predictions)
-
                 # Call evaluate function to compute WER
-                wer = evaluate(
-                    ctm_file=output_file,
-                    gt_file=os.path.join(self.hparams.ground_truth_dir,
-                                         f"{self.hparams.dataset_name}-groundtruth-test_sorted.stm"),
-                    save_dir=file_save_dir,
-                    sclite_bin=self.hparams.sclite_bin,
-                    dataset=self.hparams.dataset_name,
-                    cleanup=self.hparams.cleanup
+                wer = self.hparams.evaluator.evaluate(
+                    save_dir=self.file_save_dir,
+                    hyp_file=self.output_file,
+                    lock_file=self.lock_file,
+                    mode="test"
                 )
             except Exception as e:
                 # Handle exceptions and log error information
-                print(
-                    f"An exception occurred at the end of the test epoch: {e}. Please check the detailed error message.")
+                print(f"ERROR: Exception occurred at the end of the test epoch: {e},",
+                      f"please check the detailed error message.")
                 wer = '100.0'
             finally:
                 # Process WER logging, ensuring even string values are logged correctly
                 if isinstance(wer, str):
-                    wer = float(re.findall(r"\d+\.?\d*", wer)[0])
+                    wer = float(re.findall("\d+\.?\d*", wer)[0])
                 # Log TEST_WER metric
                 self.log('Test/Word-Error-Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
                 # Print messages
-                print(
-                    f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1}, TEST_WER: {wer}%")
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1},",
+                      f"TEST_WER: {wer}%")
 
-    def write2file(self, path: str, preds_info: List[Tuple[str, List[Tuple[str, int]]]]):
-        """
-        Writes predictions to a file.
-
-        Args:
-            path: Path to the output file.
-            preds_info: List of tuples containing the name and predicted words.
-        """
-        contents = []
-        for name, preds in preds_info:
-            for word_idx, word in enumerate(preds):
-                line = f"{name} 1 {word_idx * 1.0 / 100:.2f} {(word_idx + 1) * 1.0 / 100:.2f} {word}\n"
-                contents.append(line)
-        content = "".join(contents)
-
-        try:
-            with open(path, "w") as file:
-                file.write(content)
-        except IOError as e:
-            print(f"An error occurred while writing to the file: {e}")
-            # Consider logging to a log file
-            # ...
+    def write_to_file(self, data, open_mode='a'):
+        with open(self.lock_file, 'w') as f:
+            # 获取文件锁
+            fcntl.flock(f, fcntl.LOCK_EX)
+            try:
+                # 写入数据
+                with open(self.output_file, open_mode) as output_file:
+                    output_file.write(data)
+            finally:
+                # 释放文件锁
+                fcntl.flock(f, fcntl.LOCK_UN)
 
     def configure_optimizers(self):
         """
