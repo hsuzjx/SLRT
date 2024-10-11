@@ -1,7 +1,7 @@
 # configs/trainer/use_gpu.yaml
 
 # 进行训练的周期数，即模型在全部训练集上迭代的次数
-max_epochs: 2
+max_epochs: 40
 
 # 训练使用的加速器类型，此处指定为GPU加速
 accelerator: "gpu"

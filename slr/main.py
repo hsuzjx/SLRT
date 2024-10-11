@@ -8,7 +8,7 @@ import wandb
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
-from torchvision.transforms import Compose, Resize, RandomCrop, RandomHorizontalFlip, CenterCrop
+from torchvision.transforms import Compose, Resize, RandomCrop, RandomHorizontalFlip, CenterCrop, Normalize
 
 import slr.models
 from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
@@ -64,7 +64,7 @@ def main(cfg: DictConfig):
     dataset_name = cfg.dataset_name
     model_name = cfg.model_name
     ground_truth_dir = cfg.gt_dir
-    tokenizer = SimpleTokenizer(vocab_file=cfg.vocab_file)
+    tokenizer = SimpleTokenizer(**cfg.tokenizer)
 
     # Initialize data module
     DataModelClassDict = {
@@ -73,9 +73,9 @@ def main(cfg: DictConfig):
         "csl-daily": slr.datasets.CSLDailyDataModule
     }
     transform = {
-        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2)]),
-        'dev': Compose([ToTensor(), CenterCrop(224)]),
-        'test': Compose([ToTensor(), CenterCrop(224)])
+        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
+        'dev': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
+        'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
     }
     data_module = DataModelClassDict[dataset_name](
         transform=transform,

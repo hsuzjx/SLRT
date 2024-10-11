@@ -1,5 +1,5 @@
-from itertools import groupby
 import re
+from itertools import groupby
 
 
 def clean_phoenix_2014(prediction):
@@ -54,7 +54,11 @@ def clean_phoenix_2014(prediction):
 
 
 def clean_phoenix_2014_trans(prediction):
+    '''
 
+    :param prediction:
+    :return:
+    '''
     prediction = prediction.strip()
     prediction = re.sub(r"__LEFTHAND__", "", prediction)
     prediction = re.sub(r"__EPENTHESIS__", "", prediction)

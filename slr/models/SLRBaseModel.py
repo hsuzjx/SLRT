@@ -175,10 +175,7 @@ class SLRBaseModel(L.LightningModule):
                 while token in tokens:
                     tokens.remove(token)
 
-        # Additional logic can be added here to process predictions, such as saving to a file or returning specific formats.
-        # Example: Convert predictions to a more readable form or directly return predictions.
-
-        return decoded
+        return info, decoded
 
     def on_validation_epoch_start(self):
         """

@@ -2,7 +2,10 @@
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - dataset: phoenix2014 # 数据集配置
+  - tokenizer: phoenix2014
   - model: CorrNet # 模型配置
+  - decoder: ctc_beam_search
+  - evaluator: default
   - trainer: use_gpu # 训练配置
   - callback: default # 回调函数配置
   - logger: wandb # 日志记录器配置
@@ -17,7 +20,7 @@ hydra:
 
 # 项目相关配置
 project: Phoenix2014_new
-name: CorrNet
+name: CorrNet_with_normalization
 timestamp: ${now:%Y-%m-%d_%H-%M-%S}
 
 model_name: CorrNet
@@ -26,7 +29,7 @@ vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt
 gt_dir: ../data/global_files/ground_truth
 
 # 其他配置
-seed: -1 # best in experiment now: 3,218,388,406
+seed: 3218388406 # best in experiment now: 3,218,388,406
 save_dir: ../experiments
 
 torch_float32_matmul_precision: high

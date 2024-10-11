@@ -1,0 +1,4 @@
+# configs/tokenizer/phoenix2014.yaml
+
+vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt
+
