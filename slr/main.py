@@ -30,6 +30,8 @@ def main(cfg: DictConfig):
     Initializes the training environment, sets up logging, checkpoints, and
     data modules, then trains and tests the model based on the provided config.
     """
+    # Set num threads
+    torch.set_num_threads(cfg.get('torch_num_threads', 2))
     # Set precision for float32 matmul operations
     torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
     seed = set_seed(cfg.get('seed', -1), workers=True)

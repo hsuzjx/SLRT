@@ -1,4 +1,3 @@
-import itertools
 import os
 import re
 from datetime import datetime
@@ -35,7 +34,7 @@ class SLRBaseModel(L.LightningModule):
         # Initialize variables
         self.file_save_dir = None
         self.output_file = None
-        self.lock_file = "./file_lock"
+        self.lock_file = self.hparams.get("lock_file", "/tmp/slr_file_lock")
 
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
@@ -100,7 +99,7 @@ class SLRBaseModel(L.LightningModule):
 
         # Write the decoded predictions to the output file
         for i in range(len(info)):
-            self.write_to_file(f"{info[i]} {decoded[i]}\n")
+            self.write_to_file(f"{info[i]} {' '.join(decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -138,7 +137,7 @@ class SLRBaseModel(L.LightningModule):
 
         # Write the decoded predictions to the output file
         for i in range(len(info)):
-            self.write_to_file(f"{info[i]} {decoded[i]}\n")
+            self.write_to_file(f"{info[i]} {' '.join(decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -238,7 +237,8 @@ class SLRBaseModel(L.LightningModule):
                 if isinstance(wer, str):
                     wer = float(re.findall("\d+\.?\d*", wer)[0])
                 # Log DEV_WER metric
-                self.log('Val/Word-Error-Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                self.log('Val/Word-Error-Rate', wer,
+                         on_step=False, on_epoch=True, prog_bar=False, sync_dist=True, rank_zero_only=True)
                 # Print different messages based on whether it's a sanity check
                 if self.trainer.sanity_checking:
                     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
@@ -281,7 +281,8 @@ class SLRBaseModel(L.LightningModule):
                 if isinstance(wer, str):
                     wer = float(re.findall("\d+\.?\d*", wer)[0])
                 # Log TEST_WER metric
-                self.log('Test/Word-Error-Rate', wer, on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                self.log('Test/Word-Error-Rate', wer,
+                         on_step=False, on_epoch=True, prog_bar=False, sync_dist=True, rank_zero_only=True)
                 # Print messages
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1},",
                       f"TEST_WER: {wer}%")

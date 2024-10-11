@@ -8,4 +8,4 @@ features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-2
 
 # dataloader params
 batch_size: 2
-num_workers: 8
+num_workers: 10

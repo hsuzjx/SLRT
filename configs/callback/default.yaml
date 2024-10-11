@@ -14,4 +14,4 @@ save_last: true
 save_top_k: 1
 
 # 模型保存的文件名格式，包含epoch数和监控指标的值
-filename: '{epoch}_{VAL\/Word-Error-Rate:.2f}'
+filename: 'best_{epoch}'

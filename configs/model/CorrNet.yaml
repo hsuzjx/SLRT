@@ -23,3 +23,5 @@ last_epoch: -1
 # for loss
 loss_weights: [ 1.0, 1.0, 25.0 ]
 
+#lock_file: ./slr_file_lock # default /tmp/slr_file_lock
+
