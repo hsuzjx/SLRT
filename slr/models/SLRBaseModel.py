@@ -38,7 +38,7 @@ class SLRBaseModel(L.LightningModule):
         self.checkpoint_save_dir = os.path.join(os.path.abspath(self.hparams.save_dir), 'checkpoints')
         self.file_save_dir = None
         self.output_file = None
-        self.lock_file = self.hparams.get("lock_file", "/tmp/slr_file_lock")
+        self.rank_output_file = None
 
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
@@ -103,7 +103,7 @@ class SLRBaseModel(L.LightningModule):
 
         # Write the decoded predictions to the output file
         for i in range(len(info)):
-            self.write_to_file(f"{info[i]} {' '.join(decoded[i])}\n")
+            self.rank_output_file.write(f"{info[i]} {' '.join(decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -141,7 +141,7 @@ class SLRBaseModel(L.LightningModule):
 
         # Write the decoded predictions to the output file
         for i in range(len(info)):
-            self.write_to_file(f"{info[i]} {' '.join(decoded[i])}\n")
+            self.rank_output_file.write(f"{info[i]} {' '.join(decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -181,13 +181,8 @@ class SLRBaseModel(L.LightningModule):
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
-
-        if self.trainer.is_global_zero:
-            # 清空文件
-            self.write_to_file("", "w")
-
-        # 同步所有进程
-        torch.distributed.barrier()
+        self.rank_output_file = open(
+            os.path.join(self.file_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w")
 
     def on_test_epoch_start(self):
         """
@@ -197,40 +192,36 @@ class SLRBaseModel(L.LightningModule):
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
-
-        if self.trainer.is_global_zero:
-            # 清空文件
-            self.write_to_file("", "w")
-
-        # 同步所有进程
-        torch.distributed.barrier()
+        self.rank_output_file = open(
+            os.path.join(self.file_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w")
 
     def on_validation_epoch_end(self):
         """
         Called at the end of each validation epoch.
         """
+        self.rank_output_file.close()
         torch.distributed.barrier()
 
         wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
-            with open(self.lock_file, 'w') as f:
-                # 获取文件锁
-                fcntl.flock(f, fcntl.LOCK_EX)
-                try:
-                    with open(self.output_file, "r") as output_file:
-                        total_names = [line.split()[0] for line in output_file if line.strip()]
-                        assert len(total_names) == len(set(total_names))
-                finally:
-                    # 释放文件锁
-                    fcntl.flock(f, fcntl.LOCK_UN)
+            all_lines = []
+            for rank in range(self.trainer.world_size):
+                rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
+                with open(rank_output_file, 'r') as f:
+                    all_lines.extend(f.readlines())
+
+            keys = [line.split()[0] for line in all_lines]
+            assert len(keys) == len(set(keys))
+
+            with open(self.output_file, 'w') as f:
+                f.writelines(all_lines)
 
             try:
                 # Call evaluate function to compute WER
                 wer = self.hparams.evaluator.evaluate(
                     save_dir=self.file_save_dir,
                     hyp_file=self.output_file,
-                    lock_file=self.lock_file,
                     mode="dev"
                 )
             except Exception as e:
@@ -262,28 +253,28 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the end of each test epoch.
         """
+        self.rank_output_file.close()
         torch.distributed.barrier()
 
         wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
-            with open(self.lock_file, 'w') as f:
-                # 获取文件锁
-                fcntl.flock(f, fcntl.LOCK_EX)
-                try:
-                    with open(self.output_file, "r") as output_file:
-                        total_names = [line.split()[0] for line in output_file if line.strip()]
-                        assert len(total_names) == len(set(total_names))
-                finally:
-                    # 释放文件锁
-                    fcntl.flock(f, fcntl.LOCK_UN)
+            all_lines = []
+            for rank in range(self.trainer.world_size):
+                rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
+                with open(rank_output_file, 'r') as f:
+                    all_lines.extend(f.readlines())
+            keys = [line.split()[0] for line in all_lines]
+            assert len(keys) == len(set(keys))
+
+            with open(self.output_file, 'w') as f:
+                f.writelines(all_lines)
 
             try:
                 # Call evaluate function to compute WER
                 wer = self.hparams.evaluator.evaluate(
                     save_dir=self.file_save_dir,
                     hyp_file=self.output_file,
-                    lock_file=self.lock_file,
                     mode="test"
                 )
             except Exception as e:
@@ -307,18 +298,6 @@ class SLRBaseModel(L.LightningModule):
             # Log TEST_WER metric
             self.log('Test/Word-Error-Rate', wer,
                      on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
-
-    def write_to_file(self, data, open_mode='a'):
-        with open(self.lock_file, 'w') as f:
-            # 获取文件锁
-            fcntl.flock(f, fcntl.LOCK_EX)
-            try:
-                # 写入数据
-                with open(self.output_file, open_mode) as output_file:
-                    output_file.write(data)
-            finally:
-                # 释放文件锁
-                fcntl.flock(f, fcntl.LOCK_UN)
 
     def configure_optimizers(self):
         """

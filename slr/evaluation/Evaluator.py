@@ -54,7 +54,7 @@ class Evaluator:
         else:
             raise ValueError("gt_file must be either a dictionary with 'train', 'dev', and 'test' keys or a string.")
 
-    def evaluate(self, save_dir, hyp_file, lock_file, mode):
+    def evaluate(self, save_dir, hyp_file, mode):
         """
         Evaluates the hypothesis file against the ground truth using SCLITE.
 
@@ -63,14 +63,13 @@ class Evaluator:
         Args:
             save_dir (str): Directory where results will be saved.
             hyp_file (str): Path to the hypothesis file.
-            lock_file (str): Path to the lock file used during preprocessing.
             mode (str): Mode of the dataset ('train', 'dev', or 'test').
 
         Returns:
             float: The calculated Word Error Rate (WER).
         """
         gt_file = self.gt_file[mode]
-        ctm_file = self.preprocess_hyp(save_dir, hyp_file, lock_file, gt_file=gt_file)
+        ctm_file = self.preprocess_hyp(save_dir, hyp_file, gt_file=gt_file)
 
         results_dir = os.path.join(save_dir, "sclite_results")
         os.makedirs(results_dir, exist_ok=True)
@@ -110,14 +109,13 @@ class Evaluator:
 
         return word_error_rate
 
-    def preprocess_hyp(self, save_dir, hyp_file, lock_file, gt_file):
+    def preprocess_hyp(self, save_dir, hyp_file, gt_file):
         """
         Preprocesses the hypothesis file by converting it to CTM format, merging it with STM, sorting, and cleaning up.
 
         Args:
             save_dir (str): Directory where temporary files will be saved.
             hyp_file (str): Path to the hypothesis file.
-            lock_file (str): Path to the lock file used during preprocessing.
             gt_file (str): Path to the ground truth file.
 
         Returns:
@@ -130,7 +128,7 @@ class Evaluator:
         tmp_file_3 = os.path.join(save_dir, f"{basename}.tmp3.sorted.ctm")
         output_file = os.path.join(save_dir, f"{basename}.ctm")
 
-        self.convert_hyp_to_ctm(hyp_file, tmp_file_1, lock_file, clean_sentence=True)
+        self.convert_hyp_to_ctm(hyp_file, tmp_file_1, clean_sentence=True)
         self.merge_ctm_and_stm(tmp_file_1, gt_file, tmp_file_2)
         self.sort_ctm(tmp_file_2, tmp_file_3)
 
@@ -143,36 +141,30 @@ class Evaluator:
 
         return output_file
 
-    def convert_hyp_to_ctm(self, hyp_file, ctm_file, lock_file, clean_sentence=True):
+    def convert_hyp_to_ctm(self, hyp_file, ctm_file, clean_sentence=True):
         """
         Converts the hypothesis file to CTM format, optionally cleaning sentences.
 
         Args:
             hyp_file (str): Path to the hypothesis file.
             ctm_file (str): Path to the output CTM file.
-            lock_file (str): Path to the lock file used during conversion.
             clean_sentence (bool, optional): Whether to clean sentences using dataset-specific functions.
         """
-        with open(lock_file, 'w') as f:
-            # Acquire file lock
-            fcntl.flock(f, fcntl.LOCK_EX)
-            try:
-                with open(hyp_file, "r") as hyp_f:
-                    with open(ctm_file, "w") as ctm_f:
-                        for line in hyp_f:
-                            line_split = line.strip().split()
-                            name = line_split[0]
-                            sentence = " ".join(line_split[1:])
-                            if clean_sentence and self.dataset in DatasetCleanFunctionDict:
-                                clean_func = DatasetCleanFunctionDict[self.dataset]
-                                sentence = clean_func(sentence)
+        all_lines = []
+        with open(hyp_file, "r") as f:
+            for line in f:
+                line_split = line.strip().split()
+                name = line_split[0]
+                sentence = " ".join(line_split[1:])
+                if clean_sentence and self.dataset in DatasetCleanFunctionDict:
+                    clean_func = DatasetCleanFunctionDict[self.dataset]
+                    sentence = clean_func(sentence)
 
-                            for word_idx, word in enumerate(sentence.split()):
-                                ctm_f.write(
-                                    f"{name} 1 {word_idx * 1.0 / 100:.2f} {(word_idx + 1) * 1.0 / 100:.2f} {word}\n")
-            finally:
-                # Release file lock
-                fcntl.flock(f, fcntl.LOCK_UN)
+                for word_idx, word in enumerate(sentence.split()):
+                    all_lines.append(f"{name} 1 {word_idx * 1.0 / 100:.2f} {(word_idx + 1) * 1.0 / 100:.2f} {word}\n")
+
+        with open(ctm_file, "w") as f:
+            f.writelines(all_lines)
 
     def merge_ctm_and_stm(self, ctm_file, stm_file, merged_ctm_file):
         """

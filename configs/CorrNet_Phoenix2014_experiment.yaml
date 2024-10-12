@@ -29,7 +29,7 @@ dataset_name: phoenix2014
 seed: -1
 save_dir: ../experiments
 
-torch_num_threads: 10
+torch_num_threads: 12
 torch_float32_matmul_precision: high
 
 convert_to_onnx: true
