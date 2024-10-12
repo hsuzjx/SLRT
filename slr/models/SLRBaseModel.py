@@ -241,14 +241,15 @@ class SLRBaseModel(L.LightningModule):
                 # Process WER logging, ensuring even string values are logged correctly
                 if isinstance(wer, str):
                     wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
+                if isinstance(wer, float):
+                    wer = torch.tensor(wer, device=self.device)
                 # Print different messages based on whether it's a sanity check
                 if self.trainer.sanity_checking:
                     print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check,",
                           f"DEV_WER: {wer.item()}%")
                 else:
-                    print(
-                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch},",
-                        f"DEV_WER: {wer.item()}%")
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch},",
+                          f"DEV_WER: {wer.item()}%")
 
         torch.distributed.barrier()
         wer = self.all_gather(wer)[0]
@@ -262,6 +263,8 @@ class SLRBaseModel(L.LightningModule):
         Called at the end of each test epoch.
         """
         torch.distributed.barrier()
+
+        wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
             with open(self.lock_file, 'w') as f:
@@ -291,13 +294,19 @@ class SLRBaseModel(L.LightningModule):
             finally:
                 # Process WER logging, ensuring even string values are logged correctly
                 if isinstance(wer, str):
-                    wer = float(re.findall("\d+\.?\d*", wer)[0])
-                # Log TEST_WER metric
-                self.log('Test/Word-Error-Rate', wer,
-                         on_step=False, on_epoch=True, prog_bar=False, sync_dist=True, rank_zero_only=True)
+                    wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
+                if isinstance(wer, float):
+                    wer = torch.tensor(wer, device=self.device)
                 # Print messages
                 print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1},",
-                      f"TEST_WER: {wer}%")
+                      f"TEST_WER: {wer.item()}%")
+
+            torch.distributed.barrier()
+            wer = self.all_gather(wer)[0]
+
+            # Log TEST_WER metric
+            self.log('Test/Word-Error-Rate', wer,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
 
     def write_to_file(self, data, open_mode='a'):
         with open(self.lock_file, 'w') as f:
