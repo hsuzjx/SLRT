@@ -25,3 +25,6 @@ loss_weights: [ 1.0, 1.0, 25.0 ]
 
 #lock_file: ./slr_file_lock # default /tmp/slr_file_lock
 
+# for callbacks checkpoint
+save_last: true
+save_top_k: 3

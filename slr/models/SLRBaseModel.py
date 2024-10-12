@@ -1,11 +1,13 @@
 import os
 import re
 from datetime import datetime
-from typing import Any
+from typing import Any, Union, Sequence
 
 import fcntl
 import lightning as L
 import torch
+from lightning import Callback
+from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
 
 class SLRBaseModel(L.LightningModule):
@@ -32,6 +34,8 @@ class SLRBaseModel(L.LightningModule):
         os.makedirs(os.path.abspath(self.hparams.save_dir), exist_ok=True)
 
         # Initialize variables
+        self.hypothesis_save_dir = os.path.join(os.path.abspath(self.hparams.save_dir), 'hypothesis')
+        self.checkpoint_save_dir = os.path.join(os.path.abspath(self.hparams.save_dir), 'checkpoints')
         self.file_save_dir = None
         self.output_file = None
         self.lock_file = self.hparams.get("lock_file", "/tmp/slr_file_lock")
@@ -171,9 +175,9 @@ class SLRBaseModel(L.LightningModule):
         Called at the start of each validation epoch.
         """
         if self.trainer.sanity_checking:
-            self.file_save_dir = os.path.join(self.hparams.save_dir, "dev", "sanity_check")
+            self.file_save_dir = os.path.join(self.hypothesis_save_dir, "dev", "sanity_check")
         else:
-            self.file_save_dir = os.path.join(self.hparams.save_dir, "dev", f"epoch_{self.current_epoch}")
+            self.file_save_dir = os.path.join(self.hypothesis_save_dir, "dev", f"epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
@@ -189,7 +193,7 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the start of each test epoch.
         """
-        self.file_save_dir = os.path.join(self.hparams.save_dir, "test", f"test_after_epoch_{self.current_epoch}")
+        self.file_save_dir = os.path.join(self.hypothesis_save_dir, "test", f"test_after_epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
@@ -206,6 +210,8 @@ class SLRBaseModel(L.LightningModule):
         Called at the end of each validation epoch.
         """
         torch.distributed.barrier()
+
+        wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
             with open(self.lock_file, 'w') as f:
@@ -231,19 +237,25 @@ class SLRBaseModel(L.LightningModule):
                 # Handle exceptions and log error information
                 print(f"ERROR: Exception occurred at the end of validation epoch: {e},",
                       f"please check detailed error message.")
-                wer = '100.0'
             finally:
                 # Process WER logging, ensuring even string values are logged correctly
                 if isinstance(wer, str):
-                    wer = float(re.findall("\d+\.?\d*", wer)[0])
-                # Log DEV_WER metric
-                self.log('Val/Word-Error-Rate', wer,
-                         on_step=False, on_epoch=True, prog_bar=False, sync_dist=True, rank_zero_only=True)
+                    wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
                 # Print different messages based on whether it's a sanity check
                 if self.trainer.sanity_checking:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check, DEV_WER: {wer}%")
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check,",
+                          f"DEV_WER: {wer.item()}%")
                 else:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch}, DEV_WER: {wer}%")
+                    print(
+                        f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch},",
+                        f"DEV_WER: {wer.item()}%")
+
+        torch.distributed.barrier()
+        wer = self.all_gather(wer)[0]
+
+        # Log DEV_WER metric
+        self.log('Val/Word-Error-Rate', wer,
+                 on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
 
     def on_test_epoch_end(self):
         """
@@ -333,6 +345,28 @@ class SLRBaseModel(L.LightningModule):
             "optimizer": optimizer,
             "lr_scheduler": scheduler
         }
+
+    def configure_callbacks(self) -> Union[Sequence[Callback], Callback]:
+        """
+
+        :return:
+        """
+        early_stop = EarlyStopping(
+            monitor='Val/Loss',
+            patience=5,
+            verbose=True,
+            mode='min'
+        )
+        checkpoint = ModelCheckpoint(
+            dirpath=self.checkpoint_save_dir,
+            filename='top_{epoch}',
+            monitor='Val/Word-Error-Rate',
+            mode='min',
+            save_last=self.hparams.save_last,
+            save_top_k=self.hparams.save_top_k,
+            verbose=True
+        )
+        return [early_stop, checkpoint]
 
     @staticmethod
     def handle_nan_gradients(module, grad_input, grad_output):

@@ -6,8 +6,7 @@ defaults:
   - model: CorrNet # 模型配置
   - decoder: ctc_beam_search
   - evaluator: phoenix2014
-  - trainer: use_gpu # 训练配置
-  - callback: default # 回调函数配置
+  - trainer: use_2gpus # 训练配置
   - logger: wandb # 日志记录器配置
 
 
@@ -15,13 +14,13 @@ defaults:
 hydra:
   run:
     # 实验目录结构
-    dir: ../experiments/${project}/${name}/${timestamp}/hydra
+    dir: ../experiments/${project}/${name}/${times}/hydra
 
 
 # 项目相关配置
-project: Phoenix2014_new
-name: CorrNet_with_normalization_ttt
-timestamp: ${now:%Y-%m-%d_%H-%M-%S}
+project: Phoenix2014_debug
+name: CorrNet
+times: 0
 
 model_name: CorrNet
 dataset_name: phoenix2014
