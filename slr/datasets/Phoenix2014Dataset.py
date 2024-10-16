@@ -34,7 +34,8 @@ class Phoenix2014Dataset(Dataset):
             annotations_dir: str = None,
             mode: str = "train",
             transform: callable = Compose([ToTensor()]),
-            tokenizer: object = None
+            tokenizer: object = None,
+            read_tensor: bool = False
     ) -> None:
         """
         Initializes the Phoenix2014Dataset with the given parameters.
@@ -84,6 +85,8 @@ class Phoenix2014Dataset(Dataset):
         self.transform = transform
         self.tokenizer = tokenizer
 
+        self.read_tensor = read_tensor
+
     def __len__(self):
         """
         Returns the number of samples in the dataset.
@@ -104,7 +107,11 @@ class Phoenix2014Dataset(Dataset):
         frames_dir = os.path.join(self.features_dir, self.mode, item.name, "1")
         if not os.path.exists(frames_dir):
             raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
-        frames = self._read_frames(frames_dir)
+
+        if self.read_tensor:
+            frames = torch.load(os.path.join(frames_dir, 'video.pt'))
+        else:
+            frames = self._read_frames(frames_dir)
 
         glosses = [gloss for gloss in item['annotation'].split(' ') if gloss]
 

@@ -39,7 +39,8 @@ class CSLDailyDataModule(L.LightningDataModule):
             batch_size: int = 2,
             num_workers: int = 8,
             transform: [callable, dict] = None,
-            tokenizer: [object, dict] = None
+            tokenizer: [object, dict] = None,
+            read_tensor: bool = False
     ):
         """
         Initializes the CSLDailyDataModule with the specified parameters.
@@ -78,6 +79,8 @@ class CSLDailyDataModule(L.LightningDataModule):
 
         # Process tokenizers
         self.tokenizers = self._process_tokenizers(tokenizer)
+
+        self.read_tensor = read_tensor
 
     def _process_transforms(self, transform):
         """
@@ -152,7 +155,8 @@ class CSLDailyDataModule(L.LightningDataModule):
             split_file=self.split_file,
             mode=mode,
             transform=transform,
-            tokenizer=tokenizer
+            tokenizer=tokenizer,
+            read_tensor=self.read_tensor
         )
 
     def setup(self, stage=None):

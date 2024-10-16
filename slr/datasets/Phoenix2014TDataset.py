@@ -34,7 +34,8 @@ class Phoenix2014TDataset(Dataset):
             annotations_dir: str = None,
             mode: str = "train",
             transform: callable = Compose([ToTensor()]),
-            tokenizer: object = None
+            tokenizer: object = None,
+            read_tensor: bool = False
     ) -> None:
         """
         Initializes the Phoenix2014TDataset with the given parameters.
@@ -76,13 +77,15 @@ class Phoenix2014TDataset(Dataset):
                                 sep='|', header=0, index_col='name')
 
         # Special handling for training mode
-        if self.mode == "train":
-            if "13April_2011_Wednesday_tagesschau_default-14" in self.info.index:
-                self.info.drop("13April_2011_Wednesday_tagesschau_default-14", axis=0, inplace=True)
+        # if self.mode == "train":
+        #     if "13April_2011_Wednesday_tagesschau_default-14" in self.info.index:
+        #         self.info.drop("13April_2011_Wednesday_tagesschau_default-14", axis=0, inplace=True)
 
         # Set transform and tokenizer
         self.transform = transform
         self.tokenizer = tokenizer
+
+        self.read_tensor = read_tensor
 
     def __len__(self):
         """
@@ -104,7 +107,11 @@ class Phoenix2014TDataset(Dataset):
         frames_dir = os.path.join(self.features_dir, self.mode, item.name)
         if not os.path.exists(frames_dir):
             raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
-        frames = self._read_frames(frames_dir)
+
+        if self.read_tensor:
+            frames = torch.load(os.path.join(frames_dir, 'video.pt'))
+        else:
+            frames = self._read_frames(frames_dir)
 
         glosses = [gloss for gloss in item['orth'].split(' ') if gloss]
 

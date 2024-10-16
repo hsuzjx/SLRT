@@ -38,7 +38,8 @@ class CSLDailyDataset(Dataset):
             split_file: str = None,
             mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
-            tokenizer: object = None
+            tokenizer: object = None,
+            read_tensor: bool = False
     ):
         """
         Initializes the dataset with the given parameters.
@@ -113,6 +114,8 @@ class CSLDailyDataset(Dataset):
         self.transform = transform
         self.tokenizer = tokenizer
 
+        self.read_tensor = read_tensor
+
     def __len__(self):
         """
         Returns the number of samples in the dataset.
@@ -133,7 +136,11 @@ class CSLDailyDataset(Dataset):
         frames_dir = os.path.join(self.features_dir, item['name'])
         if not os.path.exists(frames_dir):
             raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
-        frames = self._read_frames(frames_dir)
+
+        if self.read_tensor:
+            frames = torch.load(os.path.join(frames_dir, 'video.pt'))
+        else:
+            frames = self._read_frames(frames_dir)
 
         glosses = item['label_gloss']
         if self.transform:
