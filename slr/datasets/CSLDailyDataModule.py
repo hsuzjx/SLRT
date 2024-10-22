@@ -40,7 +40,7 @@ class CSLDailyDataModule(L.LightningDataModule):
             num_workers: int = 8,
             transform: [callable, dict] = None,
             tokenizer: [object, dict] = None,
-            read_tensor: bool = False
+            read_hdf5: bool = False
     ):
         """
         Initializes the CSLDailyDataModule with the specified parameters.
@@ -80,7 +80,7 @@ class CSLDailyDataModule(L.LightningDataModule):
         # Process tokenizers
         self.tokenizers = self._process_tokenizers(tokenizer)
 
-        self.read_tensor = read_tensor
+        self.read_hdf5 = read_hdf5
 
     def _process_transforms(self, transform):
         """
@@ -156,7 +156,7 @@ class CSLDailyDataModule(L.LightningDataModule):
             mode=mode,
             transform=transform,
             tokenizer=tokenizer,
-            read_tensor=self.read_tensor
+            read_hdf5=self.read_hdf5
         )
 
     def setup(self, stage=None):
