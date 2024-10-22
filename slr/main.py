@@ -8,17 +8,15 @@ import torch
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
-from torchvision.transforms import Compose, Resize, RandomCrop, RandomHorizontalFlip, CenterCrop, Normalize
 
-import slr.models
+from slr.constants import DataModelClassDict, ModelClassDict, transform
 from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
-from slr.datasets.transforms import ToTensor, TemporalRescale
 from slr.evaluation import Evaluator
 from slr.models.decoders import CTCBeamSearchDecoder
 from slr.utils import convert_to_onnx, set_seed
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_Phoenix2014_experiment.yaml'
+CONFIG_NAME = 'CorrNet_CSL-Daily_experiment.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
@@ -35,7 +33,7 @@ def main(cfg: DictConfig):
     torch.set_float32_matmul_precision(cfg.get('torch_float32_matmul_precision', 'high'))
     seed = set_seed(cfg.get('seed', -1), workers=True)
 
-    # Define project, name, and timestamp
+    # Define project, name, and times
     project = cfg.get('project', 'default_project')
     name = cfg.get('name', 'default_name')
     times = cfg.get('times', 0)
@@ -43,6 +41,15 @@ def main(cfg: DictConfig):
     # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
     os.makedirs(save_dir, exist_ok=True)
+
+    # Common parameters
+    dataset_name = cfg.dataset_name
+    model_name = cfg.model_name
+
+    # Initialize tokenizer, decoder, and evaluator
+    tokenizer = SimpleTokenizer(**cfg.tokenizer)
+    ctc_decoder = CTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
+    evaluator = Evaluator(dataset=dataset_name, **cfg.evaluator)
 
     # Initialize WandbLogger
     wandb.require("core")
@@ -53,26 +60,7 @@ def main(cfg: DictConfig):
         **cfg.logger
     )
 
-    # Common parameters
-    dataset_name = cfg.dataset_name
-    model_name = cfg.model_name
-    tokenizer = SimpleTokenizer(**cfg.tokenizer)
-
-    ctc_decoder = CTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
-    evaluator = Evaluator(dataset=dataset_name, **cfg.evaluator)
-
     # Initialize data module
-    DataModelClassDict = {
-        "phoenix2014": slr.datasets.Phoenix2014DataModule,
-        "phoenix2014T": slr.datasets.Phoenix2014TDataModule,
-        "csl-daily": slr.datasets.CSLDailyDataModule
-    }
-    transform = {
-        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2),
-                          Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
-        'dev': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
-        'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
-    }
     data_module = DataModelClassDict[dataset_name](
         transform=transform,
         tokenizer=tokenizer,
@@ -80,11 +68,6 @@ def main(cfg: DictConfig):
     )
 
     # Initialize model
-    ModelClassDict = {
-        "CorrNet": slr.models.CorrNet,
-        # "SLRTransformer": slr.models.SLRTransformer,
-    }
-
     model = ModelClassDict[model_name](
         save_dir=save_dir,
         probs_decoder=ctc_decoder,
@@ -101,10 +84,10 @@ def main(cfg: DictConfig):
     # Train model
     trainer.fit(model, datamodule=data_module)
 
+    # Copy the best model to the save directory
     best_model_path = trainer.checkpoint_callback.best_model_path
     best_model_score = trainer.checkpoint_callback.best_model_score
     shutil.copyfile(best_model_path, os.path.join(os.path.dirname(best_model_path), 'best.ckpt'))
-
     print("Best Model:", best_model_path, ", Best DEV_WER:", best_model_score.item())
 
     # Test the best model
@@ -119,7 +102,7 @@ def main(cfg: DictConfig):
         print(f"wandb.finish() encountered an issue: {finish_error}")
 
     # Optionally convert model to ONNX format
-    if cfg.get('convert_to_onnx', False):
+    if cfg.get('convert_to_onnx', False) and trainer.is_global_zero:
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
         convert_to_onnx(best_model, os.path.join(onnx_save_dir, "best.onnx"))
