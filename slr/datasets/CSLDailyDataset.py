@@ -3,6 +3,7 @@ import os
 import pickle
 
 import cv2
+import h5py
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
@@ -39,7 +40,7 @@ class CSLDailyDataset(Dataset):
             mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
             tokenizer: object = None,
-            read_tensor: bool = False
+            read_hdf5: bool = False
     ):
         """
         Initializes the dataset with the given parameters.
@@ -114,7 +115,7 @@ class CSLDailyDataset(Dataset):
         self.transform = transform
         self.tokenizer = tokenizer
 
-        self.read_tensor = read_tensor
+        self.read_hdf5 = read_hdf5
 
     def __len__(self):
         """
@@ -137,8 +138,11 @@ class CSLDailyDataset(Dataset):
         if not os.path.exists(frames_dir):
             raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
 
-        if self.read_tensor:
-            frames = torch.load(os.path.join(frames_dir, 'video.pt'))
+        if self.read_hdf5:
+            # frames = torch.load(os.path.join(frames_dir, 'video.pt'))
+            with h5py.File(os.path.join(frames_dir, "video.h5"), 'r') as f:
+                frames = f['data'][:]
+            frames = torch.from_numpy(frames)
         else:
             frames = self._read_frames(frames_dir)
 

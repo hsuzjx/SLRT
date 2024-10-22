@@ -10,4 +10,4 @@ dataset_dir: "../data/phoenix2014T"
 batch_size: 2
 num_workers: 8
 
-read_tensor: true
+read_hdf5: false
