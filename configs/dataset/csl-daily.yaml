@@ -4,6 +4,7 @@ dataset_dir: "../data/csl-daily"
 
 # special dirs
 #features_dir: "../data/csl-daily/sentence_frames-512x512/frames_512x512"
+features_dir: "../data/preprocess/csl-daily/frames_256x256"
 #annotations_dir: "../data/csl-daily/sentence_label"
 #split_file: "../data/csl-daily/sentence_label/split_1.txt"
 

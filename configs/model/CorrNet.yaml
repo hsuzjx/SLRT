@@ -13,7 +13,6 @@ pretrained_model_dir: ../.cache/pretrained_models/
 
 # for optimizer and lr_scheduler
 lr: 0.0001
-#weight_norm: true
 weight_decay: 0.0001
 # lr scheduler
 milestones: [ 20, 35 ]
