@@ -7,6 +7,7 @@ import pandas as pd
 from torchvision.transforms import Compose, ToTensor, Resize, Normalize
 from tqdm import tqdm
 import torch
+import h5py
 
 
 class Phoenix2014Preprocesser:
@@ -60,7 +61,8 @@ class Phoenix2014Preprocesser:
 
         video = torch.stack(frames_transformed)
 
-        torch.save(video.to(torch.float16), os.path.join(video_output_dir, "video.pt"))
+        # torch.save(video.to(torch.float16), os.path.join(video_output_dir, "video.pt"))
+        self._write_hdf5(video.to(torch.float16), os.path.join(video_output_dir, "video.h5"))
 
     def _read_frames(self, frames_dir):
         """
@@ -82,6 +84,10 @@ class Phoenix2014Preprocesser:
             frames.append(frame)
 
         return frames
+
+    def _write_hdf5(self, data, save_file):
+        with h5py.File(save_file, 'w') as f:
+            f.create_dataset("data", data=data.numpy(), compression='gzip', compression_opts=9)
 
 
 # 当脚本被直接运行时，执行以下代码
