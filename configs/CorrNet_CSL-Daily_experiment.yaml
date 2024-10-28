@@ -20,7 +20,7 @@ hydra:
 # 项目相关配置
 project: CSL-Daily_new
 name: CorrNet
-times: 0
+times: 1
 
 model_name: CorrNet
 dataset_name: csl-daily

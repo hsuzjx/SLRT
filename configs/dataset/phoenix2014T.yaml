@@ -3,6 +3,7 @@
 dataset_dir: "../data/phoenix2014T"
 
 # special dirs
+features_dir: "../data/preprocess/phoenix2014T/frames_256x256"
 #features_dir: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-256x256px"
 #annotations_dir: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
 

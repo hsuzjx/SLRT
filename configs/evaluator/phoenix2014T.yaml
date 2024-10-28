@@ -1,9 +1,9 @@
 # configs/evaluator/phoenix2014T.yaml
 
 gt_file:
-  train: ../data/global_files/ground_truth/phoenix2014T-groundtruth-train.stm
-  dev: ../data/global_files/ground_truth/phoenix2014T-groundtruth-dev.stm
-  test: ../data/global_files/ground_truth/phoenix2014T-groundtruth-test.stm
+  train: ../data/global_files/ground_truth/phoenix2014T-groundtruth-train_sorted.stm
+  dev: ../data/global_files/ground_truth/phoenix2014T-groundtruth-dev_sorted.stm
+  test: ../data/global_files/ground_truth/phoenix2014T-groundtruth-test_sorted.stm
 
 sclite_bin: '../.bin/sclite'
 cleanup: false

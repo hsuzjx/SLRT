@@ -3,7 +3,6 @@ import re
 from datetime import datetime
 from typing import Any, Union, Sequence
 
-import fcntl
 import lightning as L
 import torch
 from lightning import Callback
@@ -341,9 +340,10 @@ class SLRBaseModel(L.LightningModule):
         """
         early_stop = EarlyStopping(
             monitor='Val/Loss',
-            patience=5,
+            patience=40,
             verbose=True,
-            mode='min'
+            mode='min',
+            check_finite=False
         )
         checkpoint = ModelCheckpoint(
             dirpath=self.checkpoint_save_dir,

@@ -16,7 +16,7 @@ from slr.models.decoders import CTCBeamSearchDecoder
 from slr.utils import convert_to_onnx, set_seed
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_CSL-Daily_experiment.yaml'
+CONFIG_NAME = 'CorrNet_Phoenix2014T_experiment.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)

@@ -89,6 +89,41 @@ def resize_csl_daily(dataset_dir, features_output_dir, max_workers=4):
             future.result()
 
 
+def resize_phoenix2014T(dataset_dir, features_output_dir, max_workers=4):
+    dataset_dir = os.path.abspath(dataset_dir)
+    features_output_dir = os.path.abspath(features_output_dir)
+    os.makedirs(features_output_dir, exist_ok=True)
+
+    features_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/features/fullFrame-210x260px')
+    annotations_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/annotations/manual')
+
+    if not os.path.exists(features_dir):
+        raise FileNotFoundError(f"Features directory not found at {features_dir}")
+    if not os.path.exists(annotations_dir):
+        raise FileNotFoundError(f"Annotations directory not found at {annotations_dir}")
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = []
+        for mode in ['train', 'dev', 'test']:
+            annotation_file = os.path.join(annotations_dir, f"PHOENIX-2014-T.{mode}.corpus.csv")
+            if not os.path.exists(annotation_file):
+                raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
+            info = pd.read_csv(annotation_file, sep='|', header=0, index_col='name')
+
+            for idx, row in tqdm(info.iterrows(), total=info.shape[0], desc=f'Get futures, mode-{mode}'):
+                frames_dir = os.path.join(features_dir, mode, idx)
+                if not os.path.exists(frames_dir):
+                    raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
+                file_list = glob.glob(os.path.join(frames_dir, '*.png'))
+                output_subdir = os.path.join(features_output_dir, mode, idx)
+                for file in file_list:
+                    futures.append(executor.submit(resize_image, file, output_subdir, (256, 256)))
+
+        # 等待所有任务完成
+        for future in tqdm(futures, total=len(futures), desc=f'Saving resized images'):
+            future.result()
+
+
 def resize_image(file, output_dir, dsize=(256, 256)):
     img = cv2.imread(file)
     img_resized = cv2.resize(img, dsize, interpolation=cv2.INTER_LANCZOS4)
@@ -104,6 +139,10 @@ if __name__ == '__main__':
     #                            '../../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px',
     #                            (256, 256))
 
-    resize_csl_daily(dataset_dir="/new_home/xzj23/workspace/SLR/data/csl-daily",
-                     features_output_dir="./csl-daily/frames_256x256",
-                     max_workers=8)
+    # resize_csl_daily(dataset_dir="/new_home/xzj23/workspace/SLR/data/csl-daily",
+    #                  features_output_dir="./csl-daily/frames_256x256",
+    #                  max_workers=8)
+
+    resize_phoenix2014T(dataset_dir="/new_home/xzj23/workspace/SLR/data/phoenix2014T",
+                        features_output_dir="./phoenix2014T/frames_256x256",
+                        max_workers=8)
