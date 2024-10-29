@@ -25,6 +25,8 @@ times: 2
 model_name: CorrNet
 dataset_name: phoenix2014
 
+checkpoint: null # if null, no checkpoint loading
+
 # 其他配置
 seed: -1
 save_dir: ../experiments

@@ -25,6 +25,8 @@ times: 1
 model_name: CorrNet
 dataset_name: csl-daily
 
+checkpoint: null # if null, no checkpoint loading
+
 # 其他配置
 seed: -1
 save_dir: ../experiments

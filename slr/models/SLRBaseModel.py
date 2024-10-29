@@ -187,7 +187,7 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the start of each test epoch.
         """
-        self.file_save_dir = os.path.join(self.hypothesis_save_dir, "test", f"test_after_epoch_{self.current_epoch}")
+        self.file_save_dir = os.path.join(self.hypothesis_save_dir, "test", f"test_best_model_after_epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
@@ -288,7 +288,7 @@ class SLRBaseModel(L.LightningModule):
                 if isinstance(wer, float):
                     wer = torch.tensor(wer, device=self.device)
                 # Print messages
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test after epoch {self.current_epoch - 1},",
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test best model after epoch {self.current_epoch - 1},",
                       f"TEST_WER: {wer.item()}%")
 
             torch.distributed.barrier()

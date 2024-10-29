@@ -4,7 +4,7 @@ import slr.datasets
 import slr.models
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
-DataModelClassDict = {
+DataModuleClassDict = {
     "phoenix2014": slr.datasets.Phoenix2014DataModule,
     "phoenix2014T": slr.datasets.Phoenix2014TDataModule,
     "csl-daily": slr.datasets.CSLDailyDataModule

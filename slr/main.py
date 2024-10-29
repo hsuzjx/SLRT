@@ -9,7 +9,7 @@ import wandb
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
-from slr.constants import DataModelClassDict, ModelClassDict, transform
+from slr.constants import DataModuleClassDict, ModelClassDict, transform
 from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
 from slr.evaluation import Evaluator
 from slr.models.decoders import CTCBeamSearchDecoder
@@ -61,7 +61,7 @@ def main(cfg: DictConfig):
     )
 
     # Initialize data module
-    data_module = DataModelClassDict[dataset_name](
+    data_module = DataModuleClassDict[dataset_name](
         transform=transform,
         tokenizer=tokenizer,
         **cfg.dataset
@@ -82,7 +82,7 @@ def main(cfg: DictConfig):
     )
 
     # Train model
-    trainer.fit(model, datamodule=data_module)
+    trainer.fit(model, datamodule=data_module, ckpt_path=cfg.get('checkpoint', None))
 
     # Copy the best model to the save directory
     best_model_path = trainer.checkpoint_callback.best_model_path
@@ -91,9 +91,7 @@ def main(cfg: DictConfig):
     print("Best Model:", best_model_path, ", Best DEV_WER:", best_model_score.item())
 
     # Test the best model
-    best_model = ModelClassDict[model_name].load_from_checkpoint(trainer.checkpoint_callback.best_model_path)
-    best_model.eval()
-    trainer.test(best_model, datamodule=data_module)
+    trainer.test(model, datamodule=data_module, ckpt_path=best_model_path)
 
     # Ensure wandb.finish() is called
     try:
@@ -105,6 +103,8 @@ def main(cfg: DictConfig):
     if cfg.get('convert_to_onnx', False) and trainer.is_global_zero:
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
+        best_model = ModelClassDict[model_name].load_from_checkpoint(best_model_path)
+        best_model.eval()
         convert_to_onnx(best_model, os.path.join(onnx_save_dir, "best.onnx"))
 
 
