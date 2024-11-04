@@ -1,11 +1,11 @@
-# /configs/CorrNet_Phoenix2014T_experiment.yaml
+# /configs/SLTransformer_CSL-Daily_experiment.yaml
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
-  - dataset: phoenix2014T # 数据集配置
-  - tokenizer: phoenix2014T
-  - model: CorrNet # 模型配置
+  - dataset: csl-daily # 数据集配置
+  - tokenizer: csl-daily
+  - model: SLTransformer # 模型配置
   - decoder: ctc_beam_search
-  - evaluator: phoenix2014T
+  - evaluator: csl-daily
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
 
@@ -18,12 +18,12 @@ hydra:
 
 
 # 项目相关配置
-project: Phoenix2014T_debug
-name: CorrNet
-times: 2
+project: CSL-Daily_new
+name: SLTransformer
+times: 1
 
-model_name: CorrNet
-dataset_name: phoenix2014T
+model_name: SLTransformer
+dataset_name: csl-daily
 
 checkpoint: null # if null, no checkpoint loading
 

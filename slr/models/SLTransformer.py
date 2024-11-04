@@ -1,5 +1,7 @@
 from typing import Any
 
+import torch
+import transformers
 from torch import nn, Tensor
 
 from slr.models.SLRBaseModel import SLRBaseModel
@@ -11,7 +13,7 @@ class SLTransformer(SLRBaseModel):
         self.model_name = "SLTransformer"
 
         # 定义网络
-        self._init_networks()
+        self._init_network()
 
         # 定义解码器
         self._define_decoder()
@@ -20,100 +22,84 @@ class SLTransformer(SLRBaseModel):
         self._define_loss_function()
 
     def _init_network(
-        self,
-        encoder: Encoder,
-        gloss_output_layer: nn.Module,
-        decoder: Decoder,
-        sgn_embed: SpatialEmbeddings,
-        txt_embed: Embeddings,
-        gls_vocab: GlossVocabulary,
-        txt_vocab: TextVocabulary,
-        do_recognition: bool = True,
-        do_translation: bool = True,
+            self, **kwargs
     ):
         """
-        Create a new encoder-decoder model
-
-        :param encoder: encoder
-        :param decoder: decoder
-        :param sgn_embed: spatial feature frame embeddings
-        :param txt_embed: spoken language word embedding
-        :param gls_vocab: gls vocabulary
-        :param txt_vocab: spoken language vocabulary
-        :param do_recognition: flag to build the model with recognition output.
-        :param do_translation: flag to build the model with translation decoder.
         """
         super().__init__()
 
-        self.encoder = encoder
-        self.decoder = decoder
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained(
+            self.hparams.tokenizer.model_name
+        )
 
-        self.sgn_embed = sgn_embed
-        self.txt_embed = txt_embed
+        self.tokenizer = transformers.BertTokenizer(vocab_file=self.hparams.tokenizer.vocab_file)
+        self.model = transformers.BertModel.from_pretrained(self.model_name)
+        self.model.resize_token_embeddings(len(self.tokenizer))
 
-        self.gls_vocab = gls_vocab
-        self.txt_vocab = txt_vocab
-
-        self.txt_bos_index = self.txt_vocab.stoi[BOS_TOKEN]
-        self.txt_pad_index = self.txt_vocab.stoi[PAD_TOKEN]
-        self.txt_eos_index = self.txt_vocab.stoi[EOS_TOKEN]
-
-        self.gloss_output_layer = gloss_output_layer
-        self.do_recognition = do_recognition
-        self.do_translation = do_translation
+        self.encoder = transformers.AutoModel.from_pretrained(
+            self.hparams.encoder.model_name
+        )
+        self.decoder = transformers.AutoModelForCausalLM.from_pretrained(
+            self.hparams.decoder.model_name
+        )
+        self.gloss_output_layer = nn.Linear(
+            self.hparams.encoder.hidden_size, self.hparams.gloss_vocab_size
+        )
+        self.txt_embed = nn.Embedding(
+            self.hparams.txt_vocab_size, self.hparams.txt_embed_size
+        )
+        self.sgn_embed = nn.Embedding(
+            self.hparams.sgn_vocab_size, self.hparams.sgn_embed_size
+        )
 
     # pylint: disable=arguments-differ
     def forward(
-        self,
-        sgn: Tensor,
-        sgn_mask: Tensor,
-        sgn_lengths: Tensor,
-        txt_input: Tensor,
-        txt_mask: Tensor = None,
+            self,
+            sgn: Tensor,
+            sgn_mask: Tensor,
+            sgn_lengths: Tensor,
+            txt_input: Tensor,
+            txt_mask: Tensor = None,
     ) -> (Tensor, Tensor, Tensor, Tensor):
         """
-        First encodes the source sentence.
-        Then produces the target one word at a time.
-
-        :param sgn: source input
-        :param sgn_mask: source mask
-        :param sgn_lengths: length of source inputs
-        :param txt_input: target input
-        :param txt_mask: target mask
-        :return: decoder outputs
         """
         encoder_output, encoder_hidden = self.encode(
             sgn=sgn, sgn_mask=sgn_mask, sgn_length=sgn_lengths
         )
-
-        if self.do_recognition:
-            # Gloss Recognition Part
-            # N x T x C
-            gloss_scores = self.gloss_output_layer(encoder_output)
-            # N x T x C
-            gloss_probabilities = gloss_scores.log_softmax(2)
-            # Turn it into T x N x C
-            gloss_probabilities = gloss_probabilities.permute(1, 0, 2)
-        else:
-            gloss_probabilities = None
-
-        if self.do_translation:
-            unroll_steps = txt_input.size(1)
-            decoder_outputs = self.decode(
-                encoder_output=encoder_output,
-                encoder_hidden=encoder_hidden,
-                sgn_mask=sgn_mask,
-                txt_input=txt_input,
-                unroll_steps=unroll_steps,
-                txt_mask=txt_mask,
-            )
-        else:
-            decoder_outputs = None
+        decoder_outputs, gloss_probabilities = self.decode(
+            encoder_output=encoder_output,
+            encoder_hidden=encoder_hidden,
+            sgn_mask=sgn_mask,
+            txt_input=txt_input,
+            unroll_steps=self.hparams.max_txt_length,
+            txt_mask=txt_mask,
+        )
+        gloss_probabilities = gloss_probabilities.view(
+            gloss_probabilities.size(0) * gloss_probabilities.size(1),
+            gloss_probabilities.size(2),
+        )
+        decoder_outputs = decoder_outputs.view(
+            decoder_outputs.size(0) * decoder_outputs.size(1),
+            decoder_outputs.size(2),
+            decoder_outputs.size(3),
+        )
+        gloss_probabilities = gloss_probabilities.view(
+            gloss_probabilities.size(0) // self.hparams.batch_size,
+            self.hparams.batch_size,
+            gloss_probabilities.size(1),
+        )
+        decoder_outputs = decoder_outputs.view(
+            decoder_outputs.size(0) // self.hparams.batch_size,
+            self.hparams.batch_size,
+            decoder_outputs.size(1),
+            decoder_outputs.size(2),
+        )
+        gloss_probabilities = gloss_probabilities.permute(0, 2, 1)
 
         return decoder_outputs, gloss_probabilities
 
     def encode(
-        self, sgn: Tensor, sgn_mask: Tensor, sgn_length: Tensor
+            self, sgn: Tensor, sgn_mask: Tensor, sgn_length: Tensor
     ) -> (Tensor, Tensor):
         """
         Encodes the source sentence.
@@ -130,14 +116,14 @@ class SLTransformer(SLRBaseModel):
         )
 
     def decode(
-        self,
-        encoder_output: Tensor,
-        encoder_hidden: Tensor,
-        sgn_mask: Tensor,
-        txt_input: Tensor,
-        unroll_steps: int,
-        decoder_hidden: Tensor = None,
-        txt_mask: Tensor = None,
+            self,
+            encoder_output: Tensor,
+            encoder_hidden: Tensor,
+            sgn_mask: Tensor,
+            txt_input: Tensor,
+            unroll_steps: int,
+            decoder_hidden: Tensor = None,
+            txt_mask: Tensor = None,
     ) -> (Tensor, Tensor, Tensor, Tensor):
         """
         Decode, given an encoded source sentence.
@@ -162,10 +148,53 @@ class SLTransformer(SLRBaseModel):
         )
 
     def step_forward(self, batch) -> Any:
-        pass
+        return self.step_forward_recognition(batch)
+
+    def step_forward_recognition(self, batch) -> Any:
+        """
+        Forward pass through the model.
+        """
+        sgn, sgn_mask, sgn_lengths, txt_input, txt_mask = batch
+        decoder_outputs, gloss_probabilities = self.forward(
+            sgn=sgn,
+            sgn_mask=sgn_mask,
+            sgn_lengths=sgn_lengths,
+            txt_input=txt_input,
+            txt_mask=txt_mask,
+        )
+        return decoder_outputs, gloss_probabilities
 
     def _define_loss_function(self):
         pass
 
     def _define_decoder(self):
         pass
+
+    def configure_optimizers(self):
+        """
+        """
+        learning_rate = self.hparams.lr
+        momentum = self.hparams.momentum
+        weight_decay = self.hparams.weight_decay
+
+        milestones = self.hparams.milestones
+        gamma = self.hparams.gamma
+        last_epoch = self.hparams.last_epoch
+
+        # Define the optimizer
+        optimizer = torch.optim.SGD(
+            self.parameters(),
+            lr=learning_rate,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+
+        # Define the learning rate scheduler
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer=optimizer,
+            milestones=milestones,
+            gamma=gamma,
+            last_epoch=last_epoch
+        )
+
+        return {'optimizer': optimizer, 'lr_scheduler': scheduler}
