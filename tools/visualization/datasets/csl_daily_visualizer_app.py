@@ -221,12 +221,12 @@ def main(args):
             gr.Checkbox(label='Add Heatmap?', value=False)
         ],
         outputs=[
-            gr.Video(label='Video', autoplay=True, show_download_button=False),
+            gr.Video(label='Video', autoplay=True, show_download_button=True),
             gr.Text(label='Translation'),
             gr.Text(label='Info')
         ],
         live=False,
-        allow_flagging='never',
+        flagging_mode='never',
     )
 
     # 启动Gradio接口服务

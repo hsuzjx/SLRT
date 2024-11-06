@@ -147,6 +147,9 @@ class CorrNet(SLRBaseModel):
         x, y, x_lgt, y_lgt, info = batch
         conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
+        if self.trainer.predicting:
+            return torch.tensor([]), y_hat, y_hat_lgt, info
+
         loss = (
                 self.hparams.loss_weights[0] * self.ctc_loss(conv1d_hat.log_softmax(-1), y, y_hat_lgt, y_lgt).mean() +
                 self.hparams.loss_weights[1] * self.ctc_loss(y_hat.log_softmax(-1), y, y_hat_lgt, y_lgt).mean() +

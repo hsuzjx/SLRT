@@ -1,8 +1,16 @@
+import torch
 from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Normalize, CenterCrop
 
 import slr.datasets
 import slr.models
 from slr.datasets.transforms import ToTensor, TemporalRescale
+
+CONFIG_PATH = '../configs'
+CONFIG_NAME = 'SwinBertSLR_CSL-Daily_experiment.yaml'
+
+# TokenizerDict = {
+#
+# }
 
 DataModuleClassDict = {
     "phoenix2014": slr.datasets.Phoenix2014DataModule,
@@ -13,6 +21,16 @@ DataModuleClassDict = {
 ModelClassDict = {
     "CorrNet": slr.models.CorrNet,
     # "SLRTransformer": slr.models.SLRTransformer,
+    "SwinBertSLR": slr.models.SwinBertSLR,
+}
+
+InputSampleDict = {
+    "CorrNet": (torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu')),
+    "SLTransformer": None,
+    "SwinBertSLR": (
+        torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu'),
+        torch.randn(1, 100, 512), torch.LongTensor([10])
+    ),
 }
 
 transform = {

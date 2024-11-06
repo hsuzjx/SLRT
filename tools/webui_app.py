@@ -1,157 +1,307 @@
 import argparse
+import os.path
 
 import cv2
 import gradio as gr
-import numpy as np
+import lightning as L
 import torch
-from PIL import Image
-from torchvision.transforms import Compose, Resize, ToTensor, Normalize, CenterCrop
+from torch.utils.data import DataLoader, Dataset
+from torchvision.transforms import Compose, Resize, Normalize, CenterCrop
 
-import slr.models
-from slr.models.utils import Decode
+from slr.constants import ModelClassDict
+from slr.datasets.transforms import ToTensor
+from slr.datasets.utils import pad_video_sequence
 
 
-class VideoCaptioner:
+class SingleSampleDataset(Dataset):
     """
-    视频字幕生成器类，用于为视频生成描述性字幕。
+    Custom Dataset class for handling a single video sample.
+
+    This class is used to wrap a single video sample for processing and prediction.
+
+    Attributes:
+        video (torch.Tensor): The video tensor.
     """
 
-    def __init__(self, model_name, ckpt_file, device):
+    def __init__(self, video: torch.Tensor):
         """
-        初始化VideoCaptioner类。
+        Initializes the dataset with the given video tensor.
 
-        :param model_name: 模型名称
-        :param ckpt_file: 模型检查点文件路径
-        :param device: 设备类型，如'cuda:0'或'cpu'
+        Args:
+            video (torch.Tensor): The video tensor.
         """
-        self.device = device
-        # 通过模型名称和检查点文件路径加载模型，并移动到指定设备
-        self.model = getattr(slr.models, model_name).load_from_checkpoint(ckpt_file).to(self.device)
+        self.video = video
 
-        # 加载gloss字典
-        with open("/new_home/xzj23/workspace/SLR/data/global_files/gloss_dict/phoenix2014_gloss_dict.npy", "rb") as f:
-            gloss_dict = np.load(f, allow_pickle=True).item()
-        # 初始化解码器
-        self.decoder = Decode(
-            gloss_dict=gloss_dict,
-            num_classes=1296,
-            search_mode='beam'
-        )
-
-    def preprocess_video(self, video_path):
+    def __len__(self) -> int:
         """
-        读取视频文件，并对每一帧进行预处理。
+        Returns the length of the dataset, which is always 1 for a single sample.
 
-        :param video_path: 视频文件路径
-        :return: 处理后的视频帧张量
+        Returns:
+            int: Length of the dataset.
+        """
+        return 1
+
+    def __getitem__(self, idx: int) -> torch.Tensor:
+        """
+        Returns the video tensor at the specified index.
+
+        Args:
+            idx (int): Index of the item to retrieve.
+
+        Returns:
+            torch.Tensor: The video tensor.
+        """
+        return self.video
+
+    def collate_fn(self, batch: tuple) -> tuple:
+        """
+        Collates a batch of video tensors.
+
+        Pads the video sequences to ensure they have the same length.
+
+        Args:
+            batch (tuple): Tuple of video tensors.
+
+        Returns:
+            tuple: A tuple containing the padded video tensor, video lengths, and other placeholders.
+        """
+        video, video_length = pad_video_sequence(batch, batch_first=True, padding_value=0.0)
+        video_length = torch.LongTensor(video_length)
+
+        return video, None, video_length, None, None
+
+
+class SLRWebUI:
+    """
+    Web UI for Sign Language Recognition.
+
+    This class provides a Gradio interface for uploading videos and performing sign language recognition.
+
+    Attributes:
+        model (torch.nn.Module): The loaded model for sign language recognition.
+        trainer (lightning.Trainer): The Lightning Trainer for running predictions.
+        max_workers (int): Maximum number of workers for video processing.
+    """
+
+    def __init__(
+            self,
+            model_name: str,
+            ckpt_file: str,
+            accelerator: str = "cpu",
+            devices: [str, list] = "auto",
+            precision: str = "16-mixed",
+            max_workers: int = 4
+    ):
+        """
+        Initializes the SLRWebUI with the given parameters.
+
+        Validates the model name and checkpoint file, and sets up the model and trainer.
+
+        Args:
+            model_name (str): Name of the model.
+            ckpt_file (str): Path to the model checkpoint file.
+            accelerator (str, optional): Accelerator to use. Defaults to "cpu".
+            devices (str or list, optional): Devices to use. Defaults to "auto".
+            precision (str, optional): Precision to use. Defaults to "16-mixed".
+            max_workers (int, optional): Maximum number of workers for video processing. Defaults to 4.
+        """
+        if model_name not in ModelClassDict:
+            print(f"Model name '{model_name}' is not supported.")
+            exit(1)
+        if not os.path.exists(ckpt_file):
+            print(f"Checkpoint file '{ckpt_file}' does not exist.")
+            exit(1)
+
+        self.model = ModelClassDict[model_name].load_from_checkpoint(ckpt_file)
+        self.trainer = L.Trainer(accelerator=accelerator, devices=devices, precision=precision, logger=False)
+        self.max_workers = max_workers
+
+    @staticmethod
+    def read_and_transform_video(video_file: str, max_workers: int = 4) -> torch.Tensor:
+        """
+        Reads and transforms a video file into a tensor.
+
+        Args:
+            video_file (str): Path to the video file.
+            max_workers (int, optional): Maximum number of workers for video processing. Defaults to 4.
+
+        Returns:
+            torch.Tensor: The transformed video tensor.
         """
         try:
-            cap = cv2.VideoCapture(video_path)
-
+            # Open the video file
+            cap = cv2.VideoCapture(video_file)
             if not cap.isOpened():
-                raise IOError("无法打开视频文件，请检查路径是否正确")
+                raise IOError(f"Failed to open video file: {video_file}")
 
-            # 定义变换
+            # Define the transformation for video frames
             transform = Compose([
+                ToTensor(),
                 Resize(256),
                 CenterCrop(224),
-                ToTensor(),
-                Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+                Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5]),
             ])
+
+            # frames = []
+            # Use multi-threading to accelerate frame processing
+            # with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            #     futures = []
+            #     frame_index = 0
+            #     while True:
+            #         ret, frame = cap.read()
+            #         if not ret:
+            #             break
+            #         # Convert the frame to RGB format
+            #         frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            #         # Apply transformations to the frame
+            #         futures.append((frame_index, executor.submit(transform, frame_rgb)))
+            #         frame_index += 1
+            #
+            #     frames = [None] * len(futures)
+            #     for index, future in concurrent.futures.as_completed(futures):
+            #         frame_tensor = future.result()
+            #         frames[index] = frame_tensor
+            #
+            # cap.release()
+            # Check if all frames were processed
+            # assert None not in frames
 
             frames = []
             while True:
                 ret, frame = cap.read()
                 if not ret:
                     break
-
-                # 将BGR转换为RGB
+                # Convert the frame to RGB format
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # 应用变换
-                frame_tensor = transform(Image.fromarray(frame_rgb))
-                frames.append(frame_tensor)
+                # Apply transformations to the frame
+                frames.append(frame_rgb)
 
             cap.release()
+            # Stack all frame tensors into a single tensor
+            video = transform(frames)
+            return video
 
-            # 将所有的帧堆叠成一个张量
-            frames = torch.stack(frames)
-            return frames
+        except IOError as e:
+            print(f"IOError: {e}")
+            raise
+        except cv2.error as e:
+            print(f"OpenCV Error: {e}")
+            raise
         except Exception as e:
-            print(f"处理视频时发生错误: {e}")
+            print(f"Unexpected error: {e}")
             raise
 
-    def generate_caption(self, frames):
+    def predict(self, video: torch.Tensor) -> str:
         """
-        根据视频帧生成描述性字幕。
+        Predicts the sign language sequence from the given video tensor.
 
-        :param frames: 视频帧张量
-        :return: 生成的字幕
+        Args:
+            video (torch.Tensor): The video tensor.
+
+        Returns:
+            str: The predicted sign language sequence.
         """
-        lgt = torch.tensor([frames.shape[0]]).to(self.device)
-        # 扩展帧张量
-        frames = torch.cat((
-            frames[0][None].expand(6, -1, -1, -1),
-            frames,
-            frames[-1][None].expand(6, -1, -1, -1),
-        ), dim=0)
-        frames = torch.unsqueeze(frames, 0).to(self.device)
+        # Wrap the single sample into a DataLoader
+        ds = SingleSampleDataset(video)
+        dl = DataLoader(ds, batch_size=1, collate_fn=ds.collate_fn)
+        _, decoded = self.trainer.predict(self.model, dataloaders=dl)[0]
 
-        # 生成文本描述
-        with torch.no_grad():
-            conv1d_hat, y_hat, y_hat_lgt = self.model(frames, lgt)
-            # 解码生成的序列
-            decoded = self.decoder.decode(y_hat, y_hat_lgt, batch_first=False, probs=False)
-        return decoded
+        return " ".join(decoded[0])
+
+    def gr_fn(self, video_file: str) -> str:
+        """
+        Gradio function for processing the uploaded video and returning the prediction.
+
+        Args:
+            video_file (str): Path to the uploaded video file.
+
+        Returns:
+            str: The predicted sign language sequence.
+        """
+        # Read and transform the uploaded video
+        video = self.read_and_transform_video(video_file, max_workers=self.max_workers)
+        # Predict the sign language sequence
+        hyp_text = self.predict(video)
+        return hyp_text
+
+    def webui(
+            self,
+            host: str = "localhost",
+            port: int = 28081,
+            browse: bool = False,
+            share: bool = False
+    ):
+        """
+        Launches the Gradio web interface for sign language recognition.
+
+        Args:
+            host (str, optional): Server address. Defaults to "localhost".
+            port (int, optional): Server port. Defaults to 28081.
+            browse (bool, optional): Open the service in the browser automatically. Defaults to False.
+            share (bool, optional): Share the service link. Defaults to False.
+        """
+        # Initialize the Gradio interface
+        iface = gr.Interface(
+            fn=self.gr_fn,
+            inputs=gr.Video(),
+            outputs=gr.Text(label='Hypothesis'),
+            title="Sign Language Recognition",
+            description="",
+            live=False,
+            allow_flagging='never',
+        )
+
+        # Launch the Gradio interface
+        iface.launch(
+            server_name=host,
+            server_port=port,
+            inbrowser=browse,
+            share=share
+        )
 
 
-# 创建Gradio接口
 if __name__ == "__main__":
-    # 创建参数解析器
-    parser = argparse.ArgumentParser(description="")
+    # Create argument parser
+    parser = argparse.ArgumentParser(description="Sign Language Recognition Web UI")
 
-    # 添加命令行参数
-    parser.add_argument("--model_name", type=str, required=True, default="", help="Name of the model")
-    parser.add_argument("--ckpt_file", type=str, required=True, default="", help="Path to the model checkpoint file")
-    parser.add_argument("--device", type=str, default="cuda:0", help="Device type, e.g., 'cuda:0' or 'cpu'")
+    # Add command line arguments
+    parser.add_argument("--model-name", type=str, required=True, help="Name of the model")
+    parser.add_argument("--ckpt-file", type=str, required=True, help="Path to the model checkpoint file")
+    parser.add_argument("--accelerator", type=str, default="cpu", choices=["cpu", "gpu"], help="Accelerator to use")
+    parser.add_argument("--devices", type=str, default="auto", help="Devices to use")
+    parser.add_argument("--precision", type=str, default="16-mixed", help="Precision to use")
+    parser.add_argument("--max-workers", type=int, default=4, help="Maximum number of workers for video processing")
+
     parser.add_argument("--host", type=str, default="localhost", help="Server address")
     parser.add_argument("--port", type=int, default=28081, help="Server port")
     parser.add_argument("--browse", action="store_true", help="Open the service in the browser automatically")
     parser.add_argument("--share", action="store_true", help="Share the service link")
 
-    # 解析命令行参数
+    # Parse command line arguments
     args = parser.parse_args()
 
-    # 初始化模型
-    model = getattr(slr.models, args.model_name).load_from_checkpoint(args.ckpt_file).to(args.device)
-    video_captioner = VideoCaptioner(args.model_name, args.ckpt_file, args.device)
+    # Argument validation
+    if not args.model_name:
+        parser.error("Model name is required")
+    if not args.ckpt_file:
+        parser.error("Checkpoint file path is required")
+    if args.port < 1024 or args.port > 65535:
+        parser.error("Port number must be between 1024 and 65535")
 
-
-    def generate_video_caption(video_path):
-        """
-        为给定的视频路径生成字幕。
-
-        :param video_path: 视频文件路径
-        :return: 生成的字幕文本
-        """
-        frames = video_captioner.preprocess_video(video_path)
-        decoded = video_captioner.generate_caption(frames)
-        return " ".join(s[0] for s in decoded[0])
-
-
-    iface = gr.Interface(
-        fn=generate_video_caption,
-        inputs=gr.Video(),
-        outputs=gr.Text(label='annotation'),
-        title="Sign Language Recognition",
-        description="",
-        live=False,
-        allow_flagging='never',
+    # Initialize the web UI
+    webui = SLRWebUI(
+        model_name=args.model_name,
+        ckpt_file=args.ckpt_file,
+        accelerator=args.accelerator,
+        devices=args.devices if args.devices == "auto" else [int(idx) for idx in args.devices.split(",")],
+        precision=args.precision,
+        max_workers=args.max_workers
     )
 
-    # 启动Web服务
-    iface.launch(
-        server_name=args.host,
-        server_port=args.port,
-        inbrowser=args.browse,
+    # Start the web UI
+    webui.webui(
+        host=args.host,
+        port=args.port,
+        browse=args.browse,
         share=args.share
     )

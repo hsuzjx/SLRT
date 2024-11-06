@@ -64,24 +64,27 @@ class SwinBertSLR(SLRBaseModel):
         """
         # Initialize Swin Transformer
         self.visual_feature_extractor = SwinModel.from_pretrained(
-            'microsoft/swin-tiny-patch4-window7-224') if self.hparams.swin_pretrained else SwinModel.from_pretrained(
-            'microsoft/swin-tiny-patch4-window7-224')
+            self.hparams.swin_pretrained_model) if self.hparams.swin_pretrained else SwinModel()
         self.visual_feature_extractor.head = Identity()  # Replace the head with an Identity layer
+        self.conv1 = nn.Conv1d(in_channels=49, out_channels=20, kernel_size=3, padding=1)
+        self.conv2 = nn.Conv1d(in_channels=20, out_channels=5, kernel_size=3, padding=1)
 
         # Initialize Bert
-        self.text_feature_extractor = BertModel.from_pretrained(
-            'bert-base-uncased') if self.hparams.bert_pretrained else BertModel.from_pretrained('bert-base-uncased')
+        # self.text_feature_extractor = BertModel.from_pretrained(
+        #     self.hparams.bert_pretrained_model) if self.hparams.bert_pretrained else BertModel()
 
         # Initialize 1D Convolutional Layers
         self.temporal_feature_extractor = TemporalConv(
-            input_size=768,  # Swin Transformer output size
+            input_size=5 * 768,  # Swin Transformer output size
             hidden_size=self.hparams.hidden_size,
             conv_type=self.hparams.conv_type,
             use_bn=self.hparams.use_bn,
             num_classes=self.hparams.probs_decoder.tokenizer.vocab_size
         )
-        self.temporal_feature_extractor.fc = NormLinear(self.hparams.hidden_size,
-                                                        self.hparams.probs_decoder.tokenizer.vocab_size)  # Set the classifier
+        self.temporal_feature_extractor.fc = NormLinear(
+            self.hparams.hidden_size,
+            self.hparams.probs_decoder.tokenizer.vocab_size
+        )  # Set the classifier
 
         # Initialize BiLSTM Layers
         self.sequence_modeler = BiLSTMLayer(
@@ -93,7 +96,7 @@ class SwinBertSLR(SLRBaseModel):
         )
 
         # Initialize Attention Mechanism
-        self.attention = Attention(query_dim=self.hparams.hidden_size, key_dim=768, value_dim=768)
+        # self.attention = Attention(query_dim=self.hparams.hidden_size, key_dim=768, value_dim=768)
 
         # Initialize Classifier
         if self.hparams.share_classifier:
@@ -102,7 +105,7 @@ class SwinBertSLR(SLRBaseModel):
             self.classifier = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)  # Create a new classifier
 
     def forward(self, x: torch.Tensor, x_lgt: torch.Tensor, text: torch.Tensor, text_lgt: torch.Tensor) -> Tuple[
-        Any, Any, Any, Any, Any]:
+        Any, Any, Any]:  # , Any, Any]:
         """
         Forward pass of the model.
 
@@ -125,7 +128,13 @@ class SwinBertSLR(SLRBaseModel):
             frame = reshaped_inputs[:, :, i, :, :]
             feature = self.visual_feature_extractor(frame).last_hidden_state
             visual_features.append(feature)
-        visual_features = torch.stack(visual_features, dim=1)  # (batch_size, sequence_length, feature_dim)
+        visual_features = torch.stack(visual_features, dim=1)  # (batch_size, sequence_length,patch feature_dim)
+        visual_features = visual_features.view(-1, 49, 768)
+        visual_features = self.conv1(visual_features)
+        visual_features = self.conv2(visual_features)
+        visual_features = visual_features.view(batch_size, sequence_length, 5, 768)
+        visual_features = visual_features.view(batch_size, sequence_length, -1)
+        visual_features = visual_features.permute(0, 2, 1)
 
         # Pass through 1D convolutional layers
         conv1d_output = self.temporal_feature_extractor(visual_features, x_lgt)
@@ -146,12 +155,12 @@ class SwinBertSLR(SLRBaseModel):
         output_logits = self.classifier(predictions)
 
         # Pass through Bert
-        text_features = self.text_feature_extractor(text, attention_mask=(text != 0)).last_hidden_state
+        # text_features = self.text_feature_extractor(text, attention_mask=(text != 0)).last_hidden_state
 
         # Apply attention mechanism to align visual and text features
-        aligned_visual_features = self.attention(queries=predictions, keys=text_features, values=text_features)
+        # aligned_visual_features = None  # self.attention(queries=predictions, keys=text_features, values=text_features)
 
-        return conv1d_logits, output_logits, feature_lengths, aligned_visual_features, text_features
+        return conv1d_logits, output_logits, feature_lengths  # , aligned_visual_features, text_features
 
     def _define_loss_function(self):
         """
@@ -159,7 +168,7 @@ class SwinBertSLR(SLRBaseModel):
         """
         self.ctc_loss = nn.CTCLoss(reduction='none', zero_infinity=False)  # Define CTC loss function
         self.dist_loss = SeqKD(T=8)  # Define distillation loss function
-        self.kl_loss = KLDivLoss()  # Define KL divergence loss function
+        # self.kl_loss = KLDivLoss()  # Define KL divergence loss function
 
     def step_forward(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]) -> Tuple[
         torch.Tensor, Any, Any, Any]:
@@ -172,8 +181,9 @@ class SwinBertSLR(SLRBaseModel):
         Returns:
             Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
-        x, y, x_lgt, y_lgt, text, text_lgt, info = batch
-        conv1d_hat, y_hat, y_hat_lgt, aligned_visual_features, text_features = self(x, x_lgt, text, text_lgt)
+        x, y, x_lgt, y_lgt, info = batch
+        # conv1d_hat, y_hat, y_hat_lgt, aligned_visual_features, text_features = self(x, x_lgt, y, y_lgt)
+        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt, y, y_lgt)
 
         # Calculate CTC loss
         ctc_loss_value = self.hparams.loss_weights[0] * self.ctc_loss(conv1d_hat.log_softmax(-1), y, y_hat_lgt,
@@ -185,13 +195,49 @@ class SwinBertSLR(SLRBaseModel):
         dist_loss_value = self.hparams.loss_weights[2] * self.dist_loss(conv1d_hat, y_hat.detach(), use_blank=False)
 
         # Calculate KL divergence loss
-        kl_loss_value = self.hparams.loss_weights[3] * self.kl_loss(aligned_visual_features, text_features)
+        # kl_loss_value = self.hparams.loss_weights[3] * self.kl_loss(aligned_visual_features, text_features)
 
         # Total loss
-        loss = ctc_loss_value + dist_loss_value + kl_loss_value
+        loss = ctc_loss_value + dist_loss_value  # + kl_loss_value
 
         # Check for NaN values
         if torch.isnan(loss):
             print('\nWARNING: Detected NaN in loss.')
 
-        return loss, y_hat, y_hat_lgt, info
+        return loss, conv1d_hat, y_hat_lgt, info
+
+    def configure_optimizers(self):
+        """
+        Configures the optimizers and learning rate schedulers.
+
+        Returns:
+            A dictionary containing the optimizer and learning rate scheduler.
+        """
+        try:
+            # Retrieve hyperparameters
+            learning_rate = self.hparams.lr
+            weight_decay = self.hparams.weight_decay
+            milestones = self.hparams.milestones
+            gamma = self.hparams.gamma
+            last_epoch = getattr(self.hparams, 'last_epoch', -1)  # Default value
+        except AttributeError as e:
+            # Raise an error if required hyperparameters are missing
+            raise ValueError(f"Missing required hparam: {e}")
+
+        # Initialize the Adam optimizer
+        optimizer = torch.optim.Adam(self.trainer.model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+
+        # Define the learning rate scheduler
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(
+            optimizer=optimizer,
+            milestones=milestones,
+            gamma=gamma,
+            last_epoch=last_epoch
+        )
+
+        # Return the optimizer and learning rate scheduler
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler
+        }
+

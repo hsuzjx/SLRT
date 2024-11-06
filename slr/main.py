@@ -5,18 +5,16 @@ from datetime import datetime
 import hydra
 import lightning as L
 import torch
+import transformers
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
-from slr.constants import DataModuleClassDict, ModelClassDict, transform
+from slr.constants import DataModuleClassDict, ModelClassDict, transform, CONFIG_PATH, CONFIG_NAME
 from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
 from slr.evaluation import Evaluator
 from slr.models.decoders import CTCBeamSearchDecoder
 from slr.utils import convert_to_onnx, set_seed
-
-CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_Phoenix2014T_experiment.yaml'
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
@@ -48,6 +46,7 @@ def main(cfg: DictConfig):
 
     # Initialize tokenizer, decoder, and evaluator
     tokenizer = SimpleTokenizer(**cfg.tokenizer)
+    # tokenizer = transformers.BertTokenizer.from_pretrained('/new_home/xzj23/workspace/SLR/.cache/huggingface/bert-base-german-dbmdz-uncased')
     ctc_decoder = CTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
     evaluator = Evaluator(dataset=dataset_name, **cfg.evaluator)
 

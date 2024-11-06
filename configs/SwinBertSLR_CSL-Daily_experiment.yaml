@@ -1,0 +1,36 @@
+# configs/SwinBertSLR_CSL-Daily_experiment.yaml
+
+defaults:
+  - _self_ # 自引用，确保此配置文件被包含
+  - dataset: csl-daily # 数据集配置
+  - tokenizer: csl-daily
+  - model: SwinBertSLR # 模型配置
+  - decoder: ctc_beam_search
+  - evaluator: csl-daily
+  - trainer: use_gpu # 训练配置
+  - logger: wandb # 日志记录器配置
+
+# Hydra 运行配置
+hydra:
+  run:
+    # 实验目录结构
+    dir: ../experiments/${project}/${name}/${times}/hydra
+
+# 项目相关配置
+project: CSL-Daily_debug
+name: SwinBertSLR
+times: 12tt
+
+model_name: SwinBertSLR
+dataset_name: csl-daily
+
+checkpoint: null # if null, no checkpoint loading
+
+# 其他配置
+seed: -1
+save_dir: ../experiments
+
+torch_num_threads: 12
+torch_float32_matmul_precision: high
+
+convert_to_onnx: false

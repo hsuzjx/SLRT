@@ -64,6 +64,9 @@ def pad_label_sequence(sequences, batch_first=False, padding_value=0.0):
     if not sequences:
         return torch.tensor([], dtype=torch.float32), []
 
+    if not isinstance(sequences[0], torch.Tensor):
+        sequences = [torch.tensor(seq, dtype=torch.float32) for seq in sequences]
+
     # Get the length of each sequence
     lengths = [seq.shape[0] for seq in sequences]  # Assuming the length dimension is the first one (T)
     max_length = max(lengths)
