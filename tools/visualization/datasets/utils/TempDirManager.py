@@ -1,4 +1,6 @@
+import os
 import shutil
+import tempfile
 import threading
 
 
@@ -13,8 +15,29 @@ class TempDirManager:
 
         :param temp_dir: 临时目录的路径。
         """
+        try:
+            if temp_dir is None:
+                # 创建一个临时目录
+                temp_dir = tempfile.mkdtemp()
+                print(f"temp_dir is None, Auto-created temporary directory and set to {temp_dir}")
+            else:
+                temp_dir = os.path.abspath(temp_dir)
+                if os.path.exists(temp_dir):
+                    print(f"{temp_dir} is existing, use it directly")
+                else:
+                    print(f"{temp_dir} does not exist, make dirs")
+                    os.makedirs(temp_dir)
+                temp_dir = temp_dir
+
+        except Exception as e:
+            print(f"Failed to create temporary directory: {e}")
+            raise
+
         self.temp_dir = temp_dir
         self.timer = None
+
+    def get_temp_dir(self):
+        return self.temp_dir
 
     def clean_tmp_dir(self):
         """

@@ -224,7 +224,7 @@ class SLRWebUI:
         hyp_text = self.predict(video)
         return hyp_text
 
-    def webui(
+    def launch(
             self,
             host: str = "localhost",
             port: int = 28081,
@@ -299,7 +299,7 @@ if __name__ == "__main__":
     )
 
     # Start the web UI
-    webui.webui(
+    webui.launch(
         host=args.host,
         port=args.port,
         browse=args.browse,
