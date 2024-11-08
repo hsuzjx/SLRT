@@ -26,4 +26,4 @@ def safe_pickle_load(file_path):
     except Exception as e:
         # 打印加载错误信息
         print(f"Error loading data: {e}")
-        return {}
+        return None
