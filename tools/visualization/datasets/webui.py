@@ -60,6 +60,8 @@ class DatasetVisualizerWebUI:
             keypoints_color: str,
             keypoints_scale: int,
             keypoints_thickness: int,
+            edges_color: str,
+            edges_thickness: int,
             heatmap_sigma: int,
             heatmap_alpha: float,
             heatmap_gamma: float
@@ -72,6 +74,8 @@ class DatasetVisualizerWebUI:
             keypoints_scale=keypoints_scale,
             keypoints_style=keypoints_style,
             keypoints_thickness=keypoints_thickness,
+            edges_color=self.color_dict[edges_color],
+            edges_thickness=edges_thickness,
             heatmap_sigma=heatmap_sigma,
             heatmap_alpha=heatmap_alpha,
             heatmap_gamma=heatmap_gamma,
@@ -98,12 +102,13 @@ class DatasetVisualizerWebUI:
                 gr.Checkbox(label='Add Edge?', value=False),
                 gr.Checkbox(label='Add Heatmap?', value=False),
                 # Keypoint options
-                gr.Radio(label="Keypoint Style", choices=["*", "+", "O", "@", "#", "$", "Number"], value='@'),
+                gr.Radio(label="Keypoint Style", choices=["*", "+", "O", "@", "#", "$", "Number"], value="Number"),
                 gr.Radio(label="Keypoint Color", choices=["red", "green", "blue"], value="red"),
                 gr.Slider(label='Keypoint Scale', minimum=0, maximum=2, step=0.1, value=0.5),
                 gr.Slider(label='Keypoint Thickness', minimum=1, maximum=5, step=1, value=1),
                 # Edge options
-                # ...
+                gr.Radio(label="Edge Color", choices=["red", "green", "blue"], value="blue"),
+                gr.Slider(label='Edge Thickness', minimum=1, maximum=5, step=1, value=1),
                 # Heatmap options
                 gr.Slider(label='Heatmap Sigma', info='Gaussian kernel size', minimum=1, maximum=50, step=1, value=10),
                 gr.Slider(label='Heatmap Alpha', info='Heatmap alpha', minimum=0, maximum=1, step=0.05, value=0.5),

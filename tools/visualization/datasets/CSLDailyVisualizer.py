@@ -33,7 +33,3 @@ class CSLDailyVisualizer(DatasetBaseVisualizer):
         if not frame_file_list:
             raise FileNotFoundError(f"No frames found in directory: {self.frames_dir}")
         return frame_file_list
-
-    @override
-    def _get_edges(self, name: str) -> list:
-        pass

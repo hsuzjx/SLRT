@@ -28,7 +28,9 @@ class DatasetBaseVisualizer:
     keypoints_scale (float): Scale of the keypoints.
     keypoints_style (str): Style of the keypoints.
     keypoints_thickness (int): Thickness of the keypoints.
-    edges (list): List of edges for connecting keypoints.
+    edges (dict): Dict of edges for connecting keypoints.
+    edges_color (tuple): Color of the edges.
+    edges_thickness (int): Thickness of the edges.
     heatmap_sigma (int): Sigma for Gaussian kernel used in heatmap generation.
     heatmap_alpha (float): Alpha blending factor for heatmap overlay.
     heatmap_gamma (float): Gamma correction factor for heatmap overlay.
@@ -107,8 +109,10 @@ class DatasetBaseVisualizer:
         self.keypoints_thickness = 2
 
         # Edges params
-        self.edges = None
+        self.edges = dict()
         self._init_edges()
+        self.edges_color = (255, 0, 0)
+        self.edges_thickness = 1
 
         # Heatmap params
         self.heatmap_sigma = 10
@@ -128,6 +132,8 @@ class DatasetBaseVisualizer:
             keypoints_scale=1,
             keypoints_style='*',
             keypoints_thickness=2,
+            edges_color=(255, 0, 0),
+            edges_thickness=1,
             heatmap_sigma=10,
             heatmap_alpha=0.5,
             heatmap_gamma=0,
@@ -145,6 +151,8 @@ class DatasetBaseVisualizer:
             keypoints_scale (float, optional): Scale of the keypoints. Defaults to 1.
             keypoints_style (str, optional): Style of the keypoints. Defaults to '*'.
             keypoints_thickness (int, optional): Thickness of the keypoints. Defaults to 2.
+            edges_color (tuple, optional): Color of the edges. Defaults to (255, 0, 0).
+            edges_thickness (int, optional): Thickness of the edges. Defaults to 1.
             heatmap_sigma (int, optional): Sigma for Gaussian kernel used in heatmap generation. Defaults to 10.
             heatmap_alpha (float, optional): Alpha blending factor for heatmap overlay. Defaults to 0.5.
             heatmap_gamma (float, optional): Gamma correction factor for heatmap overlay. Defaults to 0.
@@ -158,6 +166,8 @@ class DatasetBaseVisualizer:
         self.keypoints_scale = keypoints_scale
         self.keypoints_style = keypoints_style
         self.keypoints_thickness = keypoints_thickness
+        self.edges_color = edges_color
+        self.edges_thickness = edges_thickness
         self.heatmap_sigma = heatmap_sigma
         self.heatmap_alpha = heatmap_alpha
         self.heatmap_gamma = heatmap_gamma
@@ -183,13 +193,6 @@ class DatasetBaseVisualizer:
         pass
 
     @abstractmethod
-    def _init_edges(self):
-        """
-        Abstract method to initialize edges.
-        """
-        pass
-
-    @abstractmethod
     def _get_frames(self, item: pd.DataFrame) -> list:
         """
         Abstract method to get the list of frame files for a given sample.
@@ -201,6 +204,22 @@ class DatasetBaseVisualizer:
             list: List of frame file paths.
         """
         pass
+
+    def _init_edges(self):
+        """
+        Abstract method to initialize edges.
+        """
+        body_kpts = list(range(1, 18))
+        left_foot_kpts = list(range(18, 21))
+        right_foot_kpts = list(range(21, 24))
+        face_kpts = list(range(24, 92))
+        left_hand_kpts = list(range(92, 113))
+        raght_hand_kpts = list(range(113, 134))
+
+        self.edges = {"skeleton": [[16, 14], [14, 12], [17, 15], [15, 13], [12, 13],
+                                   [6, 12], [7, 13], [6, 7], [6, 8], [7, 9],
+                                   [8, 10], [9, 11], [2, 3], [1, 2], [1, 3],
+                                   [2, 4], [3, 5], [4, 6], [5, 7]]}
 
     def _get_item(self, idx: str):
         """
@@ -287,7 +306,7 @@ class DatasetBaseVisualizer:
 
             if confidence > self.confidence_threshold and 0 <= x < frame.shape[1] and 0 <= y < frame.shape[0]:
                 if self.keypoints_style == 'Number':
-                    text = str(kp_idx)
+                    text = str(kp_idx + 1)
                 else:
                     text = self.keypoints_style
 
@@ -324,7 +343,21 @@ class DatasetBaseVisualizer:
         Returns:
             np.ndarray: Frame with edges added.
         """
-        # TODO: Implement edge drawing logic
+        for key in self.edges.keys():
+            edges = self.edges[key]
+
+            for edge in edges:
+                x1, y1, c1 = frame_keypoints[edge[0] - 1]
+                x2, y2, c2 = frame_keypoints[edge[1] - 1]
+                if c1 > self.confidence_threshold and c2 > self.confidence_threshold:
+                    cv2.line(
+                        frame,
+                        pt1=(int(x1), int(y1)),
+                        pt2=(int(x2), int(y2)),
+                        color=self.edges_color,
+                        thickness=self.edges_thickness
+                    )
+
         return frame
 
     def _add_heatmap_to_frame(self, frame, frame_keypoints):
