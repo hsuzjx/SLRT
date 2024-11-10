@@ -71,8 +71,11 @@ if __name__ == '__main__':
                         default=4,
                         help="Number of workers for parallel processing")
 
+    parser.add_argument("--json-to-pkl", action='store_true',
+                        help="Convert json files to pickle files")
+
     args = parser.parse_args()
 
     extractor = Phoenix2014PoseExtractor(args.model, args.device, args.save_dir)
     extractor.init_dataset(args.dataset_dir, args.features_dir, args.annotations_dir)
-    extractor.execute(args.max_workers)
+    extractor.execute(args.max_workers, json_to_pkl=args.json_to_pkl)

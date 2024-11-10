@@ -27,6 +27,7 @@ class DatasetBaseVisualizer:
     keypoints_color (tuple): Color of the keypoints.
     keypoints_scale (float): Scale of the keypoints.
     keypoints_style (str): Style of the keypoints.
+    keypoints_thickness (int): Thickness of the keypoints.
     edges (list): List of edges for connecting keypoints.
     heatmap_sigma (int): Sigma for Gaussian kernel used in heatmap generation.
     heatmap_alpha (float): Alpha blending factor for heatmap overlay.
@@ -103,6 +104,7 @@ class DatasetBaseVisualizer:
         self.keypoints_color = (0, 0, 255)
         self.keypoints_scale = 1
         self.keypoints_style = '*'
+        self.keypoints_thickness = 2
 
         # Edges params
         self.edges = None
@@ -125,6 +127,7 @@ class DatasetBaseVisualizer:
             keypoints_color=(0, 0, 255),
             keypoints_scale=1,
             keypoints_style='*',
+            keypoints_thickness=2,
             heatmap_sigma=10,
             heatmap_alpha=0.5,
             heatmap_gamma=0,
@@ -141,6 +144,7 @@ class DatasetBaseVisualizer:
             keypoints_color (tuple, optional): Color of the keypoints. Defaults to (0, 0, 255).
             keypoints_scale (float, optional): Scale of the keypoints. Defaults to 1.
             keypoints_style (str, optional): Style of the keypoints. Defaults to '*'.
+            keypoints_thickness (int, optional): Thickness of the keypoints. Defaults to 2.
             heatmap_sigma (int, optional): Sigma for Gaussian kernel used in heatmap generation. Defaults to 10.
             heatmap_alpha (float, optional): Alpha blending factor for heatmap overlay. Defaults to 0.5.
             heatmap_gamma (float, optional): Gamma correction factor for heatmap overlay. Defaults to 0.
@@ -153,6 +157,7 @@ class DatasetBaseVisualizer:
         self.keypoints_color = keypoints_color
         self.keypoints_scale = keypoints_scale
         self.keypoints_style = keypoints_style
+        self.keypoints_thickness = keypoints_thickness
         self.heatmap_sigma = heatmap_sigma
         self.heatmap_alpha = heatmap_alpha
         self.heatmap_gamma = heatmap_gamma
@@ -302,7 +307,7 @@ class DatasetBaseVisualizer:
                     fontFace=cv2.FONT_HERSHEY_SIMPLEX,
                     fontScale=self.keypoints_scale,
                     color=self.keypoints_color,
-                    thickness=2,
+                    thickness=self.keypoints_thickness,
                     bottomLeftOrigin=False
                 )
 

@@ -59,6 +59,7 @@ class DatasetVisualizerWebUI:
             keypoints_style: str,
             keypoints_color: str,
             keypoints_scale: int,
+            keypoints_thickness: int,
             heatmap_sigma: int,
             heatmap_alpha: float,
             heatmap_gamma: float
@@ -70,6 +71,7 @@ class DatasetVisualizerWebUI:
             keypoints_color=self.color_dict[keypoints_color],
             keypoints_scale=keypoints_scale,
             keypoints_style=keypoints_style,
+            keypoints_thickness=keypoints_thickness,
             heatmap_sigma=heatmap_sigma,
             heatmap_alpha=heatmap_alpha,
             heatmap_gamma=heatmap_gamma,
@@ -99,6 +101,7 @@ class DatasetVisualizerWebUI:
                 gr.Radio(label="Keypoint Style", choices=["*", "+", "O", "@", "#", "$", "Number"], value='@'),
                 gr.Radio(label="Keypoint Color", choices=["red", "green", "blue"], value="red"),
                 gr.Slider(label='Keypoint Scale', minimum=0, maximum=2, step=0.1, value=0.5),
+                gr.Slider(label='Keypoint Thickness', minimum=1, maximum=5, step=1, value=1),
                 # Edge options
                 # ...
                 # Heatmap options
@@ -138,7 +141,7 @@ if __name__ == '__main__':
                         default="../../../data/phoenix2014",
                         help="Path to the PHOENIX14 dataset directory")
     parser.add_argument("--phoenix14-keypoints-file", type=str,
-                        default="../../../data/phoenix2014/phoenix14-keypoints.pkl",
+                        default="../../../data/preprocess/keypoints/phoenix2014/fullFrame-210x260px/phoenix2014-keypoints.pkl",
                         help="Path to the PHOENIX14 keypoints file")
     parser.add_argument("--phoenix14T-data-dir", type=str,
                         default="../../../data/phoenix2014T",
