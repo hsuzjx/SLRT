@@ -1,4 +1,3 @@
-import glob
 import os
 
 import pandas as pd
@@ -20,7 +19,7 @@ class Phoenix2014Visualizer(DatasetBaseVisualizer):
 
     @override
     def _init_data_params(self):
-        self.frames_dir = os.path.join(self.data_dir, 'phoenix-2014-multisigner/features/fullFrame-210x260px')
+        self.features_dir = os.path.join(self.data_dir, 'phoenix-2014-multisigner/features/fullFrame-210x260px')
         annotations_dir = os.path.join(self.data_dir, 'phoenix-2014-multisigner/annotations/manual')
         train_corpus = pd.read_csv(os.path.join(annotations_dir, 'train.corpus.csv'), sep='|', header=0, index_col='id')
         dev_corpus = pd.read_csv(os.path.join(annotations_dir, 'dev.corpus.csv'), sep='|', header=0, index_col='id')
@@ -32,8 +31,5 @@ class Phoenix2014Visualizer(DatasetBaseVisualizer):
         self.dataset_size = len(self.info)
 
     @override
-    def _get_frames(self, item: pd.DataFrame) -> list:
-        frame_file_list = sorted(glob.glob(os.path.join(self.frames_dir, item["split"], item.name, "1", '*.png')))
-        if not frame_file_list:
-            raise FileNotFoundError(f"No frames found in directory: {self.frames_dir}")
-        return frame_file_list
+    def _get_frames_subdir(self, item: pd.DataFrame):
+        return os.path.join(item["split"], item.name, "1", '*.png')

@@ -1,5 +1,4 @@
 import argparse
-import atexit
 
 import gradio as gr
 
@@ -18,9 +17,9 @@ class DatasetVisualizerWebUI:
             phoenix14_keypoints_file: str,
             phoenix14T_data_dir: str,
             phoenix14T_keypoints_file: str,
-            temp_dir: str
+            temp_manager: TempDirManager
     ):
-        self.temp_manager = TempDirManager(temp_dir)
+        self.temp_manager = temp_manager
         self.temp_dir = self.temp_manager.get_temp_dir()
 
         self.visualizers = {
@@ -140,7 +139,7 @@ if __name__ == '__main__':
                         default="../../../data/csl-daily",
                         help="Path to the CSL Daily dataset directory")
     parser.add_argument("--csl-daily-keypoints-file", type=str,
-                        default="../../../data/csl-daily/csl-daily-keypoints.pkl",
+                        default="../../../data/preprocess/keypoints/csl-daily/sentence_frames-512x512/frames_512x512/csl-daily-keypoints.pkl",
                         help="Path to the CSL Daily keypoints file")
     parser.add_argument("--phoenix14-data-dir", type=str,
                         default="../../../data/phoenix2014",
@@ -152,11 +151,17 @@ if __name__ == '__main__':
                         default="../../../data/phoenix2014T",
                         help="Path to the PHOENIX14T dataset directory")
     parser.add_argument("--phoenix14T-keypoints-file", type=str,
-                        default="../../../data/phoenix2014T/phoenix14T-keypoints.pkl",
+                        default="../../../data/preprocess/keypoints/phoenix2014T/fullFrame-210x260px/phoenix2014t-keypoints.pkl",
                         help="Path to the PHOENIX14T keypoints file")
+
     parser.add_argument("--temp-dir", type=str,
                         default="./.temp",
                         help="Path to the temporary directory")
+    parser.add_argument("--keep-temp", action="store_true",
+                        help="Keep temporary files")
+    parser.add_argument("--cleanup-interval", type=int,
+                        default=600,
+                        help="Cleanup interval in seconds (only applies if --keep-temp is not set)")
 
     # launch options
     parser.add_argument("--host", type=str, default="localhost", help="Server name")
@@ -166,6 +171,12 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    temp_manager = TempDirManager(
+        temp_dir=args.temp_dir,
+        cleanup=not args.keep_temp,
+        cleanup_interval=args.cleanup_interval
+    )
+
     webui = DatasetVisualizerWebUI(
         csl_daily_data_dir=args.csl_daily_data_dir,
         csl_daily_keypoints_file=args.csl_daily_keypoints_file,
@@ -173,7 +184,7 @@ if __name__ == '__main__':
         phoenix14_keypoints_file=args.phoenix14_keypoints_file,
         phoenix14T_data_dir=args.phoenix14T_data_dir,
         phoenix14T_keypoints_file=args.phoenix14T_keypoints_file,
-        temp_dir=args.temp_dir
+        temp_manager=temp_manager
     )
 
     webui.launch(
@@ -182,9 +193,3 @@ if __name__ == '__main__':
         share=args.share,
         inbrowser=args.inbrowse
     )
-
-    # Register a function to clean up the temporary directory on program exit
-    atexit.register(webui.temp_manager.clean_tmp_dir)
-
-    # Start a repeating task to clean up the temporary directory every 600 seconds
-    webui.temp_manager.start_repeat_delete(600)

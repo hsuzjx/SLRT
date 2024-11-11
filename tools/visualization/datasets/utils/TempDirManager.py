@@ -1,3 +1,4 @@
+import atexit
 import os
 import shutil
 import tempfile
@@ -9,7 +10,7 @@ class TempDirManager:
     临时目录管理器类，负责清理临时目录，并支持定时重复清理功能。
     """
 
-    def __init__(self, temp_dir):
+    def __init__(self, temp_dir, cleanup=True, cleanup_interval=600):
         """
         初始化TempDirManager类。
 
@@ -36,6 +37,17 @@ class TempDirManager:
         self.temp_dir = temp_dir
         self.timer = None
 
+        self.cleanup = cleanup
+        self.cleanup_interval = cleanup_interval
+
+        if self.cleanup:
+            # Register a function to clean up the temporary directory on program exit
+            atexit.register(self.clean_tmp_dir)
+
+            # Start a repeating task to clean up the temporary directory
+            self.start_repeat_delete(self.cleanup_interval)
+            print(f"Cleanup task has been started. Intrerval: {self.cleanup_interval}s")
+
     def get_temp_dir(self):
         return self.temp_dir
 
@@ -43,6 +55,13 @@ class TempDirManager:
         """
         清理临时目录。如果目录不存在或没有权限删除，会打印相应的错误信息。
         """
+        if self.temp_dir is None:
+            print("The temporary directory is None.")
+            return
+        if not os.path.exists(self.temp_dir):
+            print(f"The folder {self.temp_dir} does not exist.")
+            return
+
         try:
             shutil.rmtree(self.temp_dir)
             print(f"Folder {self.temp_dir} has been deleted.")

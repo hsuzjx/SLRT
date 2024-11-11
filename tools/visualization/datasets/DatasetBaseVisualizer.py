@@ -1,3 +1,4 @@
+import glob
 import os
 from abc import abstractmethod
 
@@ -17,7 +18,7 @@ class DatasetBaseVisualizer:
     Attributes
     ----------
     data_dir (str): Path to the data directory.
-    frames_dir (str): Path to the directory containing the frames.
+    features_dir (str): Path to the directory of features.
     info (pd.DataFrame): DataFrame containing the dataset information.
     dataset_size (int): Size of the dataset.
     keypoints (dict): Dictionary containing the keypoints data.
@@ -55,8 +56,8 @@ class DatasetBaseVisualizer:
     _init_edges(self):
         Abstract method to initialize edges.
 
-    _get_frames(self, item: pd.DataFrame) -> list:
-        Abstract method to get the list of frame files for a given sample.
+    _get_frames_subdir(self, item: pd.DataFrame) -> str:
+        Abstract method to get the frames subdir for a given sample.
 
     _get_item(self, idx: str):
         Retrieves an item from the dataset by index or name.
@@ -89,7 +90,7 @@ class DatasetBaseVisualizer:
         """
         # Data params
         self.data_dir = os.path.abspath(data_dir)
-        self.frames_dir = None
+        self.features_dir = None
         self.info = None
         self.dataset_size = None
         self._init_data_params()
@@ -193,7 +194,7 @@ class DatasetBaseVisualizer:
         pass
 
     @abstractmethod
-    def _get_frames(self, item: pd.DataFrame) -> list:
+    def _get_frames_subdir(self, item: pd.DataFrame):
         """
         Abstract method to get the list of frame files for a given sample.
 
@@ -201,7 +202,7 @@ class DatasetBaseVisualizer:
             item (pd.DataFrame): The item to get frames for.
 
         Returns:
-            list: List of frame file paths.
+            frames_subdir (str): The frames subdir for the given sample.
         """
         pass
 
@@ -257,7 +258,8 @@ class DatasetBaseVisualizer:
             ValueError: If the frame file list is empty.
             FileNotFoundError: If any frame file is not found.
         """
-        frame_file_list = self._get_frames(item)
+        frames_subdir = self._get_frames_subdir(item)
+        frame_file_list = sorted(glob.glob(os.path.join(self.features_dir, frames_subdir)))
         if not frame_file_list:
             raise ValueError("Frame file list is empty.")
         output_file = os.path.join(self.temp_dir, f"{item.name}.mp4")
