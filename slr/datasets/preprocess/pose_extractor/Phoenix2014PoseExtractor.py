@@ -54,11 +54,11 @@ if __name__ == '__main__':
                         default="cuda:0",
                         help="Device to use for inference")
     parser.add_argument("--save-dir", type=str,
-                        default="../keypoints/phoenix2014/fullFrame-210x260px",
+                        default="../../../../data/keypoints/phoenix2014/fullFrame-210x260px",
                         help="Path to the directory where results will be saved")
 
     parser.add_argument("--dataset-dir", type=str,
-                        default="../../phoenix2014",
+                        default="../../../../data/phoenix2014",
                         help="Path to the dataset directory")
     parser.add_argument("--features-dir", type=str,
                         default=None,

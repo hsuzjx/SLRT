@@ -1,46 +1,47 @@
 import argparse
 import os.path
-import pickle
 
 import pandas as pd
 
 from DatasetBasePoseExtractor import DatasetBasePoseExtractor
 
 
-class CSLDailyPoseExtractor(DatasetBasePoseExtractor):
+class Phoenix2014TPoseExtractor(DatasetBasePoseExtractor):
     def __init__(self, model, device='cuda:0', save_dir="./pose_pred"):
         super().__init__(model, device, save_dir)
 
-        self.dataset_name = "CSL-Daily"
+        self.dataset_name = "Phoenix2014T"
 
     def init_dataset(self, data_dir, features_dir=None, annotations_dir=None):
         self.data_dir = os.path.abspath(data_dir)
 
         # Ensure all directory paths are set correctly
-        self.features_dir = os.path.join(self.data_dir, 'sentence_frames-512x512/frames_512x512') \
+        self.features_dir = os.path.join(self.data_dir, 'PHOENIX-2014-T/features/fullFrame-210x260px') \
             if features_dir is None and data_dir is not None else os.path.abspath(
             features_dir) if features_dir else None
         if not os.path.exists(self.features_dir):
             raise FileNotFoundError(f"Features directory not found at {self.features_dir}")
 
         # Set and validate annotation directory
-        self.annotations_dir = os.path.join(self.data_dir, 'sentence_label') \
+        self.annotations_dir = os.path.join(self.data_dir, 'PHOENIX-2014-T/annotations/manual') \
             if annotations_dir is None and data_dir is not None else os.path.abspath(
             annotations_dir) if annotations_dir else None
         if not os.path.exists(self.annotations_dir):
             raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
 
-        # Load annotations and filter by mode
-        annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
-        if not os.path.exists(annotation_file):
-            raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
-        with open(annotation_file, 'rb') as f:
-            data = pickle.load(f)
-        self.info = pd.DataFrame(data['info'])
-        self.info.set_index("name", inplace=True)
+        train_corpus = pd.read_csv(os.path.join(self.annotations_dir, 'PHOENIX-2014-T.train.corpus.csv'),
+                                   sep='|', header=0, index_col='name')
+        dev_corpus = pd.read_csv(os.path.join(self.annotations_dir, 'PHOENIX-2014-T.dev.corpus.csv'),
+                                 sep='|', header=0, index_col='name')
+        test_corpus = pd.read_csv(os.path.join(self.annotations_dir, 'PHOENIX-2014-T.test.corpus.csv'),
+                                  sep='|', header=0, index_col='name')
+        self.info = pd.concat(
+            [train_corpus.assign(split='train'), dev_corpus.assign(split='dev'), test_corpus.assign(split='test')],
+            axis=0, ignore_index=False
+        )
 
     def _get_frames_subdir(self, item):
-        return item.name
+        return os.path.join(item["split"], item.name)
 
 
 if __name__ == '__main__':
@@ -53,11 +54,11 @@ if __name__ == '__main__':
                         default="cuda:0",
                         help="Device to use for inference")
     parser.add_argument("--save-dir", type=str,
-                        default="../keypoints/csl-daily/sentence_frames-512x512/frames_512x512",
+                        default="../../../../data/keypoints/phoenix2014T/fullFrame-210x260px",
                         help="Path to the directory where results will be saved")
 
     parser.add_argument("--dataset-dir", type=str,
-                        default="../../csl-daily",
+                        default="../../../../data/phoenix2014T",
                         help="Path to the dataset directory")
     parser.add_argument("--features-dir", type=str,
                         default=None,
@@ -75,6 +76,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    extractor = CSLDailyPoseExtractor(args.model, args.device, args.save_dir)
+    extractor = Phoenix2014TPoseExtractor(args.model, args.device, args.save_dir)
     extractor.init_dataset(args.dataset_dir, args.features_dir, args.annotations_dir)
     extractor.execute(args.max_workers, json_to_pkl=args.json_to_pkl)
