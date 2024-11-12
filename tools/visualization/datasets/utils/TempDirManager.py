@@ -64,7 +64,8 @@ class TempDirManager:
 
         try:
             shutil.rmtree(self.temp_dir)
-            print(f"Folder {self.temp_dir} has been deleted.")
+            os.makedirs(self.temp_dir, exist_ok=True)
+            print(f"Folder {self.temp_dir} has been cleared.")
         except FileNotFoundError:
             print(f"The folder {self.temp_dir} does not exist.")
         except PermissionError:
