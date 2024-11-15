@@ -1,8 +1,8 @@
 import os
 from typing import override
 
-from slr.datasets.BaseDataModule import BaseDataModule
-from slr.datasets.Phoenix2014TDataset import Phoenix2014TDataset
+from slr.datasets.VideoDatasets.BaseDataModule import BaseDataModule
+from slr.datasets.VideoDatasets.Phoenix2014TDataset import Phoenix2014TDataset
 
 
 class Phoenix2014TDataModule(BaseDataModule):

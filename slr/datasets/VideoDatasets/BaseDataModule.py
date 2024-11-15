@@ -4,7 +4,7 @@ import lightning as L
 from torch.utils.data import DataLoader
 from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Resize, CenterCrop
 
-from slr.datasets.BaseDataset import BaseDataset
+from slr.datasets.VideoDatasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
 
 

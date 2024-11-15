@@ -1,12 +1,11 @@
 import os
 from typing import override
 
-from slr.datasets.CSLDailyDataset import CSLDailyDataset
 from slr.datasets.KeypointDatasets.CSLDailyKeypointDataset import CSLDailyKeypointDataset
 from slr.datasets.KeypointDatasets.KeypointBaseDataModule import KeypointBaseDataModule
 
 
-class CSLDailyDataModule(KeypointBaseDataModule):
+class CSLDailyKeypointDataModule(KeypointBaseDataModule):
     """
     """
 
@@ -36,7 +35,7 @@ class CSLDailyDataModule(KeypointBaseDataModule):
             mode (str): The dataset mode ('train', 'dev', or 'test').
 
         Returns:
-            CSLDailyDataset: The dataset instance for the specified mode.
+            CSLDailyKeypointDataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, None)
         tokenizer = self.tokenizers.get(mode, None)

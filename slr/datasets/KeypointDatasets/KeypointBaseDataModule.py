@@ -3,7 +3,7 @@ from abc import abstractmethod
 import lightning as L
 from torch.utils.data import DataLoader
 
-from slr.datasets.BaseDataset import BaseDataset
+from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
 
 
 class KeypointBaseDataModule(L.LightningDataModule):
@@ -40,7 +40,7 @@ class KeypointBaseDataModule(L.LightningDataModule):
             mode (str): The dataset mode ('train', 'dev', or 'test').
 
         Returns:
-            BaseDataset: The dataset instance for the specified mode.
+            KeypointBaseDataset: The dataset instance for the specified mode.
         """
         pass
 

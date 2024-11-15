@@ -4,7 +4,7 @@ from typing import override, Union, LiteralString
 import pandas as pd
 from torchvision.transforms import Compose
 
-from slr.datasets.BaseDataset import BaseDataset
+from slr.datasets.VideoDatasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
 
 
