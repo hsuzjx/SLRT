@@ -1,0 +1,30 @@
+from typing import override
+
+from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
+
+
+class Phoenix2014KeypointDataset(KeypointBaseDataset):
+    """
+    """
+
+    def __init__(
+            self,
+            keypoints_file: str = None,
+            mode: [str, list] = "train",
+            transform: callable = None,
+            tokenizer: object = None,
+    ):
+        """
+        """
+        super().__init__(keypoints_file=keypoints_file, transform=transform, tokenizer=tokenizer)
+
+        # Convert mode to list and validate
+        self.mode = [mode] if isinstance(mode, str) else mode
+        if not all(m in ["train", "dev", "test"] for m in self.mode):
+            raise ValueError("Each element in mode must be one of 'train', 'dev', or 'test'")
+
+        self.kps_info_keys = sorted([n for n in self.kps_info.keys() if self.kps_info[n]["split"] in self.mode])
+
+    @override
+    def __get_glosses(self, item) -> [str, list]:
+        return [gloss for gloss in item['annotation'].split(' ') if gloss]
