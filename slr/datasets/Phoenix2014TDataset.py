@@ -10,7 +10,7 @@ from slr.datasets.transforms import ToTensor
 
 class Phoenix2014TDataset(BaseDataset):
     """
-    Phoenix 2014 T dataset class for sign language recognition tasks.
+    Phoenix2014T dataset class for sign language recognition tasks.
 
     This class provides functionality to load video frames and their corresponding
     annotations, applying transformations and tokenization as needed.
@@ -29,11 +29,11 @@ class Phoenix2014TDataset(BaseDataset):
             dataset_dir: str = None,
             features_dir: str = None,
             annotations_dir: str = None,
-            mode: str = "train",
+            mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
             tokenizer: object = None,
             read_hdf5: bool = False
-    ) -> None:
+    ):
         """
         Initializes the Phoenix2014TDataset with the given parameters.
 
@@ -43,8 +43,9 @@ class Phoenix2014TDataset(BaseDataset):
                                           Defaults to a subdirectory within `dataset_dir`.
             annotations_dir (str, optional): Directory containing annotations.
                                              Defaults to a subdirectory within `dataset_dir`.
-            mode (str, optional): The dataset mode ("train", "dev", or "test").
-                                  Defaults to "train".
+            mode (str or list, optional): Specifies the dataset mode ("train", "dev",
+                                          or "test"). Can be a single string or a list
+                                          of strings. Defaults to "train".
             transform (callable, optional): Transformation function applied to video frames.
             tokenizer (object, optional): Tokenizer used for encoding labels.
         """

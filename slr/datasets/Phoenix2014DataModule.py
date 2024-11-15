@@ -7,7 +7,7 @@ from slr.datasets.Phoenix2014Dataset import Phoenix2014Dataset
 
 class Phoenix2014DataModule(BaseDataModule):
     """
-    Data module for handling the Phoenix 2014 dataset within a PyTorch Lightning environment.
+    Data module for handling the Phoenix2014 dataset within a PyTorch Lightning environment.
 
     This module encapsulates the dataset loading and preprocessing logic, including setting up
     different splits for training, validation, and testing, as well as applying transformations

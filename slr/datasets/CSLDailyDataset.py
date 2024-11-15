@@ -115,8 +115,7 @@ class CSLDailyDataset(BaseDataset):
     ) -> Union[LiteralString, str, bytes]:
         if filename:
             return os.path.join(item.name, "*.jpg")
-        else:
-            return item.name
+        return item.name
 
     @override
     def __get_glosses(
