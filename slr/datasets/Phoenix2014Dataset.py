@@ -1,18 +1,14 @@
-import glob
 import os
+from typing import override, Union, LiteralString
 
-import cv2
-import h5py
 import pandas as pd
-import torch
-from torch.utils.data import Dataset
 from torchvision.transforms import Compose
 
+from slr.datasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
-from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
-class Phoenix2014Dataset(Dataset):
+class Phoenix2014Dataset(BaseDataset):
     """
     Phoenix 2014 dataset class for sign language recognition tasks.
 
@@ -52,7 +48,7 @@ class Phoenix2014Dataset(Dataset):
             transform (callable, optional): Transformation function applied to video frames.
             tokenizer (object, optional): Tokenizer used for encoding labels.
         """
-        super().__init__()
+        super().__init__(transform=transform, tokenizer=tokenizer, read_hdf5=read_hdf5)
 
         # Ensure all directory paths are set correctly
         self.features_dir = os.path.join(dataset_dir, 'phoenix-2014-multisigner/features/fullFrame-210x260px') \
@@ -68,104 +64,40 @@ class Phoenix2014Dataset(Dataset):
         if not os.path.exists(self.annotations_dir):
             raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
 
-        # mode must be one of 'train', 'dev', or 'test'
-        self.mode = mode
-        if self.mode not in ["train", "dev", "test"]:
-            raise ValueError("Mode must be one of 'train', 'dev', or 'test'")
+        # Convert mode to list and validate
+        self.mode = [mode] if isinstance(mode, str) else mode
+        if not all(m in ["train", "dev", "test"] for m in self.mode):
+            raise ValueError("Each element in mode must be one of 'train', 'dev', or 'test'")
 
         # Load corpus information
-        self.info = pd.read_csv(os.path.join(self.annotations_dir, f'{self.mode}.corpus.csv'),
-                                sep='|', header=0, index_col='id')
+        corpus = {
+            "train": pd.read_csv(os.path.join(self.annotations_dir, 'train.corpus.csv'),
+                                 sep='|', header=0, index_col='id') if "train" in self.mode else None,
+            "dev": pd.read_csv(os.path.join(self.annotations_dir, 'dev.corpus.csv'),
+                               sep='|', header=0, index_col='id') if "dev" in self.mode else None,
+            "test": pd.read_csv(os.path.join(self.annotations_dir, 'test.corpus.csv'),
+                                sep='|', header=0, index_col='id') if "test" in self.mode else None
+        }
+        self.info = pd.concat([corpus[m].assign(split=m) for m in self.mode], axis=0, ignore_index=False)
 
         # Special handling for training mode
-        if self.mode == "train":
+        if "train" in self.mode:
             if "13April_2011_Wednesday_tagesschau_default-14" in self.info.index:
                 self.info.drop("13April_2011_Wednesday_tagesschau_default-14", axis=0, inplace=True)
 
-        # Set transform and tokenizer
-        self.transform = transform
-        self.tokenizer = tokenizer
+    @override
+    def __get_frames_subdir_filename(
+            self,
+            item: pd.DataFrame,
+            filename: bool = True
+    ) -> Union[LiteralString, str, bytes]:
+        if filename:
+            return os.path.join(item["split"], item.name, "1", "*.png")
+        return os.path.join(item["split"], item.name, "1")
 
-        self.read_hdf5 = read_hdf5
-
-    def __len__(self):
-        """
-        Returns the number of samples in the dataset.
-        """
-        return len(self.info)
-
-    def __getitem__(self, idx):
-        """
-        Retrieves a sample from the dataset given its index.
-
-        Args:
-            idx (int): Index of the sample.
-
-        Returns:
-            tuple: A tuple containing video frames, glosses, and additional info.
-        """
-        item = self.info.iloc[idx]
-        frames_dir = os.path.join(self.features_dir, self.mode, item.name, "1")
-        if not os.path.exists(frames_dir):
-            raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
-
-        if self.read_hdf5:
-            # frames = torch.load(os.path.join(frames_dir, 'video.pt'))
-            with h5py.File(os.path.join(frames_dir, "video.h5"), 'r') as f:
-                frames = f['data'][:]
-            frames = torch.from_numpy(frames)
-        else:
-            frames = self._read_frames(frames_dir)
-
-        glosses = [gloss for gloss in item['annotation'].split(' ') if gloss]
-
-        if self.transform:
-            frames = self.transform(frames)
-        if self.tokenizer:
-            glosses = self.tokenizer.encode(glosses)
-
-        return frames, glosses, item
-
-    def _read_frames(self, frames_dir):
-        """
-        Reads video frames from the specified directory.
-
-        Args:
-            frames_dir (str): Directory containing video frames.
-
-        Returns:
-            list: List of frames read from the directory.
-        """
-        frames_file_list = sorted(glob.glob(os.path.join(frames_dir, '*.png')))
-        frames = []
-        for frame_file in frames_file_list:
-            frame = cv2.imread(frame_file)
-            if frame is None:
-                raise ValueError(f"Failed to read frame from {frame_file}")
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame)
-
-        return frames
-
-    def collate_fn(self, batch):
-        """
-        Collates a list of samples into a batch.
-
-        Args:
-            batch (list): List of samples returned by `__getitem__`.
-
-        Returns:
-            tuple: Batched data including videos, labels, video lengths, label lengths, and info.
-        """
-        batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        video, label, info = list(zip(*batch))
-
-        video, video_length = pad_video_sequence(video, batch_first=True, padding_value=0.0)
-        video_length = torch.LongTensor(video_length)
-        label, label_length = pad_label_sequence(label, batch_first=True,
-                                                 padding_value=self.tokenizer.convert_tokens_to_ids(
-                                                     self.tokenizer.pad_token))
-        label_length = torch.LongTensor(label_length)
-        info = [item.name for item in info]
-
-        return video, label, video_length, label_length, info
+    @override
+    def __get_glosses(
+            self,
+            item: pd.DataFrame
+    ) -> [str, list]:
+        return [gloss for gloss in item['annotation'].split(' ') if gloss]

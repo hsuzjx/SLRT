@@ -1,19 +1,15 @@
-import glob
 import os
 import pickle
+from typing import override, Union, LiteralString
 
-import cv2
-import h5py
 import pandas as pd
-import torch
-from torch.utils.data import Dataset
 from torchvision.transforms import Compose
 
+from slr.datasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
-from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
-class CSLDailyDataset(Dataset):
+class CSLDailyDataset(BaseDataset):
     """
     Custom Dataset class for loading and processing the CSL Daily dataset.
 
@@ -26,7 +22,6 @@ class CSLDailyDataset(Dataset):
         annotations_dir (str): Path to the directory containing annotation files.
         split_file (str): Path to the file that defines dataset splits.
         mode (list): List of dataset modes ("train", "dev", or "test").
-        sample_list (list): List of sample names filtered by the specified mode.
         transform (callable): Data transformation function for augmentation or normalization.
         tokenizer (object): Tokenizer object for text tokenization.
     """
@@ -64,7 +59,7 @@ class CSLDailyDataset(Dataset):
                                             augmentation or normalization.
             tokenizer (object, optional): Tokenizer object for text tokenization.
         """
-        super().__init__()
+        super().__init__(transform=transform, tokenizer=tokenizer, read_hdf5=read_hdf5)
 
         # Ensure all directory paths are set correctly
         self.features_dir = os.path.join(dataset_dir, 'sentence_frames-512x512/frames_512x512') \
@@ -93,14 +88,14 @@ class CSLDailyDataset(Dataset):
 
         # Load and filter samples based on mode
         splits = pd.read_csv(self.split_file, sep='|', header=0)
-        self.sample_list = splits[splits['split'].isin(self.mode)]['name'].tolist()
+        sample_list = splits[splits['split'].isin(self.mode)]['name'].tolist()
 
         # Special handling for training mode
         if split_file is None and "train" in self.mode:
-            if "S000005_P0004_T00" in self.sample_list:
-                self.sample_list.remove("S000005_P0004_T00")
-            if "S000007_P0003_T00" not in self.sample_list:
-                self.sample_list.append("S000007_P0003_T00")
+            if "S000005_P0004_T00" in sample_list:
+                sample_list.remove("S000005_P0004_T00")
+            if "S000007_P0003_T00" not in sample_list:
+                sample_list.append("S000007_P0003_T00")
 
         # Load annotations and filter by mode
         annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
@@ -109,91 +104,23 @@ class CSLDailyDataset(Dataset):
         with open(annotation_file, 'rb') as f:
             data = pickle.load(f)
         info = pd.DataFrame(data['info'])
-        self.info = info[info['name'].isin(self.sample_list)]
+        self.info = info[info['name'].isin(sample_list)]
+        self.info.set_index("name", inplace=True)
 
-        # Set transform and tokenizer
-        self.transform = transform
-        self.tokenizer = tokenizer
-
-        self.read_hdf5 = read_hdf5
-
-    def __len__(self):
-        """
-        Returns the number of samples in the dataset.
-        """
-        return len(self.info)
-
-    def __getitem__(self, idx):
-        """
-        Retrieves a sample at the specified index.
-
-        Args:
-            idx (int): Index of the sample.
-
-        Returns:
-            tuple: A tuple containing the processed image and corresponding label.
-        """
-        item = self.info.iloc[idx]
-        frames_dir = os.path.join(self.features_dir, item['name'])
-        if not os.path.exists(frames_dir):
-            raise FileNotFoundError(f"Frames directory not found at {frames_dir}")
-
-        if self.read_hdf5:
-            # frames = torch.load(os.path.join(frames_dir, 'video.pt'))
-            with h5py.File(os.path.join(frames_dir, "video.h5"), 'r') as f:
-                frames = f['data'][:]
-            frames = torch.from_numpy(frames)
+    @override
+    def __get_frames_subdir_filename(
+            self,
+            item: pd.DataFrame,
+            filename: bool = True
+    ) -> Union[LiteralString, str, bytes]:
+        if filename:
+            return os.path.join(item.name, "*.jpg")
         else:
-            frames = self._read_frames(frames_dir)
+            return item.name
 
-        glosses = item['label_gloss']
-        if self.transform:
-            frames = self.transform(frames)
-        if self.tokenizer:
-            glosses = self.tokenizer.encode(glosses)
-
-        return frames, glosses, item
-
-    def _read_frames(self, frames_dir):
-        """
-        Reads video frames from the specified directory.
-
-        Args:
-            frames_dir (str): Directory containing video frames.
-
-        Returns:
-            list: List of frames read from the directory.
-        """
-        frames_file_list = sorted(glob.glob(os.path.join(frames_dir, '*.jpg')))
-        frames = []
-        for frame_file in frames_file_list:
-            frame = cv2.imread(frame_file)
-            if frame is None:
-                raise ValueError(f"Failed to read frame from {frame_file}")
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            frames.append(frame)
-
-        return frames
-
-    def collate_fn(self, batch):
-        """
-        Collates a list of samples into a batch.
-
-        Args:
-            batch (list): List of samples returned by `__getitem__`.
-
-        Returns:
-            tuple: Batched data including videos, labels, video lengths, label lengths, and info.
-        """
-        batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        video, label, info = list(zip(*batch))
-
-        video, video_length = pad_video_sequence(video, batch_first=True, padding_value=0.0)
-        video_length = torch.LongTensor(video_length)
-        label, label_length = pad_label_sequence(label, batch_first=True,
-                                                 padding_value=self.tokenizer.convert_tokens_to_ids(
-                                                     self.tokenizer.pad_token))
-        label_length = torch.LongTensor(label_length)
-        info = [item['name'] for item in info]
-
-        return video, label, video_length, label_length, info
+    @override
+    def __get_glosses(
+            self,
+            item: pd.DataFrame
+    ) -> [str, list]:
+        return item['label_gloss']
