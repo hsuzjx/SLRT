@@ -72,9 +72,11 @@ if __name__ == '__main__':
 
     parser.add_argument("--json-to-pkl", action='store_true',
                         help="Convert json files to pickle files")
+    parser.add_argument("--only-keypoints", action='store_true',
+                        help="Only save the information of keypoints")
 
     args = parser.parse_args()
 
     extractor = CSLDailyPoseExtractor(args.model, args.device, args.save_dir)
     extractor.init_dataset(args.dataset_dir, args.features_dir, args.annotations_dir)
-    extractor.execute(args.max_workers, json_to_pkl=args.json_to_pkl)
+    extractor.execute(args.max_workers, json_to_pkl=args.json_to_pkl, only_keypoints=args.only_keypoints)

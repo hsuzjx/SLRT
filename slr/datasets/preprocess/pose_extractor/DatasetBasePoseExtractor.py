@@ -51,7 +51,7 @@ class DatasetBasePoseExtractor(PoseExtractor):
     def _get_frames_subdir(self, item):
         pass
 
-    def execute(self, max_workers=4, json_to_pkl=False):
+    def execute(self, max_workers=4, json_to_pkl=False, only_keypoints=False):
         if self.info is None:
             raise ValueError("Dataset not initialized. Please call init_dataset() before executing.")
 
@@ -73,7 +73,7 @@ class DatasetBasePoseExtractor(PoseExtractor):
                 future.result()
         print(f"Skipped {len(self.skipped_items)} items.\nSkipped items: {self.skipped_items}")
 
-        self._save_pkl()
+        self._save_pkl(only_keypoints=only_keypoints)
 
     def _json_to_pkl(self, item):
         jsons_dir = os.path.join(self.save_dir, self._get_frames_subdir(item))
@@ -128,7 +128,7 @@ class DatasetBasePoseExtractor(PoseExtractor):
             f.write(f"mmdet version: {mmdet.__version__}\n")
             f.write(f"mmcv version: {mmcv.__version__}\n")
 
-    def _save_pkl(self):
+    def _save_pkl(self, only_keypoints=False):
         assert len(self.keypoints) == len(self.info) - len(self.skipped_items)
 
         save_data = {}
@@ -146,7 +146,10 @@ class DatasetBasePoseExtractor(PoseExtractor):
                 video_kps_list.append([keypoints[i] + [keypoint_scores[i]] for i in range(len(keypoints))])
 
             kps_array = np.array(video_kps_list, dtype=np.float16)
-            save_data[name] = {'keypoints': kps_array}
+            if only_keypoints:
+                save_data[name] = {'keypoints': kps_array}
+            else:
+                save_data[name] = {'keypoints': kps_array, **self.info.loc[name].to_dict()}
 
         assert len(save_data) == len(self.info) - len(self.skipped_items)
 
