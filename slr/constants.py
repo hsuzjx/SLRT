@@ -6,7 +6,7 @@ import slr.models
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'SwinBertSLR_CSL-Daily_experiment.yaml'
+CONFIG_NAME = 'CorrNet_CSL-Daily_experiment.yaml'
 
 # TokenizerDict = {
 #
@@ -15,7 +15,10 @@ CONFIG_NAME = 'SwinBertSLR_CSL-Daily_experiment.yaml'
 DataModuleClassDict = {
     "phoenix2014": slr.datasets.Phoenix2014DataModule,
     "phoenix2014T": slr.datasets.Phoenix2014TDataModule,
-    "csl-daily": slr.datasets.CSLDailyDataModule
+    "csl-daily": slr.datasets.CSLDailyDataModule,
+    "phoenix2014-keypoint": slr.datasets.Phoenix2014KeypointDataModule,
+    "phoenix2014T-keypoint": slr.datasets.Phoenix2014TKeypointDataModule,
+    "csl-daily-keypoint": slr.datasets.CSLDailyKeypointDataModule,
 }
 
 ModelClassDict = {

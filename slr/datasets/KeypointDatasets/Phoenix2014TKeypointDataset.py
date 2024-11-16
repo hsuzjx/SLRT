@@ -1,4 +1,4 @@
-from typing import override
+from typing_extensions import override
 
 from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
 
@@ -26,5 +26,5 @@ class Phoenix2014TKeypointDataset(KeypointBaseDataset):
         self.kps_info_keys = sorted([n for n in self.kps_info.keys() if self.kps_info[n]["split"] in self.mode])
 
     @override
-    def __get_glosses(self, item) -> [str, list]:
+    def _get_glosses(self, item) -> [str, list]:
         return [gloss for gloss in item['orth'].split(' ') if gloss]

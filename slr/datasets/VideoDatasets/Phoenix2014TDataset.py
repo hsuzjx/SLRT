@@ -1,8 +1,10 @@
 import os
-from typing import override, Union, LiteralString
+from typing import Union
 
 import pandas as pd
 from torchvision.transforms import Compose
+from typing_extensions import LiteralString
+from typing_extensions import override
 
 from slr.datasets.VideoDatasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
@@ -87,7 +89,7 @@ class Phoenix2014TDataset(BaseDataset):
         #         self.info.drop("13April_2011_Wednesday_tagesschau_default-14", axis=0, inplace=True)
 
     @override
-    def __get_frames_subdir_filename(
+    def _get_frames_subdir_filename(
             self,
             item: pd.DataFrame,
             filename: bool = True
@@ -97,7 +99,7 @@ class Phoenix2014TDataset(BaseDataset):
         return os.path.join(item["split"], item.name)
 
     @override
-    def __get_glosses(
+    def _get_glosses(
             self,
             item: pd.DataFrame
     ) -> [str, list]:

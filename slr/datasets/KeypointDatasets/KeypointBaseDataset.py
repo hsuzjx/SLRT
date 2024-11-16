@@ -70,7 +70,7 @@ class KeypointBaseDataset(Dataset):
         return kps, glosses, name
 
     @abstractmethod
-    def __get_glosses(self, item) -> [str, list]:
+    def _get_glosses(self, item) -> [str, list]:
         pass
 
     def collate_fn(self, batch):

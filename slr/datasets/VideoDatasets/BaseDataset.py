@@ -1,7 +1,7 @@
 import glob
 import os
 from abc import abstractmethod
-from typing import LiteralString, Union
+from typing import Union
 
 import cv2
 import h5py
@@ -9,6 +9,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from torchvision.transforms import Compose
+from typing_extensions import LiteralString
 
 from slr.datasets.transforms import ToTensor
 from slr.datasets.utils import pad_video_sequence, pad_label_sequence
@@ -64,15 +65,17 @@ class BaseDataset(Dataset):
 
         if self.read_hdf5:
             # frames = torch.load(os.path.join(frames_dir, 'video.pt'))
-            with h5py.File(os.path.join(self.features_dir,
-                                        self.__get_frames_subdir_filename(item, filename=False),
-                                        "video.h5"), 'r') as f:
+            with h5py.File(os.path.join(
+                    self.features_dir,
+                    self._get_frames_subdir_filename(item, filename=False),
+                    "video.h5"
+            ), 'r') as f:
                 frames = f['data'][:]
             frames = torch.from_numpy(frames)
         else:
             frames = self.__read_frames(item)
 
-        glosses = self.__get_glosses(item)
+        glosses = self._get_glosses(item)
         if self.transform:
             frames = self.transform(frames)
         if self.tokenizer:
@@ -81,7 +84,7 @@ class BaseDataset(Dataset):
         return frames, glosses, item
 
     @abstractmethod
-    def __get_frames_subdir_filename(
+    def _get_frames_subdir_filename(
             self,
             item: pd.DataFrame,
             filename: bool = True
@@ -89,7 +92,7 @@ class BaseDataset(Dataset):
         pass
 
     @abstractmethod
-    def __get_glosses(
+    def _get_glosses(
             self,
             item: pd.DataFrame
     ) -> [str, list]:
@@ -105,10 +108,11 @@ class BaseDataset(Dataset):
         Returns:
             list: List of frames read from the directory.
         """
-        frames_file_list = sorted(glob.glob(os.path.join(
-            self.features_dir,
-            self.__get_frames_subdir_filename(item, filename=True)
-        )))
+        frames_file_list = sorted(
+            glob.glob(os.path.join(
+                self.features_dir,
+                self._get_frames_subdir_filename(item, filename=True)
+            )))
         frames = []
         for frame_file in frames_file_list:
             frame = cv2.imread(frame_file)

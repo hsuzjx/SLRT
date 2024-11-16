@@ -1,5 +1,6 @@
 import os
-from typing import override
+
+from typing_extensions import override
 
 from slr.datasets.KeypointDatasets.CSLDailyKeypointDataset import CSLDailyKeypointDataset
 from slr.datasets.KeypointDatasets.KeypointBaseDataModule import KeypointBaseDataModule

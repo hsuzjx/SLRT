@@ -1,9 +1,11 @@
 import os
 import pickle
-from typing import override, Union, LiteralString
+from typing import Union
 
 import pandas as pd
 from torchvision.transforms import Compose
+from typing_extensions import LiteralString
+from typing_extensions import override
 
 from slr.datasets.VideoDatasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
@@ -108,7 +110,7 @@ class CSLDailyDataset(BaseDataset):
         self.info.set_index("name", inplace=True)
 
     @override
-    def __get_frames_subdir_filename(
+    def _get_frames_subdir_filename(
             self,
             item: pd.DataFrame,
             filename: bool = True
@@ -118,7 +120,7 @@ class CSLDailyDataset(BaseDataset):
         return item.name
 
     @override
-    def __get_glosses(
+    def _get_glosses(
             self,
             item: pd.DataFrame
     ) -> [str, list]:

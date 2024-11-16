@@ -3,7 +3,7 @@
 dataset_dir: "../data/phoenix2014"
 
 # special dirs
-#features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
+features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
 #features_dir: "/media/xzj23/disk-zj-ext4/transformed_data/phoenix2014_features"
 #annotations_dir: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
 

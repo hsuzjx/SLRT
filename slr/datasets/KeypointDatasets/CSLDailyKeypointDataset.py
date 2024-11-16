@@ -1,7 +1,7 @@
 import os
-from typing import override
 
 import pandas as pd
+from typing_extensions import override
 
 from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
 
@@ -46,5 +46,5 @@ class CSLDailyKeypointDataset(KeypointBaseDataset):
         self.kps_info_keys = sorted(sample_list)
 
     @override
-    def __get_glosses(self, item) -> [str, list]:
+    def _get_glosses(self, item) -> [str, list]:
         return item['label_gloss']

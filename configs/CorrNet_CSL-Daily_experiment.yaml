@@ -18,7 +18,7 @@ hydra:
 
 
 # 项目相关配置
-project: CSL-Daily_new
+project: CSL-Daily_debug
 name: CorrNet
 times: 1
 
