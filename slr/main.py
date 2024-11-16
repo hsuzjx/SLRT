@@ -27,6 +27,7 @@ def main(cfg: DictConfig):
     data modules, then trains and tests the model based on the provided config.
     """
     #######################################################################################
+    ##################### Set PyTorch Configurations and Random Seed ######################
     # Set num threads
     torch_num_threads = cfg.get('torch_num_threads', psutil.cpu_count(logical=False))
     torch.set_num_threads(torch_num_threads)
@@ -38,6 +39,7 @@ def main(cfg: DictConfig):
     set_seed(seed, workers=True)
 
     #######################################################################################
+    ##################### Define Experiment Details #######################################
     # Define project, name, and times
     project = cfg.get('project', 'default_project')
     name = cfg.get('name', 'default_name')
@@ -49,18 +51,20 @@ def main(cfg: DictConfig):
     # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
     os.makedirs(save_dir, exist_ok=True)
-    #
+    # Checkpoint file
     ckpt_file = cfg.get('checkpoint', None)
     # Is convert_to_onnx enabled?
     is_save_onnx = cfg.get('convert_to_onnx', False)
 
     #######################################################################################
+    ##################### Load Dataset Configurations #####################################
     data_cfgs = cfg.dataset.get('data_cfgs', None)
     kps_file = cfg.dataset.get('keypoints_file', None)
     gloss_gt_file = cfg.dataset.get('gloss_groundtruth_file', None)
     gloss_vocab_file = cfg.dataset.get('gloss_vocab_file', None)
 
     #######################################################################################
+    ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
     tokenizer = SimpleTokenizer(vocab_file=gloss_vocab_file, **cfg.tokenizer)
     # tokenizer = transformers.BertTokenizer.from_pretrained('/new_home/xzj23/workspace/SLR/.cache/huggingface/bert-base-german-dbmdz-uncased')
@@ -68,6 +72,7 @@ def main(cfg: DictConfig):
     evaluator = Evaluator(gt_file=gloss_gt_file, dataset=dataset_name, **cfg.evaluator)
 
     #######################################################################################
+    ##################### Initialize WandbLogger ##########################################
     # Initialize WandbLogger
     wandb.require("core")
     wandb_logger = WandbLogger(
@@ -78,6 +83,7 @@ def main(cfg: DictConfig):
     )
 
     #######################################################################################
+    ##################### Initialize Datamodule ###########################################
     # Initialize data module
     if dataset_type == 'video':
         data_module = DataModuleClassDict[dataset_name](
@@ -97,6 +103,7 @@ def main(cfg: DictConfig):
         raise ValueError(f"Unsupported dataset type: {dataset_type}")
 
     #######################################################################################
+    ##################### Initialize Model ################################################
     # Initialize model
     model = ModelClassDict[model_name](
         save_dir=save_dir,
@@ -106,6 +113,7 @@ def main(cfg: DictConfig):
     )
 
     #######################################################################################
+    ##################### Initialize Trainer; Train and Test ##############################
     # Initialize trainer
     trainer = L.Trainer(
         logger=wandb_logger,
@@ -127,6 +135,7 @@ def main(cfg: DictConfig):
     trainer.test(model, datamodule=data_module, ckpt_path=best_model_path)
 
     #######################################################################################
+    ##################### Finish W&B ######################################################
     # Ensure wandb.finish() is called
     try:
         wandb.finish()
@@ -134,6 +143,7 @@ def main(cfg: DictConfig):
         print(f"wandb.finish() encountered an issue: {finish_error}")
 
     #######################################################################################
+    ##################### Convert to ONNX #################################################
     # Optionally convert model to ONNX format
     if is_save_onnx and trainer.is_global_zero:
         onnx_save_dir = os.path.join(save_dir, 'onnx')
