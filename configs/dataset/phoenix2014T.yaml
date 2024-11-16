@@ -1,14 +1,19 @@
 # configs/dataset/phoenix2014T.yaml
 
-dataset_dir: "../data/phoenix2014T"
+data_cfgs:
+  dataset_dir: "../data/phoenix2014T"
+  features_dir: "../data/preprocess/phoenix2014T/frames_256x256"
+  #features_dir: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-256x256px"
+  #annotations_dir: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
 
-# special dirs
-features_dir: "../data/preprocess/phoenix2014T/frames_256x256"
-#features_dir: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-256x256px"
-#annotations_dir: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
+# keypoints
+keypoints_file: "../data/keypoints/kps_info/phoenix2014t-keypoints.pkl"
 
-# dataloader params
-batch_size: 2
-num_workers: 8
+# groundtruth
+gloss_groundtruth_file:
+  train: ../data/global_files/ground_truth/phoenix2014T-groundtruth-train_sorted.stm
+  dev: ../data/global_files/ground_truth/phoenix2014T-groundtruth-dev_sorted.stm
+  test: ../data/global_files/ground_truth/phoenix2014T-groundtruth-test_sorted.stm
 
-read_hdf5: false
+# vocab
+gloss_vocab_file: ../slr/datasets/vocabs/phoenix2014T_gloss_vocab.txt

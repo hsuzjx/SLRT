@@ -2,10 +2,11 @@
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - dataset: csl-daily # 数据集配置
-  - tokenizer: csl-daily
+  - dataloader: default
+  - tokenizer: simple_tokenizer
   - model: SLTransformer # 模型配置
   - decoder: ctc_beam_search
-  - evaluator: csl-daily
+  - evaluator: sclite
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
 
@@ -24,6 +25,7 @@ times: 1
 
 model_name: SLTransformer
 dataset_name: csl-daily
+dataset_type: "video"
 
 checkpoint: null # if null, no checkpoint loading
 

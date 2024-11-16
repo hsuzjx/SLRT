@@ -1,4 +1,0 @@
-# configs/tokenizer/csl-daily.yaml
-
-vocab_file: ../slr/datasets/vocabs/csl-daily_gloss_vocab.txt
-

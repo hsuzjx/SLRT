@@ -1,0 +1,6 @@
+# configs/dataloader/default.yaml
+
+batch_size: 2
+num_workers: 8
+
+read_hdf5: false

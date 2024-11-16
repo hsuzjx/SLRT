@@ -1,0 +1,4 @@
+# configs/evaluator/sclite.yaml
+
+sclite_bin: '../.bin/sclite'
+cleanup: false

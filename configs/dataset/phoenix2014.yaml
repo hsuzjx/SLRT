@@ -1,14 +1,19 @@
 # configs/dataset/phoenix2014.yaml
 
-dataset_dir: "../data/phoenix2014"
+data_cfgs:
+  dataset_dir: "../data/phoenix2014"
+  features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
+  #features_dir: "/media/xzj23/disk-zj-ext4/transformed_data/phoenix2014_features"
+  #annotations_dir: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
 
-# special dirs
-features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
-#features_dir: "/media/xzj23/disk-zj-ext4/transformed_data/phoenix2014_features"
-#annotations_dir: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
+# keypoints
+keypoints_file: "../data/keypoints/kps_info/phoenix2014-keypoints.pkl"
 
-# dataloader params
-batch_size: 2
-num_workers: 8
+# groundtruth
+gloss_groundtruth_file:
+  train: ../data/global_files/ground_truth/phoenix2014-groundtruth-train_sorted.stm
+  dev: ../data/global_files/ground_truth/phoenix2014-groundtruth-dev_sorted.stm
+  test: ../data/global_files/ground_truth/phoenix2014-groundtruth-test_sorted.stm
 
-read_hdf5: false
+# vocab
+gloss_vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt

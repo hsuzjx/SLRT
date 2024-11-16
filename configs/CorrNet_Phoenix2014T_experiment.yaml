@@ -2,10 +2,11 @@
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - dataset: phoenix2014T # 数据集配置
-  - tokenizer: phoenix2014T
+  - dataloader: default
+  - tokenizer: simple_tokenizer
   - model: CorrNet # 模型配置
   - decoder: ctc_beam_search
-  - evaluator: phoenix2014T
+  - evaluator: sclite
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
 
@@ -24,6 +25,7 @@ times: 2
 
 model_name: CorrNet
 dataset_name: phoenix2014T
+dataset_type: "video"
 
 checkpoint: null # if null, no checkpoint loading
 
