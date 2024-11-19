@@ -1,0 +1,4 @@
+# configs/decoder/tf_ctc_beam_search.yaml
+
+beam_width: 1
+top_paths: 1

@@ -15,6 +15,7 @@ from slr.constants import DataModuleClassDict, ModelClassDict, transform, CONFIG
 from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
 from slr.evaluation import Evaluator
 from slr.models.decoders import CTCBeamSearchDecoder
+from slr.models.decoders.TFCTCBeamSearchDecoder import TFCTCBeamSearchDecoder
 from slr.utils import convert_to_onnx, set_seed
 
 
@@ -68,7 +69,7 @@ def main(cfg: DictConfig):
     # Initialize tokenizer, decoder, and evaluator
     tokenizer = SimpleTokenizer(vocab_file=gloss_vocab_file, **cfg.tokenizer)
     # tokenizer = transformers.BertTokenizer.from_pretrained('/new_home/xzj23/workspace/SLR/.cache/huggingface/bert-base-german-dbmdz-uncased')
-    ctc_decoder = CTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
+    ctc_decoder = TFCTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
     evaluator = Evaluator(gt_file=gloss_gt_file, dataset=dataset_name, **cfg.evaluator)
 
     #######################################################################################

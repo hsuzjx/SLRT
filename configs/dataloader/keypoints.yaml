@@ -1,0 +1,4 @@
+batch_size: 8
+num_workers: 8
+
+read_hdf5: false

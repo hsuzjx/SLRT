@@ -1,5 +1,5 @@
 import torch
-from torchvision.transforms import Compose, RandomCrop, RandomHorizontalFlip, Normalize, CenterCrop
+from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizontalFlip, CenterCrop
 
 import slr.datasets
 import slr.models
@@ -25,6 +25,7 @@ ModelClassDict = {
     "CorrNet": slr.models.CorrNet,
     # "SLRTransformer": slr.models.SLRTransformer,
     "SwinBertSLR": slr.models.SwinBertSLR,
+    "MSKA": slr.models.MSKA,
 }
 
 InputSampleDict = {
@@ -34,6 +35,7 @@ InputSampleDict = {
         torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu'),
         torch.randn(1, 100, 512), torch.LongTensor([10])
     ),
+    "MSKA": ()
 }
 
 transform = {
@@ -47,4 +49,11 @@ transform = {
 #     'train': Compose([RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2)]),
 #     'dev': Compose([CenterCrop(224)]),
 #     'test': Compose([CenterCrop(224)])
+# }
+
+# kps
+# transform = {
+#     'train': None,
+#     'dev': None,
+#     'test': None
 # }
