@@ -4,7 +4,6 @@ import subprocess
 import sys
 from datetime import datetime
 
-import fcntl
 from omegaconf import DictConfig
 
 from slr.evaluation.utils import clean_phoenix_2014, clean_phoenix_2014_trans
@@ -15,7 +14,7 @@ DatasetCleanFunctionDict = {
 }
 
 
-class Evaluator:
+class ScliteEvaluator:
     """
     Evaluation class for processing and evaluating hypothesis against ground truth files.
 

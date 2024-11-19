@@ -1,4 +1,5 @@
 import torch
+import transformers
 from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizontalFlip, CenterCrop
 
 import slr.datasets
@@ -6,11 +7,7 @@ import slr.models
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_CSL-Daily_experiment.yaml'
-
-# TokenizerDict = {
-#
-# }
+CONFIG_NAME = 'CorrNet_Phoenix2014T_experiment.yaml'
 
 DataModuleClassDict = {
     "phoenix2014": slr.datasets.Phoenix2014DataModule,
@@ -23,7 +20,6 @@ DataModuleClassDict = {
 
 ModelClassDict = {
     "CorrNet": slr.models.CorrNet,
-    # "SLRTransformer": slr.models.SLRTransformer,
     "SwinBertSLR": slr.models.SwinBertSLR,
     "MSKA": slr.models.MSKA,
 }
@@ -38,22 +34,31 @@ InputSampleDict = {
     "MSKA": ()
 }
 
-transform = {
-    # 'train': Compose([ToTensor(), RandomCrop(224),]),
-    'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2),
-                      Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
-    'dev': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
-    'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
+TokenizerDict = {
+    "SimpleTokenizer": slr.datasets.SimpleTokenizer,
+    "BertTokenizer": transformers.BertTokenizer,
 }
-# transform = {
-#     'train': Compose([RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2)]),
-#     'dev': Compose([CenterCrop(224)]),
-#     'test': Compose([CenterCrop(224)])
-# }
 
-# kps
-# transform = {
-#     'train': None,
-#     'dev': None,
-#     'test': None
-# }
+DecoderDict = {
+    # "CTCBeamSearchDecoder": slr.models.decoders.CTCBeamSearchDecoder,
+    "TFCTCBeamSearchDecoder": slr.models.decoders.TFCTCBeamSearchDecoder,
+}
+
+EvaluatorDict = {
+    "sclite": slr.evaluation.ScliteEvaluator,
+    # "python": None,
+}
+
+TransformDict = {
+    "video": {
+        'train': Compose([ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2),
+                          Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
+        'dev': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])]),
+        'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
+    },
+    "keypoint": {
+        'train': None,
+        'dev': None,
+        'test': None
+    }
+}

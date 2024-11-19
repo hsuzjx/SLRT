@@ -26,6 +26,9 @@ times: 2
 model_name: CorrNet
 dataset_name: phoenix2014
 dataset_type: "video"
+decoder_name: CTCBeamSearchDecoder
+tokenizer_name: SimpleTokenizer
+evaluator_name: sclite
 
 checkpoint: null # if null, no checkpoint loading
 

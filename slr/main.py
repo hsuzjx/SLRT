@@ -6,16 +6,12 @@ import hydra
 import lightning as L
 import psutil
 import torch
-import transformers
 import wandb
 from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
-from slr.constants import DataModuleClassDict, ModelClassDict, transform, CONFIG_PATH, CONFIG_NAME
-from slr.datasets.tknzs.simple_tokenizer import SimpleTokenizer
-from slr.evaluation import Evaluator
-from slr.models.decoders import CTCBeamSearchDecoder
-from slr.models.decoders.TFCTCBeamSearchDecoder import TFCTCBeamSearchDecoder
+from slr.constants import DataModuleClassDict, ModelClassDict, TransformDict, CONFIG_PATH, CONFIG_NAME, TokenizerDict, \
+    DecoderDict, EvaluatorDict
 from slr.utils import convert_to_onnx, set_seed
 
 
@@ -49,6 +45,10 @@ def main(cfg: DictConfig):
     dataset_name = cfg.dataset_name
     dataset_type = cfg.dataset_type
     model_name = cfg.model_name
+    tokenizer_name = cfg.tokenizer_name
+    decoder_name = cfg.decoder_name
+    evaluator_name = cfg.evaluator_name
+
     # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
     os.makedirs(save_dir, exist_ok=True)
@@ -67,10 +67,9 @@ def main(cfg: DictConfig):
     #######################################################################################
     ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
-    tokenizer = SimpleTokenizer(vocab_file=gloss_vocab_file, **cfg.tokenizer)
-    # tokenizer = transformers.BertTokenizer.from_pretrained('/new_home/xzj23/workspace/SLR/.cache/huggingface/bert-base-german-dbmdz-uncased')
-    ctc_decoder = TFCTCBeamSearchDecoder(tokenizer=tokenizer, **cfg.decoder)
-    evaluator = Evaluator(gt_file=gloss_gt_file, dataset=dataset_name, **cfg.evaluator)
+    tokenizer = TokenizerDict[tokenizer_name](vocab_file=gloss_vocab_file, **cfg.tokenizer)
+    ctc_decoder = DecoderDict[decoder_name](tokenizer=tokenizer, **cfg.decoder)
+    evaluator = EvaluatorDict[evaluator_name](gt_file=gloss_gt_file, dataset=dataset_name, **cfg.evaluator)
 
     #######################################################################################
     ##################### Initialize WandbLogger ##########################################
@@ -88,14 +87,14 @@ def main(cfg: DictConfig):
     # Initialize data module
     if dataset_type == 'video':
         data_module = DataModuleClassDict[dataset_name](
-            transform=transform,
+            transform=TransformDict[dataset_type],
             tokenizer=tokenizer,
             **data_cfgs,
             **cfg.dataloader
         )
     elif dataset_type == 'keypoint':
         data_module = DataModuleClassDict[dataset_name](
-            transform=transform,
+            transform=TransformDict[dataset_type],
             tokenizer=tokenizer,
             keypoints_file=kps_file,
             **cfg.dataloader

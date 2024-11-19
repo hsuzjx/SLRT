@@ -26,6 +26,9 @@ times: 2
 model_name: MSKA
 dataset_name: phoenix2014-keypoint
 dataset_type: "keypoint"
+decoder_name: TFCTCBeamSearchDecoder
+tokenizer_name: SimpleTokenizer
+evaluator_name: sclite
 
 checkpoint: null # if null, no checkpoint loading
 

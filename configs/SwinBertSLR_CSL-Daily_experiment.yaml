@@ -25,6 +25,9 @@ times: 12tt
 model_name: SwinBertSLR
 dataset_name: csl-daily
 dataset_type: "video"
+decoder_name: CTCBeamSearchDecoder
+tokenizer_name: SimpleTokenizer
+evaluator_name: sclite
 
 checkpoint: null # if null, no checkpoint loading
 

@@ -1,1 +1,1 @@
-from .Evaluator import Evaluator
+from .ScliteEvaluator import ScliteEvaluator
