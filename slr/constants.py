@@ -40,7 +40,7 @@ TokenizerDict = {
 }
 
 DecoderDict = {
-    # "CTCBeamSearchDecoder": slr.models.decoders.CTCBeamSearchDecoder,
+    "CTCBeamSearchDecoder": slr.models.decoders.CTCBeamSearchDecoder,
     "TFCTCBeamSearchDecoder": slr.models.decoders.TFCTCBeamSearchDecoder,
 }
 

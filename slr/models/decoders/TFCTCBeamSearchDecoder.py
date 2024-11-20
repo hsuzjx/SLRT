@@ -30,7 +30,7 @@ class TFCTCBeamSearchDecoder:
         self.beam_width = beam_width
         self.top_paths = top_paths
 
-    def decode(self, network_output: torch.Tensor, sequence_lengths: torch.Tensor, batch_first: bool = True) -> list:
+    def decode(self, network_output: torch.Tensor, sequence_lengths: torch.Tensor, batch_first: bool = False) -> list:
         """
         Decodes the output of a neural network using beam search.
 
@@ -47,15 +47,15 @@ class TFCTCBeamSearchDecoder:
             list: List of decoded texts.
         """
         # Ensure tensors are on CPU and permute if necessary
-        network_output = network_output.cpu()
-        sequence_lengths = sequence_lengths.cpu()
+        network_output = network_output.detach().cpu()
+        sequence_lengths = sequence_lengths.detach().cpu()
 
         # Convert to TensorFlow
         tf_inputs = tf.convert_to_tensor(network_output.numpy())
         tf_sequence_length = tf.convert_to_tensor(sequence_lengths.numpy(), dtype=tf.int32)
 
         # Permute if necessary
-        if not batch_first:
+        if batch_first:
             tf_inputs = tf.transpose(tf_inputs, perm=[1, 0, 2])
 
         # Perform beam search decoding
@@ -85,7 +85,7 @@ class TFCTCBeamSearchDecoder:
         tmp_gloss_sequences = [[] for i in range(len(tf_sequence_length))]
         for (value_idx, dense_idx) in enumerate(best_beam_result.indices):
             tmp_gloss_sequences[dense_idx[0]].append(
-                best_beam_result.values[value_idx].numpy() + 1
+                best_beam_result.values[value_idx].numpy()
             )
 
         # Process the decoding results

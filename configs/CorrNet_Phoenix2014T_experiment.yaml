@@ -5,7 +5,7 @@ defaults:
   - dataloader: default
   - tokenizer: simple_tokenizer
   - model: CorrNet # 模型配置
-  - decoder: tf_ctc_beam_search
+  - decoder: ctc_beam_search
   - evaluator: sclite
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
@@ -27,7 +27,7 @@ times: 2
 model_name: CorrNet
 dataset_name: phoenix2014T
 dataset_type: "video"
-decoder_name: TFCTCBeamSearchDecoder
+decoder_name: CTCBeamSearchDecoder
 tokenizer_name: SimpleTokenizer
 evaluator_name: sclite
 
