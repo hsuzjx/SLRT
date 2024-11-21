@@ -187,7 +187,8 @@ class SLRBaseModel(L.LightningModule):
         """
         Called at the start of each test epoch.
         """
-        self.file_save_dir = os.path.join(self.hypothesis_save_dir, "test", f"test_best_model_after_epoch_{self.current_epoch}")
+        self.file_save_dir = os.path.join(self.hypothesis_save_dir, "test",
+                                          f"test_best_model_after_epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
         self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
@@ -204,17 +205,15 @@ class SLRBaseModel(L.LightningModule):
         wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
-            all_lines = []
+            all_lines = dict()
             for rank in range(self.trainer.world_size):
                 rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
                 with open(rank_output_file, 'r') as f:
-                    all_lines.extend(f.readlines())
-
-            keys = [line.split()[0] for line in all_lines]
-            assert len(keys) == len(set(keys))
+                    for line in f.readlines():
+                        all_lines[line.split(' ')[0]] = line
 
             with open(self.output_file, 'w') as f:
-                f.writelines(all_lines)
+                f.writelines(list(all_lines.values()))
 
             try:
                 # Call evaluate function to compute WER
@@ -258,16 +257,15 @@ class SLRBaseModel(L.LightningModule):
         wer = torch.tensor([100.0], device=self.device)
 
         if self.trainer.is_global_zero:
-            all_lines = []
+            all_lines = dict()
             for rank in range(self.trainer.world_size):
                 rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
                 with open(rank_output_file, 'r') as f:
-                    all_lines.extend(f.readlines())
-            keys = [line.split()[0] for line in all_lines]
-            assert len(keys) == len(set(keys))
+                    for line in f.readlines():
+                        all_lines[line.split(' ')[0]] = line
 
             with open(self.output_file, 'w') as f:
-                f.writelines(all_lines)
+                f.writelines(list(all_lines.values()))
 
             try:
                 # Call evaluate function to compute WER
