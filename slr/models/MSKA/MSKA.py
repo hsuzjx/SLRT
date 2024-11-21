@@ -2,9 +2,9 @@ from typing import Any
 
 import torch
 
-from slr.models.SLRBaseModel import SLRBaseModel
-from slr.models.modules.mska.DSTA import DSTA
-from slr.models.modules.mska.Visualhead import VisualHead
+from slr.models.BaseModel.SLRBaseModel import SLRBaseModel
+from slr.models.MSKA.modules.DSTA import DSTA
+from slr.models.MSKA.modules.Visualhead import VisualHead
 
 
 class MSKA(SLRBaseModel):

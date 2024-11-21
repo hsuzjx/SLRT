@@ -4,7 +4,7 @@ import torch
 import transformers
 from torch import nn, Tensor
 
-from slr.models.SLRBaseModel import SLRBaseModel
+from slr.models.BaseModel.SLRBaseModel import SLRBaseModel
 
 
 class SLTransformer(SLRBaseModel):

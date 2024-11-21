@@ -3,8 +3,8 @@ from typing import Tuple, Any
 import torch
 from torch import nn
 
-from .SLRBaseModel import SLRBaseModel
-from .modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
+from slr.models.BaseModel import SLRBaseModel
+from slr.models.CorrNet.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 
 
 class CorrNet(SLRBaseModel):

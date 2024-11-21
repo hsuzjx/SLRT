@@ -2,12 +2,10 @@ from typing import Tuple, Any
 
 import torch
 from torch import nn
-from transformers import BertModel, SwinModel
+from transformers import SwinModel
 
-from slr.models.KLDivLoss import KLDivLoss
-from slr.models.aligns.Attention_align import Attention
-from .SLRBaseModel import SLRBaseModel
-from .modules import Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
+from slr.models.BaseModel.SLRBaseModel import SLRBaseModel
+from slr.models.CorrNet.modules import Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 
 
 class SwinBertSLR(SLRBaseModel):

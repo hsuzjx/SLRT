@@ -1,6 +1,6 @@
-from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
-from datasets import load_dataset
 import torch
+from datasets import load_dataset
+from transformers import BertTokenizer, BertForSequenceClassification, Trainer, TrainingArguments
 
 # 自定义词汇表文件路径
 vocab_file = "path/to/custom_vocab.txt"

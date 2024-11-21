@@ -1,7 +1,8 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from slr.models.modules.mska.utils import PositionalEncoding, MaskedNorm, PositionwiseFeedForward, MLPHead
+
+from slr.models.MSKA.modules.utils import PositionalEncoding, MaskedNorm, PositionwiseFeedForward, MLPHead
 
 
 class VisualHead(torch.nn.Module):
