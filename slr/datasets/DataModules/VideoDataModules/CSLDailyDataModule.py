@@ -2,8 +2,8 @@ import os
 
 from typing_extensions import override
 
-from slr.datasets.VideoDatasets.BaseDataModule import BaseDataModule
-from slr.datasets.VideoDatasets.CSLDailyDataset import CSLDailyDataset
+from slr.datasets.DataModules.VideoDataModules.BaseDataModule import BaseDataModule
+from slr.datasets.Datasets.VideoDatasets.CSLDailyDataset import CSLDailyDataset
 
 
 class CSLDailyDataModule(BaseDataModule):

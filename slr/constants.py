@@ -10,12 +10,12 @@ CONFIG_PATH = '../configs'
 CONFIG_NAME = 'CorrNet_Phoenix2014T_experiment.yaml'
 
 DataModuleClassDict = {
-    "phoenix2014": slr.datasets.Phoenix2014DataModule,
-    "phoenix2014T": slr.datasets.Phoenix2014TDataModule,
-    "csl-daily": slr.datasets.CSLDailyDataModule,
-    "phoenix2014-keypoint": slr.datasets.Phoenix2014KeypointDataModule,
-    "phoenix2014T-keypoint": slr.datasets.Phoenix2014TKeypointDataModule,
-    "csl-daily-keypoint": slr.datasets.CSLDailyKeypointDataModule,
+    "phoenix2014": slr.datasets.DataModules.Phoenix2014DataModule,
+    "phoenix2014T": slr.datasets.DataModules.Phoenix2014TDataModule,
+    "csl-daily": slr.datasets.DataModules.CSLDailyDataModule,
+    "phoenix2014-keypoint": slr.datasets.DataModules.Phoenix2014KeypointDataModule,
+    "phoenix2014T-keypoint": slr.datasets.DataModules.Phoenix2014TKeypointDataModule,
+    "csl-daily-keypoint": slr.datasets.DataModules.CSLDailyKeypointDataModule,
 }
 
 ModelClassDict = {
@@ -35,13 +35,13 @@ InputSampleDict = {
 }
 
 TokenizerDict = {
-    "SimpleTokenizer": slr.datasets.SimpleTokenizer,
+    "SimpleTokenizer": slr.datasets.Tokenizers.SimpleTokenizer,
     "BertTokenizer": transformers.BertTokenizer,
 }
 
 DecoderDict = {
-    "CTCBeamSearchDecoder": slr.models.decoders.CTCBeamSearchDecoder,
-    "TFCTCBeamSearchDecoder": slr.models.decoders.TFCTCBeamSearchDecoder,
+    "CTCBeamSearchDecoder": slr.models.CTCBeamSearchDecoder,
+    "TFCTCBeamSearchDecoder": slr.models.TFCTCBeamSearchDecoder,
 }
 
 EvaluatorDict = {

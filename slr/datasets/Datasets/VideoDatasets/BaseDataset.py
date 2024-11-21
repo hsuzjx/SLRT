@@ -11,8 +11,8 @@ from torch.utils.data import Dataset
 from torchvision.transforms import Compose
 from typing_extensions import LiteralString
 
+from slr.datasets.Datasets.utils import pad_video_sequence, pad_label_sequence
 from slr.datasets.transforms import ToTensor
-from slr.datasets.utils import pad_video_sequence, pad_label_sequence
 
 
 class BaseDataset(Dataset):

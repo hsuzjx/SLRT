@@ -2,8 +2,8 @@ import os
 
 from typing_extensions import override
 
-from slr.datasets.KeypointDatasets.CSLDailyKeypointDataset import CSLDailyKeypointDataset
-from slr.datasets.KeypointDatasets.KeypointBaseDataModule import KeypointBaseDataModule
+from slr.datasets.DataModules.KeypointDataModules.KeypointBaseDataModule import KeypointBaseDataModule
+from slr.datasets.Datasets.KeypointDatasets.CSLDailyKeypointDataset import CSLDailyKeypointDataset
 
 
 class CSLDailyKeypointDataModule(KeypointBaseDataModule):

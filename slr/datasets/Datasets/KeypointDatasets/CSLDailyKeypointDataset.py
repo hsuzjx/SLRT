@@ -1,9 +1,9 @@
 from typing_extensions import override
 
-from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
+from slr.datasets.Datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
 
 
-class Phoenix2014TKeypointDataset(KeypointBaseDataset):
+class CSLDailyKeypointDataset(KeypointBaseDataset):
     """
     """
 
@@ -27,4 +27,4 @@ class Phoenix2014TKeypointDataset(KeypointBaseDataset):
 
     @override
     def _get_glosses(self, item) -> [str, list]:
-        return [gloss for gloss in item['orth'].split(' ') if gloss]
+        return item['label_gloss']

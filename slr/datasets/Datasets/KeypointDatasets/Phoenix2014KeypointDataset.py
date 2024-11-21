@@ -1,12 +1,9 @@
-import os
-
-import pandas as pd
 from typing_extensions import override
 
-from slr.datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
+from slr.datasets.Datasets.KeypointDatasets.KeypointBaseDataset import KeypointBaseDataset
 
 
-class CSLDailyKeypointDataset(KeypointBaseDataset):
+class Phoenix2014KeypointDataset(KeypointBaseDataset):
     """
     """
 
@@ -30,4 +27,4 @@ class CSLDailyKeypointDataset(KeypointBaseDataset):
 
     @override
     def _get_glosses(self, item) -> [str, list]:
-        return item['label_gloss']
+        return [gloss for gloss in item['annotation'].split(' ') if gloss]

@@ -3,11 +3,11 @@ import glob
 import os
 
 import cv2
+import h5py
 import pandas as pd
+import torch
 from torchvision.transforms import Compose, ToTensor, Resize, Normalize
 from tqdm import tqdm
-import torch
-import h5py
 
 
 class Phoenix2014Preprocesser:

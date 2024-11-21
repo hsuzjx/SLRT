@@ -2,8 +2,8 @@ import os
 
 from typing_extensions import override
 
-from slr.datasets.KeypointDatasets.KeypointBaseDataModule import KeypointBaseDataModule
-from slr.datasets.KeypointDatasets.Phoenix2014KeypointDataset import Phoenix2014KeypointDataset
+from slr.datasets.DataModules.KeypointDataModules.KeypointBaseDataModule import KeypointBaseDataModule
+from slr.datasets.Datasets.KeypointDatasets.Phoenix2014KeypointDataset import Phoenix2014KeypointDataset
 
 
 class Phoenix2014KeypointDataModule(KeypointBaseDataModule):

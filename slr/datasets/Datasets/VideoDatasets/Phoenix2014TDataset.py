@@ -6,7 +6,7 @@ from torchvision.transforms import Compose
 from typing_extensions import LiteralString
 from typing_extensions import override
 
-from slr.datasets.VideoDatasets.BaseDataset import BaseDataset
+from slr.datasets.Datasets.VideoDatasets.BaseDataset import BaseDataset
 from slr.datasets.transforms import ToTensor
 
 
