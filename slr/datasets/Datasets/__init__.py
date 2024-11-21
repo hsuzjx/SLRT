@@ -1,3 +1,3 @@
-import utils
+from . import utils
 from .KeypointDatasets import *
 from .VideoDatasets import *

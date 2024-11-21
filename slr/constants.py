@@ -2,8 +2,7 @@ import torch
 import transformers
 from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizontalFlip, CenterCrop
 
-import slr.datasets
-import slr.models
+import slr
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
 CONFIG_PATH = '../configs'
