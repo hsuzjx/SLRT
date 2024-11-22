@@ -1,3 +1,4 @@
+import argparse
 import os
 import pickle
 from typing import Union
@@ -34,7 +35,7 @@ class CSLDailyPreprocessor(BasePreprocessor):
             raise FileNotFoundError(f"Split file not found at {self.split_file}")
 
         # Load and filter samples based on mode
-        splits = pd.read_csv(split_file, sep='|', header=0, index_col='name')
+        splits = pd.read_csv(self.split_file, sep='|', header=0, index_col='name')
         if "S000005_P0004_T00" in splits.index and "S000007_P0003_T00" not in splits.index:
             splits = splits.rename(index={"S000005_P0004_T00": "S000007_P0003_T00"})
 
@@ -46,6 +47,59 @@ class CSLDailyPreprocessor(BasePreprocessor):
         info = pd.DataFrame(data['info']).set_index('name')
 
         self.info = pd.concat([info, splits], axis=1)
+
+        self.gloss_map = data['gloss_map']
+        self.char_map = data['char_map']
+        self.word_map = data['word_map']
+        self.postag_map = data['postag_map']
+
+    @override
+    def generate_gloss_vocab(self, output_dir: str):
+        self._check_recognization()
+
+        output_dir = os.path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, f"{self.name.lower()}-gloss-vocab.txt")
+
+        if os.path.exists(output_file):
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            if overwrite.lower() != 'y':
+                print("File not overwritten.")
+                return False
+            else:
+                print("Overwriting file...")
+                os.remove(output_file)
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for gloss in self.gloss_map:
+                f.write(f"{gloss}\n")
+
+        if os.path.exists(output_file):
+            print(f"Gloss vocab file saved at {output_file}")
+
+    @override
+    def generate_word_vocab(self, output_dir: str):
+        self._check_translation()
+
+        output_dir = os.path.abspath(output_dir)
+        os.makedirs(output_dir, exist_ok=True)
+        output_file = os.path.join(output_dir, f"{self.name.lower()}-word-vocab.txt")
+
+        if os.path.exists(output_file):
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            if overwrite.lower() != 'y':
+                print("File not overwritten.")
+                return False
+            else:
+                print("Overwriting file...")
+                os.remove(output_file)
+
+        with open(output_file, 'w', encoding='utf-8') as f:
+            for word in self.word_map:
+                f.write(f"{word}\n")
+
+        if os.path.exists(output_file):
+            print(f"Word vocab file saved at {output_file}")
 
     @override
     def _get_frames_subdir_filename(
@@ -76,10 +130,34 @@ class CSLDailyPreprocessor(BasePreprocessor):
 
     @override
     def _get_singer(self, item: pd.Series) -> str:
-        return item['signer']
+        return f"Signer{item['signer']}"
 
     def _get_postags(self, item: pd.Series) -> list[str]:
         return item['label_postag']
 
     def _get_chars(self, item: pd.Series) -> list[str]:
         return item['label_char']
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset-dir", type=str,
+                        default="../../../data/csl-daily",
+                        help="Path to the dataset directory")
+    parser.add_argument("--output-dir", type=str,
+                        default="../../../data/preprocessed/csl-daily",
+                        help="Output directory")
+
+    args = parser.parse_args()
+
+    processor = CSLDailyPreprocessor(dataset_dir=os.path.abspath(args.dataset_dir))
+
+    output_dir = os.path.abspath(args.output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # processor.resize_frames(output_dir=output_dir, dsize=(224, 224), max_workers=8)
+    processor.generate_gloss_vocab(output_dir=output_dir)
+    processor.generate_glosses_groundtruth(output_dir=output_dir)
+    processor.generate_word_vocab(output_dir=output_dir)
+    processor.generate_translation_groundtruth(output_dir=output_dir)

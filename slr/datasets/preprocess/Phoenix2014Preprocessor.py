@@ -1,3 +1,4 @@
+import argparse
 import os
 from typing import Union
 
@@ -67,4 +68,26 @@ class Phoenix2014Preprocessor(BasePreprocessor):
 
     @override
     def _get_singer(self, item: pd.Series) -> str:
-        return item["singer"]
+        return item["signer"]
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument("--dataset-dir", type=str,
+                        default="../../../data/phoenix2014",
+                        help="Path to the dataset directory")
+    parser.add_argument("--output-dir", type=str,
+                        default="../../../data/preprocessed/phoenix2014",
+                        help="Output directory")
+
+    args = parser.parse_args()
+
+    processor = Phoenix2014Preprocessor(dataset_dir=os.path.abspath(args.dataset_dir))
+
+    output_dir = os.path.abspath(args.output_dir)
+    os.makedirs(output_dir, exist_ok=True)
+
+    # processor.resize_frames(output_dir=output_dir, dsize=(224, 224), max_workers=8)
+    processor.generate_gloss_vocab(output_dir=output_dir)
+    processor.generate_glosses_groundtruth(output_dir=output_dir)

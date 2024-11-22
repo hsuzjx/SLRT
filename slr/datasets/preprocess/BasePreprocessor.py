@@ -66,7 +66,7 @@ class BasePreprocessor:
             img = cv2.imread(frame)
             img_resized = cv2.resize(img, dsize=dsize, interpolation=cv2.INTER_LANCZOS4)
             saved_file = os.path.join(
-                output_dir,
+                output_dir, f"frames-{dsize[0]}x{dsize[1]}px",
                 self._get_frames_subdir_filename(item, filename=False),
                 os.path.basename(frame)
             )
@@ -78,28 +78,57 @@ class BasePreprocessor:
 
         output_dir = os.path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, f"{self.name.lower()}_gloss_vocab.txt")
+        output_file = os.path.join(output_dir, f"{self.name.lower()}-gloss-vocab.txt")
+
+        if os.path.exists(output_file):
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            if overwrite.lower() != 'y':
+                print("File not overwritten.")
+                return False
+            else:
+                print("Overwriting file...")
+                os.remove(output_file)
 
         sentence_list = [self._get_glosses(item) for _, item in self.info.iterrows()]
-        glosses = sorted({gloss for sentence in sentence_list for gloss in sentence})
+        glosses = list({gloss for sentence in sentence_list for gloss in sentence})
+        glosses = self._sort_vocab(glosses)
 
         with open(output_file, "w") as f:
             for gloss in glosses:
                 f.write(f"{gloss}\n")
+
+        if os.path.exists(output_file):
+            print(f"Sorted gloss vocab file saved at {output_file}")
 
     def generate_word_vocab(self, output_dir: str):
         self._check_translation()
 
         output_dir = os.path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
-        output_file = os.path.join(output_dir, f"{self.name.lower()}_word_vocab.txt")
+        output_file = os.path.join(output_dir, f"{self.name.lower()}-word-vocab.txt")
+
+        if os.path.exists(output_file):
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            if overwrite.lower() != 'y':
+                print("File not overwritten.")
+                return False
+            else:
+                print("Overwriting file...")
+                os.remove(output_file)
 
         sentence_list = [self._get_translation(item) for _, item in self.info.iterrows()]
-        words = sorted({word for sentence in sentence_list for word in sentence})
+        words = list({word for sentence in sentence_list for word in sentence})
+        words = self._sort_vocab(words)
 
         with open(output_file, "w") as f:
             for word in words:
                 f.write(f"{word}\n")
+
+        if os.path.exists(output_file):
+            print(f"Sorted word vocab file saved at {output_file}")
+
+    def _sort_vocab(self, input_list: list) -> list:
+        return sorted(input_list)
 
     def generate_glosses_groundtruth(self, output_dir: str, keep_tmp_file: bool = False):
         self._check_recognization()
@@ -126,7 +155,7 @@ class BasePreprocessor:
                 print(f"Error writing to file: {e}")
                 raise e
 
-            if self.__sort_groundtruth_file(tmp_file, output_file):
+            if self._sort_groundtruth_file(tmp_file, output_file):
                 print(f"Sorted ground truth file saved at {output_file}")
                 if not keep_tmp_file:
                     os.remove(tmp_file)
@@ -156,12 +185,12 @@ class BasePreprocessor:
                 print(f"Error writing to file: {e}")
                 raise e
 
-            if self.__sort_groundtruth_file(tmp_file, output_file):
+            if self._sort_groundtruth_file(tmp_file, output_file):
                 print(f"Sorted ground truth file saved at {output_file}")
                 if not keep_tmp_file:
                     os.remove(tmp_file)
 
-    def __sort_groundtruth_file(self, input_file, output_file):
+    def _sort_groundtruth_file(self, input_file, output_file):
         if not os.path.exists(input_file):
             raise FileNotFoundError(f"Input file not found at {input_file}")
         if os.path.exists(output_file):
