@@ -81,7 +81,7 @@ class BasePreprocessor:
         output_file = os.path.join(output_dir, f"{self.name.lower()}-gloss-vocab.txt")
 
         if os.path.exists(output_file):
-            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/[n]): ")
             if overwrite.lower() != 'y':
                 print("File not overwritten.")
                 return False
@@ -108,7 +108,7 @@ class BasePreprocessor:
         output_file = os.path.join(output_dir, f"{self.name.lower()}-word-vocab.txt")
 
         if os.path.exists(output_file):
-            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/[n]): ")
             if overwrite.lower() != 'y':
                 print("File not overwritten.")
                 return False
@@ -194,7 +194,7 @@ class BasePreprocessor:
         if not os.path.exists(input_file):
             raise FileNotFoundError(f"Input file not found at {input_file}")
         if os.path.exists(output_file):
-            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/n): ")
+            overwrite = input(f"{output_file} already exists. Do you want to overwrite it? (y/[n]): ")
             if overwrite.lower() != 'y':
                 print("File not overwritten.")
                 return False

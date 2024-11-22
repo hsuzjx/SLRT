@@ -88,6 +88,6 @@ if __name__ == "__main__":
     output_dir = os.path.abspath(args.output_dir)
     os.makedirs(output_dir, exist_ok=True)
 
-    # processor.resize_frames(output_dir=output_dir, dsize=(224, 224), max_workers=8)
+    processor.resize_frames(output_dir=output_dir, dsize=(256, 256), max_workers=8)
     processor.generate_gloss_vocab(output_dir=output_dir)
     processor.generate_glosses_groundtruth(output_dir=output_dir)
