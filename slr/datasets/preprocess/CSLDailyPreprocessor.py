@@ -6,7 +6,7 @@ from typing import Union
 import pandas as pd
 from typing_extensions import LiteralString, override
 
-from slr.datasets.preprocess.BasePreprocessor import BasePreprocessor
+from BasePreprocessor import BasePreprocessor
 
 
 class CSLDailyPreprocessor(BasePreprocessor):

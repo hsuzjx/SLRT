@@ -10,7 +10,7 @@ from torchvision.transforms import Compose, Resize, Normalize, CenterCrop
 
 from slr.constants import ModelClassDict
 from slr.datasets.transforms import ToTensor
-from slr.datasets.utils import pad_video_sequence
+from slr.datasets.Datasets.utils import pad_video_sequence
 
 
 class SingleSampleDataset(Dataset):
