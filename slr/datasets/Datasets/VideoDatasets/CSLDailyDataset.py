@@ -89,15 +89,9 @@ class CSLDailyDataset(BaseDataset):
             raise FileNotFoundError(f"Split file not found at {self.split_file}")
 
         # Load and filter samples based on mode
-        splits = pd.read_csv(self.split_file, sep='|', header=0)
-        sample_list = splits[splits['split'].isin(self.mode)]['name'].tolist()
-
-        # Special handling for training mode
-        if split_file is None and "train" in self.mode:
-            if "S000005_P0004_T00" in sample_list:
-                sample_list.remove("S000005_P0004_T00")
-            if "S000007_P0003_T00" not in sample_list:
-                sample_list.append("S000007_P0003_T00")
+        splits = pd.read_csv(self.split_file, sep='|', header=0, index_col='name')
+        if "S000005_P0004_T00" in splits.index and "S000007_P0003_T00" not in splits.index:
+            splits = splits.rename(index={"S000005_P0004_T00": "S000007_P0003_T00"})
 
         # Load annotations and filter by mode
         annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
@@ -105,9 +99,10 @@ class CSLDailyDataset(BaseDataset):
             raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
         with open(annotation_file, 'rb') as f:
             data = pickle.load(f)
-        info = pd.DataFrame(data['info'])
-        self.info = info[info['name'].isin(sample_list)]
-        self.info.set_index("name", inplace=True)
+        info = pd.DataFrame(data['info']).set_index('name')
+
+        self.info = pd.concat([info, splits], axis=1)
+        self.info = self.info[self.info['split'].isin(self.mode)]
 
     @override
     def _get_frames_subdir_filename(

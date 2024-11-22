@@ -34,28 +34,18 @@ class CSLDailyPreprocessor(BasePreprocessor):
             raise FileNotFoundError(f"Split file not found at {self.split_file}")
 
         # Load and filter samples based on mode
-        splits = pd.read_csv(split_file, sep='|', header=0, index_col="name")
-        sample_dict = dict()
-        for mode in ["train", "dev", "test"]:
-            sample_list = splits[splits['split'].isin(mode)]['name'].tolist()
-            if mode == "train":
-                if "S000005_P0004_T00" in sample_list:
-                    sample_list.remove("S000005_P0004_T00")
-                if "S000007_P0003_T00" not in sample_list:
-                    sample_list.append("S000007_P0003_T00")
-            sample_dict[mode] = sample_list
+        splits = pd.read_csv(split_file, sep='|', header=0, index_col='name')
+        if "S000005_P0004_T00" in splits.index and "S000007_P0003_T00" not in splits.index:
+            splits = splits.rename(index={"S000005_P0004_T00": "S000007_P0003_T00"})
 
         annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
         if not os.path.exists(annotation_file):
             raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
         with open(annotation_file, 'rb') as f:
             data = pickle.load(f)
-        info = pd.DataFrame(data['info'])
+        info = pd.DataFrame(data['info']).set_index('name')
 
-        info_dict = {mode: info[info['name'].isin(sample_dict[mode])] for mode in ["train", "dev", "test"]}
-        self.info = pd.concat([info_dict[m].assign(split=m) for m in ["train", "dev", "test"]],
-                              axis=0, ignore_index=False)
-        self.info.set_index("name", inplace=True)
+        self.info = pd.concat([info, splits], axis=1)
 
     @override
     def _get_frames_subdir_filename(

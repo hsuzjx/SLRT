@@ -13,7 +13,7 @@ class CSLDailyPoseExtractor(DatasetBasePoseExtractor):
 
         self.dataset_name = "CSL-Daily"
 
-    def init_dataset(self, data_dir, features_dir=None, annotations_dir=None):
+    def init_dataset(self, data_dir, features_dir=None, annotations_dir=None, split_file=None):
         self.data_dir = os.path.abspath(data_dir)
 
         # Ensure all directory paths are set correctly
@@ -30,14 +30,26 @@ class CSLDailyPoseExtractor(DatasetBasePoseExtractor):
         if not os.path.exists(self.annotations_dir):
             raise FileNotFoundError(f"Annotations directory not found at {self.annotations_dir}")
 
+        # Set and validate split file
+        split_file = os.path.join(self.annotations_dir, "split_1.txt") \
+            if split_file is None else os.path.abspath(split_file)
+        if not os.path.exists(split_file):
+            raise FileNotFoundError(f"Split file not found at {split_file}")
+
+        # Load and filter samples based on mode
+        splits = pd.read_csv(split_file, sep='|', header=0, index_col='name')
+        if "S000005_P0004_T00" in splits.index and "S000007_P0003_T00" not in splits.index:
+            splits = splits.rename(index={"S000005_P0004_T00": "S000007_P0003_T00"})
+
         # Load annotations and filter by mode
         annotation_file = os.path.join(self.annotations_dir, "csl2020ct_v2.pkl")
         if not os.path.exists(annotation_file):
             raise FileNotFoundError(f"Annotation file not found at {annotation_file}")
         with open(annotation_file, 'rb') as f:
             data = pickle.load(f)
-        self.info = pd.DataFrame(data['info'])
-        self.info.set_index("name", inplace=True)
+        info = pd.DataFrame(data['info']).set_index('name')
+
+        self.info = pd.concat([info, splits], axis=1)
 
     def _get_frames_subdir(self, item):
         return item.name
@@ -65,6 +77,9 @@ if __name__ == '__main__':
     parser.add_argument("--annotations-dir", type=str,
                         default=None,
                         help="Path to the annotations directory")
+    parser.add_argument("--split-file", type=str,
+                        default=None,
+                        help="The split file")
 
     parser.add_argument("--max-workers", type=int,
                         default=4,
@@ -78,5 +93,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     extractor = CSLDailyPoseExtractor(args.model, args.device, args.save_dir)
-    extractor.init_dataset(args.dataset_dir, args.features_dir, args.annotations_dir)
+    extractor.init_dataset(args.dataset_dir, args.features_dir, args.annotations_dir, args.split_file)
     extractor.execute(args.max_workers, json_to_pkl=args.json_to_pkl, only_keypoints=args.only_keypoints)
