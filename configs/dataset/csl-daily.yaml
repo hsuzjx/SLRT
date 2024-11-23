@@ -2,19 +2,25 @@
 
 data_cfgs:
   dataset_dir: "../data/csl-daily"
-  #features_dir: "../data/csl-daily/sentence_frames-512x512/frames_512x512"
-  features_dir: "../data/preprocess/csl-daily/frames_256x256"
-  #annotations_dir: "../data/csl-daily/sentence_label"
-  #split_file: "../data/csl-daily/sentence_label/split_1.txt"
+  features_dir: "../data/preprocessed/csl-daily/frames-256x256px" # if null, use default features directory in $dataset_dir
+  annotations_dir: null # if null, use default annotations directory in $dataset_dir
+  split_file: null # if null, use default split file in $dataset_dir
 
 # keypoints
-keypoints_file: "../data/keypoints/kps_info/csl-daily-keypoints.pkl"
+keypoints_file: "../data/preprocessed/csl-daily/csl-daily-keypoints.pkl"
 
-# groundtruth
-gloss_groundtruth_file:
-  train: ../data/global_files/ground_truth/csl-daily-groundtruth-train.stm
-  dev: ../data/global_files/ground_truth/csl-daily-groundtruth-dev.stm
-  test: ../data/global_files/ground_truth/csl-daily-groundtruth-test.stm
+# for recognization
+glosses_groundtruth_file:
+  train: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-train.stm"
+  dev: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-dev.stm"
+  test: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-test.stm"
 
-# vocab
-gloss_vocab_file: ../slr/datasets/vocabs/csl-daily_gloss_vocab.txt
+gloss_vocab_file: "../data/preprocessed/csl-daily/csl-daily-gloss-vocab.txt"
+
+# for translation
+translation_groundtruth_file:
+  train: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-train.stm"
+  dev: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-dev.stm"
+  test: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-test.stm"
+
+word_vocab_file: "../data/preprocessed/csl-daily/csl-daily-word-vocab.txt"

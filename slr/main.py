@@ -61,15 +61,15 @@ def main(cfg: DictConfig):
     ##################### Load Dataset Configurations #####################################
     data_cfgs = cfg.dataset.get('data_cfgs', None)
     kps_file = cfg.dataset.get('keypoints_file', None)
-    gloss_gt_file = cfg.dataset.get('gloss_groundtruth_file', None)
-    gloss_vocab_file = cfg.dataset.get('gloss_vocab_file', None)
+    gt_file = cfg.dataset.get('glosses_groundtruth_file', None)
+    vocab_file = cfg.dataset.get('gloss_vocab_file', None)
 
     #######################################################################################
     ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
-    tokenizer = TokenizerDict[tokenizer_name](vocab_file=gloss_vocab_file, **cfg.tokenizer)
+    tokenizer = TokenizerDict[tokenizer_name](vocab_file=vocab_file, **cfg.tokenizer)
     ctc_decoder = DecoderDict[decoder_name](tokenizer=tokenizer, **cfg.decoder)
-    evaluator = EvaluatorDict[evaluator_name](gt_file=gloss_gt_file, dataset=dataset_name, **cfg.evaluator)
+    evaluator = EvaluatorDict[evaluator_name](gt_file=gt_file, dataset=dataset_name, **cfg.evaluator)
 
     #######################################################################################
     ##################### Initialize WandbLogger ##########################################

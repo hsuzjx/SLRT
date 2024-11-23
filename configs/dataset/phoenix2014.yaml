@@ -2,18 +2,16 @@
 
 data_cfgs:
   dataset_dir: "../data/phoenix2014"
-  features_dir: "../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px"
-  #features_dir: "/media/xzj23/disk-zj-ext4/transformed_data/phoenix2014_features"
-  #annotations_dir: "../data/phoenix2014/phoenix-2014-multisigner/annotations/manual"
+  features_dir: "../data/preprocessed/phoenix2014/frames-256x256px" # if null, use default features directory in $dataset_dir
+  annotations_dir: null # if null, use default annotations directory in $dataset_dir
 
 # keypoints
-keypoints_file: "../data/keypoints/kps_info/phoenix2014-keypoints.pkl"
+keypoints_file: "../data/preprocessed/phoenix2014/phoenix2014-keypoints.pkl"
 
-# groundtruth
-gloss_groundtruth_file:
-  train: ../data/global_files/ground_truth/phoenix2014-groundtruth-train_sorted.stm
-  dev: ../data/global_files/ground_truth/phoenix2014-groundtruth-dev_sorted.stm
-  test: ../data/global_files/ground_truth/phoenix2014-groundtruth-test_sorted.stm
+# for recognization
+glosses_groundtruth_file:
+  train: "../data/preprocessed/phoenix2014/phoenix2014-glosses-groundtruth-train.stm"
+  dev: "../data/preprocessed/phoenix2014/phoenix2014-glosses-groundtruth-dev.stm"
+  test: "../data/preprocessed/phoenix2014/phoenix2014-glosses-groundtruth-test.stm"
 
-# vocab
-gloss_vocab_file: ../slr/datasets/vocabs/phoenix2014_gloss_vocab.txt
+gloss_vocab_file: "../data/preprocessed/phoenix2014/phoenix2014-gloss-vocab.txt"

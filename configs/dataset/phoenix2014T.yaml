@@ -2,18 +2,24 @@
 
 data_cfgs:
   dataset_dir: "../data/phoenix2014T"
-  features_dir: "../data/preprocess/phoenix2014T/frames_256x256"
-  #features_dir: "../data/phoenix2014T/PHOENIX-2014-T/features/fullFrame-256x256px"
-  #annotations_dir: "../data/phoenix2014T/PHOENIX-2014-T/annotations/manual"
+  features_dir: "../data/preprocessed/phoenix2014T/frames-256x256px" # if null, use default features directory in $dataset_dir
+  annotations_dir: null # if null, use default annotations directory in $dataset_dir
 
 # keypoints
-keypoints_file: "../data/keypoints/kps_info/phoenix2014t-keypoints.pkl"
+keypoints_file: "../data/preprocessed/phoenix2014T/phoenix2014t-keypoints.pkl"
 
-# groundtruth
-gloss_groundtruth_file:
-  train: ../data/global_files/ground_truth/phoenix2014T-groundtruth-train_sorted.stm
-  dev: ../data/global_files/ground_truth/phoenix2014T-groundtruth-dev_sorted.stm
-  test: ../data/global_files/ground_truth/phoenix2014T-groundtruth-test_sorted.stm
+# for recognization
+glosses_groundtruth_file:
+  train: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-train.stm"
+  dev: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-dev.stm"
+  test: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-test.stm"
 
-# vocab
-gloss_vocab_file: ../slr/datasets/vocabs/phoenix2014T_gloss_vocab.txt
+gloss_vocab_file: "../data/preprocessed/phoenix2014T/phoenix2014t-gloss-vocab.txt"
+
+# for translation
+translation_groundtruth_file:
+  train: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-train.stm"
+  dev: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-dev.stm"
+  test: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-test.stm"
+
+word_vocab_file: "../data/preprocessed/phoenix2014T/phoenix2014t-word-vocab.txt"
