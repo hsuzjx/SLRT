@@ -40,13 +40,16 @@ class SimpleTokenizer:
         self.special_tokens = [pad_token, unk_token, sos_token, eos_token]
 
         if vocab_file:
-            self.vocab, self.ids_to_vocab = self.load_vocab(vocab_file)
+            self.vocab, self.ids_to_vocab = self.__load_vocab(vocab_file)
         else:
             self.vocab = {}
             self.ids_to_vocab = {}
         self.vocab_size = len(self.vocab)
 
-    def load_vocab(self, vocab_file: str) -> Tuple[Dict[str, int], Dict[int, str]]:
+    def __len__(self):
+        return self.vocab_size
+
+    def __load_vocab(self, vocab_file: str) -> Tuple[Dict[str, int], Dict[int, str]]:
         """
         Loads the vocabulary from a file where each line contains one token.
 

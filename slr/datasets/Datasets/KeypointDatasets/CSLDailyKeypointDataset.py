@@ -28,3 +28,7 @@ class CSLDailyKeypointDataset(KeypointBaseDataset):
     @override
     def _get_glosses(self, item) -> [str, list]:
         return item['label_gloss']
+
+    @override
+    def _get_translation(self, item) -> [str, list]:
+        return item['label_word']

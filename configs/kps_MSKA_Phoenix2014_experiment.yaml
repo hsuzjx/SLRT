@@ -1,27 +1,25 @@
 # /configs/CorrNet_Phoenix2014_experiment.yaml
+
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - dataset: phoenix2014 # 数据集配置
-  - dataloader: keypints
+  - dataloader: keypoints
   - tokenizer: simple_tokenizer
-  - model: CorrNet # 模型配置
-  - decoder: ctc_beam_search
+  - model: MSKA # 模型配置
+  - decoder: tf_ctc_beam_search
   - evaluator: sclite
-  - trainer: use_gpu # 训练配置
+  - trainer: keypoints # 训练配置
   - logger: wandb # 日志记录器配置
-
 
 # Hydra 运行配置
 hydra:
   run:
-    # 实验目录结构
     dir: ../experiments/${project}/${name}/${times}/hydra
 
-
 # 项目相关配置
-project: Phoenix2014_kps_debug
+project: Phoenix2014_Experiment
 name: MSKA
-times: 2
+times: 0
 
 model_name: MSKA
 dataset_name: phoenix2014-keypoint

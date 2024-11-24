@@ -37,7 +37,7 @@ class CSLDailyKeypointDataModule(KeypointBaseDataModule):
             CSLDailyKeypointDataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, None)
-        tokenizer = self.tokenizers.get(mode, None)
+        tokenizer = self.tokenizers
         return CSLDailyKeypointDataset(
             keypoints_file=self.keypoints_file,
             mode=mode,

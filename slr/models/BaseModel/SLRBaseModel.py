@@ -338,7 +338,7 @@ class SLRBaseModel(L.LightningModule):
         """
         early_stop = EarlyStopping(
             monitor='Val/Loss',
-            patience=40,
+            patience=self.hparams.get('patience_early_stop', 40),
             verbose=True,
             mode='min',
             check_finite=False

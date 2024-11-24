@@ -1,32 +1,30 @@
 # /configs/SLTransformer_CSL-Daily_experiment.yaml
+
 defaults:
   - _self_ # 自引用，确保此配置文件被包含
   - dataset: csl-daily # 数据集配置
   - dataloader: default
   - tokenizer: simple_tokenizer
   - model: SLTransformer # 模型配置
-  - decoder: ctc_beam_search
+  - decoder: tf_ctc_beam_search
   - evaluator: sclite
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
 
-
 # Hydra 运行配置
 hydra:
   run:
-    # 实验目录结构
     dir: ../experiments/${project}/${name}/${times}/hydra
 
-
 # 项目相关配置
-project: CSL-Daily_new
+project: CSL-Daily_Experiment
 name: SLTransformer
 times: 1
 
 model_name: SLTransformer
 dataset_name: csl-daily
 dataset_type: "video"
-decoder_name: CTCBeamSearchDecoder
+decoder_name: TFCTCBeamSearchDecoder
 tokenizer_name: SimpleTokenizer
 evaluator_name: sclite
 

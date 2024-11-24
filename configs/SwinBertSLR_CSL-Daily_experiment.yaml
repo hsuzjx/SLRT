@@ -6,7 +6,7 @@ defaults:
   - dataloader: default
   - tokenizer: simple_tokenizer
   - model: SwinBertSLR # 模型配置
-  - decoder: ctc_beam_search
+  - decoder: tf_ctc_beam_search
   - evaluator: sclite
   - trainer: use_gpu # 训练配置
   - logger: wandb # 日志记录器配置
@@ -14,18 +14,17 @@ defaults:
 # Hydra 运行配置
 hydra:
   run:
-    # 实验目录结构
     dir: ../experiments/${project}/${name}/${times}/hydra
 
 # 项目相关配置
-project: CSL-Daily_debug
+project: CSL-Daily_Experiment
 name: SwinBertSLR
 times: 12tt
 
 model_name: SwinBertSLR
 dataset_name: csl-daily
 dataset_type: "video"
-decoder_name: CTCBeamSearchDecoder
+decoder_name: TFCTCBeamSearchDecoder
 tokenizer_name: SimpleTokenizer
 evaluator_name: sclite
 

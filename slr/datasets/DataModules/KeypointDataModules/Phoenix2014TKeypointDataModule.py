@@ -37,7 +37,7 @@ class Phoenix2014TKeypointDataModule(KeypointBaseDataModule):
             Phoenix2014TKeypointDataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, None)
-        tokenizer = self.tokenizers.get(mode, None)
+        tokenizer = self.tokenizers
         return Phoenix2014TKeypointDataset(
             keypoints_file=self.keypoints_file,
             mode=mode,

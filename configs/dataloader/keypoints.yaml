@@ -1,4 +1,4 @@
-batch_size: 8
-num_workers: 8
+# configs/dataloader/keypoints.yaml
 
-read_hdf5: false
+batch_size: 12
+num_workers: 8

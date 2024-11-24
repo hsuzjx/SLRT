@@ -1,6 +1,7 @@
 import os
 import pickle
 from abc import abstractmethod
+from typing import Union
 
 import torch
 from torch.utils.data import Dataset
@@ -16,7 +17,7 @@ class KeypointBaseDataset(Dataset):
             self,
             keypoints_file: str = None,
             transform: callable = None,
-            tokenizer: object = None,
+            tokenizer: Union[list[object], object] = [None, None],
     ):
         """
         """
@@ -35,7 +36,14 @@ class KeypointBaseDataset(Dataset):
 
         # Set transform and tokenizer
         self.transform = transform
-        self.tokenizer = tokenizer
+
+        if isinstance(tokenizer, list):
+            self.tokenizer = tokenizer
+        else:
+            self.tokenizer = [tokenizer, None]
+
+        self.gloss_tokenizer = self.tokenizer[0] if len(self.tokenizer) > 0 else None
+        self.word_tokenizer = self.tokenizer[1] if len(self.tokenizer) > 1 else None
 
     def __len__(self):
         """
@@ -57,20 +65,59 @@ class KeypointBaseDataset(Dataset):
         item = self.kps_info[name]
 
         kps = item['keypoints']
-        glosses = self.__get_glosses(item)
+        glosses = self._get_glosses(item)
+        translation = self._get_translation(item)
 
         if self.transform:
             kps = self.transform(kps)
         else:
             kps = torch.from_numpy(kps)
-        if self.tokenizer:
-            glosses = self.tokenizer.encode(glosses)
 
-        return kps, glosses, name
+        if self.gloss_tokenizer:
+            glosses = self.gloss_tokenizer.encode(glosses)
+        if self.word_tokenizer:
+            translation = self.word_tokenizer.encode(translation)
+
+        # return kps, glosses, translation, name
+        return kps, glosses, None, name
 
     @abstractmethod
     def _get_glosses(self, item) -> [str, list]:
         pass
+
+    @abstractmethod
+    def _get_translation(self, item) -> [str, list]:
+        pass
+
+    # def collate_fn(self, batch):
+    #     """
+    #     Collates a list of samples into a batch.
+    #
+    #     Args:
+    #         batch (list): List of samples returned by `__getitem__`.
+    #
+    #     Returns:
+    #         tuple: Batched data including videos, labels, video lengths, label lengths, and info.
+    #     """
+    #     batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
+    #     kps, label_gloss, label_translation, name = list(zip(*batch))
+    #
+    #     kps, kps_length = pad_keypoints_sequence(kps, batch_first=True, num_keypoints=133)
+    #     kps_length = torch.LongTensor(kps_length)
+    #
+    #     label_gloss, label_gloss_length = pad_label_sequence(
+    #         label_gloss, batch_first=True,
+    #         padding_value=self.gloss_tokenizer.convert_tokens_to_ids(self.gloss_tokenizer.pad_token)
+    #     )
+    #     label_gloss_length = torch.LongTensor(label_gloss_length)
+    #
+    #     label_translation, label_translation_length = pad_label_sequence(
+    #         label_translation, batch_first=True,
+    #         padding_value=self.word_tokenizer.convert_tokens_to_ids(self.word_tokenizer.pad_token)
+    #     )
+    #     label_translation_length = torch.LongTensor(label_translation_length)
+    #
+    #     return kps, label_gloss, label_translation, kps_length, label_gloss_length, label_translation_length, name
 
     def collate_fn(self, batch):
         """
@@ -83,13 +130,37 @@ class KeypointBaseDataset(Dataset):
             tuple: Batched data including videos, labels, video lengths, label lengths, and info.
         """
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        kps, label, info = list(zip(*batch))
+        kps, label_gloss, label_translation, name = list(zip(*batch))
 
         kps, kps_length = pad_keypoints_sequence(kps, batch_first=True, num_keypoints=133)
         kps_length = torch.LongTensor(kps_length)
-        label, label_length = pad_label_sequence(label, batch_first=True,
-                                                 padding_value=self.tokenizer.convert_tokens_to_ids(
-                                                     self.tokenizer.pad_token))
-        label_length = torch.LongTensor(label_length)
 
-        return kps, label, kps_length, label_length, info
+        if not None in label_gloss:
+            label_gloss, label_gloss_length = pad_label_sequence(
+                label_gloss, batch_first=True,
+                padding_value=self.gloss_tokenizer.convert_tokens_to_ids(self.gloss_tokenizer.pad_token)
+            )
+            label_gloss_length = torch.LongTensor(label_gloss_length)
+        else:
+            label_gloss, label_gloss_length = None, None
+
+        if not None in label_translation:
+            label_translation, label_translation_length = pad_label_sequence(
+                label_translation, batch_first=True,
+                padding_value=self.word_tokenizer.convert_tokens_to_ids(self.word_tokenizer.pad_token)
+            )
+            label_translation_length = torch.LongTensor(label_translation_length)
+        else:
+            label_translation, label_translation_length = None, None
+
+        # return {
+        #     "kps": kps,
+        #     "glosses": label_gloss,
+        #     "translation": label_translation,
+        #     "kps_length": kps_length,
+        #     "glosses_length": label_gloss_length,
+        #     "translation_length": label_translation_length,
+        #     "name": name
+        # }
+
+        return  kps, label_gloss, label_translation, kps_length, label_gloss_length, label_translation_length, name

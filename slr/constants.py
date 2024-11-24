@@ -6,7 +6,7 @@ import slr
 from slr.datasets.transforms import ToTensor, TemporalRescale
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'CorrNet_Phoenix2014T_experiment.yaml'
+CONFIG_NAME = 'kps_MSKA_Phoenix2014_experiment.yaml'
 
 DataModuleClassDict = {
     "phoenix2014": slr.datasets.DataModules.Phoenix2014DataModule,

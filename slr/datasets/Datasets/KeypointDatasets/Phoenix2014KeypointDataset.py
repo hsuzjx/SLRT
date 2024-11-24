@@ -28,3 +28,7 @@ class Phoenix2014KeypointDataset(KeypointBaseDataset):
     @override
     def _get_glosses(self, item) -> [str, list]:
         return [gloss for gloss in item['annotation'].split(' ') if gloss]
+
+    @override
+    def _get_translation(self, item) -> [str, list]:
+        return None
