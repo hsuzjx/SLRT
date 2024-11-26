@@ -3,38 +3,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-body_idx = [
-    0, 1, 3, 5, 7, 9, 91, 92, 93, 94, 95, 96, 97, 98, 99,
-    100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
-    111, 2, 4, 6, 8, 10, 112, 113, 114, 115, 116, 117, 118,
-    119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
-    130, 131, 132, 23, 26, 29, 33, 36, 39, 41, 43, 46, 48,
-    53, 56, 59, 62, 65, 68, 71, 72, 73, 74, 75, 76, 77, 79,
-    80, 81
-]
-left_idx = [
-    0, 1, 3, 5, 7, 9, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
-    101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111
-]
-right_idx = [
-    0, 2, 4, 6, 8, 10, 112, 113, 114, 115, 116, 117, 118, 119,
-    120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132
-]
-face_idx = [
-    23, 26, 29, 33, 36, 39, 41, 43, 46, 48, 53, 56, 59, 62, 65,
-    68, 71, 72, 73, 74, 75, 76, 77, 79, 80, 81
-]
-mouth_idx = [
-    71, 72, 73, 74, 75, 76, 77, 79, 80, 81
-]
-
-net_prams = [
-    [64, 64, 16, 7, 2], [64, 64, 16, 3, 1],
-    [64, 128, 32, 3, 1], [128, 128, 32, 3, 1],
-    [128, 256, 64, 3, 2], [256, 256, 64, 3, 1],
-    [256, 256, 64, 3, 1], [256, 256, 64, 3, 1],
-]
-
 
 class DSTA(nn.Module):
     """
@@ -61,14 +29,15 @@ class DSTA(nn.Module):
 
     def __init__(
             self,
-            num_frame=400,
+            net_prams,
+            num_frame=1000,
             num_subset=6,
             dropout=0.1,
             # cfg=None,
             # args=None,
             num_channel=2, glo_reg_s=True, att_s=True, glo_reg_t=False, att_t=False,
             use_temporal_att=False, use_spatial_att=True, attentiondrop=0.1, use_pet=False,
-            use_pes=True, mode='SLR'
+            use_pes=True, mode='SLR',
     ):
         super(DSTA, self).__init__()
         self.mode = mode
@@ -165,7 +134,7 @@ class DSTA(nn.Module):
 
         self.drop_out = nn.Dropout(dropout)
 
-    def forward(self, kps):
+    def forward(self, kps, body_idx, left_idx, right_idx, face_idx):
         """
         前向传播函数。
         
@@ -179,7 +148,7 @@ class DSTA(nn.Module):
         - body: 身体的输出。
         """
         # 初始化输入数据
-        x = kps.permute(0, 3, 1, 2)
+        x = kps
         # 获取输入数据的维度
         N, C, T, V = x.shape
         # 调整输入数据的维度顺序并保持连续性

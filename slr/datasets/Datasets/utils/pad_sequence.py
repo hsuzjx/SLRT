@@ -48,7 +48,7 @@ def pad_video_sequence(sequences, batch_first=False, padding_value=0.0, left_pad
     return batch, padded_lengths
 
 
-def pad_keypoints_sequence(sequences, batch_first=False, num_keypoints=133):
+def pad_keypoints_sequence(sequences, batch_first=True, num_keypoints=133):
     """
     Pad the first dimension of each element in a list of keypoint sequences while keeping other dimensions unchanged.
     """
@@ -59,17 +59,14 @@ def pad_keypoints_sequence(sequences, batch_first=False, num_keypoints=133):
     if not isinstance(sequences[0], torch.Tensor):
         sequences = [torch.tensor(seq, dtype=torch.float32) for seq in sequences]
 
-    lengths = [seq.shape[0] for seq in sequences]
+    lengths = [seq.shape[1] for seq in sequences]
     max_length = max(lengths)
     batch_size = len(sequences)
 
-    batch = torch.full((max_length, batch_size, num_keypoints, 3), 0.0, dtype=sequences[0].dtype)
+    batch = torch.full((batch_size, 3, max_length, num_keypoints), 0.0, dtype=sequences[0].dtype)
 
     for i, seq in enumerate(sequences):
-        batch[:seq.shape[0], i] = seq
-
-    if batch_first:
-        batch = batch.transpose(0, 1)
+        batch[i, :, :seq.shape[1], :] = seq
 
     return batch, lengths
 

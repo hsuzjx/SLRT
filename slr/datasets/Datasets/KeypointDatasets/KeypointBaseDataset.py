@@ -18,6 +18,7 @@ class KeypointBaseDataset(Dataset):
             keypoints_file: str = None,
             transform: callable = None,
             tokenizer: Union[list[object], object] = [None, None],
+            frame_size: tuple = (210, 260)
     ):
         """
         """
@@ -45,6 +46,8 @@ class KeypointBaseDataset(Dataset):
         self.gloss_tokenizer = self.tokenizer[0] if len(self.tokenizer) > 0 else None
         self.word_tokenizer = self.tokenizer[1] if len(self.tokenizer) > 1 else None
 
+        self.frame_size = frame_size
+
     def __len__(self):
         """
         Returns the number of samples in the dataset.
@@ -68,10 +71,14 @@ class KeypointBaseDataset(Dataset):
         glosses = self._get_glosses(item)
         translation = self._get_translation(item)
 
+        kps[:, :, 0] /= self.frame_size[0]
+        kps[:, :, 1] = self.frame_size[1] - kps[:, :, 1]
+        kps[:, :, 1] /= self.frame_size[1]
+        kps[:, :, :2] = (kps[:, :, :2] - 0.5) / 0.5
+
+        kps = torch.from_numpy(kps).permute(2, 0, 1)  # T,V,C -> C,T,V
         if self.transform:
             kps = self.transform(kps)
-        else:
-            kps = torch.from_numpy(kps)
 
         if self.gloss_tokenizer:
             glosses = self.gloss_tokenizer.encode(glosses)
@@ -163,4 +170,4 @@ class KeypointBaseDataset(Dataset):
         #     "name": name
         # }
 
-        return  kps, label_gloss, label_translation, kps_length, label_gloss_length, label_translation_length, name
+        return kps, label_gloss, label_translation, kps_length, label_gloss_length, label_translation_length, name

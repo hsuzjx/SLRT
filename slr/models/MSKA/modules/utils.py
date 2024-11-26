@@ -2,6 +2,7 @@
 This file is modified from:
 https://github.com/facebookresearch/deit/blob/main/utils.py
 """
+from omegaconf import ListConfig
 
 # Copyright (c) 2015-present, Facebook, Inc.
 # All rights reserved.
@@ -707,7 +708,7 @@ class PositionwiseFeedForward(nn.Module):
                 conv_2,
                 nn.Dropout(dropout),
             )
-        elif type(self.kernel_size)==list:
+        elif isinstance(self.kernel_size, list) or isinstance(self.kernel_size, ListConfig):
             pwff = []
             first_conv = nn.Conv1d(input_size, ff_size, kernel_size=kernel_size[0], stride=1, padding='same')
             pwff += [first_conv, nn.ReLU(), nn.Dropout(dropout)]

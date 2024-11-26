@@ -4,9 +4,10 @@ from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizon
 
 import slr
 from slr.datasets.transforms import ToTensor, TemporalRescale
+from slr.datasets.transforms.keypoints import DefinedDorp, RandomMove
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'kps_MSKA_Phoenix2014_experiment.yaml'
+CONFIG_NAME = 'kps_MSKA_CSL-Daily_experiment.yaml'
 
 DataModuleClassDict = {
     "phoenix2014": slr.datasets.DataModules.Phoenix2014DataModule,
@@ -56,8 +57,8 @@ TransformDict = {
         'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
     },
     "keypoint": {
-        'train': None,
-        'dev': None,
-        'test': None
+        'train': Compose([DefinedDorp(0.5, 1.5, 1000), RandomMove()]),
+        'dev': Compose([DefinedDorp(1, 1, 1000)]),
+        'test': Compose([DefinedDorp(1, 1, 1000)])
     }
 }

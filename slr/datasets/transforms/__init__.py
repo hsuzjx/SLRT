@@ -2,3 +2,5 @@ from .transforms import Compose, CenterCrop, RandomCrop, RandomHorizontalFlip, R
     TemporalRescale, WERAugment, ToTensor
 # from .ToTensor import ToTensor
 # from .TemporalRescale import TemporalRescale
+
+from .keypoints import *

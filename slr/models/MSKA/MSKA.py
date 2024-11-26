@@ -28,44 +28,26 @@ class MSKA(SLRBaseModel):
     def __init_network(self, **kwargs):
         self.visual_backbone = None
         self.rgb_visual_head = None
-        self.visual_backbone_keypoint = DSTA(num_channel=3)
+        self.visual_backbone_keypoint = DSTA(net_prams=self.hparams.net_prams, num_channel=3)
 
-        cfg = {
-            'body_visual_head': {
-                'input_size': 256,
-                'hidden_size': 512,
-                'ff_size': 2048,
-                'pe': True,
-                'ff_kernelsize': [3, 3]
-            },
-            'fuse_visual_head': {
-                'input_size': 1024,
-                'hidden_size': 512,
-                'ff_size': 2048,
-                'pe': True,
-                'ff_kernelsize': [3, 3]
-            },
-            'left_visual_head': {
-                'input_size': 512,
-                'hidden_size': 512,
-                'ff_size': 2048,
-                'pe': True,
-                'ff_kernelsize': [3, 3]
-            },
-            'right_visual_head': {
-                'input_size': 512,
-                'hidden_size': 512,
-                'ff_size': 2048,
-                'pe': True,
-                'ff_kernelsize': [3, 3]
-            }
-        }
+        cfg = self.hparams.head_cfg
 
-        self.fuse_visual_head = VisualHead(cls_num=len(self.hparams.probs_decoder.tokenizer), **cfg['fuse_visual_head'])
-        self.body_visual_head = VisualHead(cls_num=len(self.hparams.probs_decoder.tokenizer), **cfg['body_visual_head'])
-        self.left_visual_head = VisualHead(cls_num=len(self.hparams.probs_decoder.tokenizer), **cfg['left_visual_head'])
-        self.right_visual_head = VisualHead(cls_num=len(self.hparams.probs_decoder.tokenizer),
-                                            **cfg['right_visual_head'])
+        self.fuse_visual_head = VisualHead(
+            cls_num=len(self.hparams.probs_decoder.tokenizer),
+            **cfg['fuse_visual_head']
+        )
+        self.body_visual_head = VisualHead(
+            cls_num=len(self.hparams.probs_decoder.tokenizer),
+            **cfg['body_visual_head']
+        )
+        self.left_visual_head = VisualHead(
+            cls_num=len(self.hparams.probs_decoder.tokenizer),
+            **cfg['left_visual_head']
+        )
+        self.right_visual_head = VisualHead(
+            cls_num=len(self.hparams.probs_decoder.tokenizer),
+            **cfg['right_visual_head']
+        )
 
     def _define_loss_function(self):
         self.ctc_loss = torch.nn.CTCLoss(
@@ -74,10 +56,15 @@ class MSKA(SLRBaseModel):
             reduction='sum'
         )
 
-        self.kldiv_loss = torch.nn.KLDivLoss(reduction="batchmean")
+        self.kldiv_loss = torch.nn.KLDivLoss(
+            reduction="batchmean"
+        )
 
     def forward(self, kps, kps_lgt) -> Any:
-        fuse, left_output, right_output, body = self.visual_backbone_keypoint(kps)
+        fuse, left_output, right_output, body = self.visual_backbone_keypoint(
+            kps=kps,
+            **self.hparams.kps_parts_idx
+        )
 
         mask_lgt = (((kps_lgt - 1) / 2) + 1).long()
         mask_lgt = (((mask_lgt - 1) / 2) + 1).long()
