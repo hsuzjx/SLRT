@@ -33,7 +33,7 @@ def convert_to_onnx(model_name, pth_file, onnx_file):
         input_sample = InputSampleDict[model_name]
 
         # 导出模型为ONNX格式并保存
-        torch.onnx.export(model, input_sample, onnx_file, export_params=True)
+        torch.onnx.export(model, input_sample, onnx_file, export_params=True, opset_version=16)
 
     except Exception as e:
         # 输出异常信息

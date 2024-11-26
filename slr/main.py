@@ -11,8 +11,8 @@ from lightning.pytorch.loggers import WandbLogger
 from omegaconf import DictConfig
 
 from slr.constants import DataModuleClassDict, ModelClassDict, TransformDict, CONFIG_PATH, CONFIG_NAME, TokenizerDict, \
-    DecoderDict, EvaluatorDict
-from slr.utils import convert_to_onnx, set_seed
+    DecoderDict, EvaluatorDict, InputSampleDict
+from slr.utils import set_seed
 
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
@@ -145,12 +145,21 @@ def main(cfg: DictConfig):
     #######################################################################################
     ##################### Convert to ONNX #################################################
     # Optionally convert model to ONNX format
-    if is_save_onnx and trainer.is_global_zero:
+    input_sample = InputSampleDict.get(model_name, None)
+    if is_save_onnx and trainer.is_global_zero and input_sample:
         onnx_save_dir = os.path.join(save_dir, 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
-        best_model = ModelClassDict[model_name].load_from_checkpoint(best_model_path)
+        best_model = ModelClassDict[model_name].load_from_checkpoint(best_model_path).to('cpu')
         best_model.eval()
-        convert_to_onnx(best_model, os.path.join(onnx_save_dir, "best.onnx"))
+        try:
+            best_model.to_onnx(
+                os.path.join(onnx_save_dir, "best.onnx"),
+                input_sample,
+                export_params=True,
+                opset_version=16
+            )
+        except Exception as e:
+            print(f"Error occurred: {e}")
 
 
 if __name__ == '__main__':

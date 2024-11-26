@@ -73,19 +73,17 @@ head_cfg: {
   }
 }
 
-
-
-
 # for optimizer and lr_scheduler
-lr: 0.0001
-weight_decay: 0.0001
-# lr scheduler
-milestones: [ 20, 35 ]
-gamma: 0.2
-last_epoch: -1
+optimizer:
+  lr: 0.001
+  weight_decay: 0.001
+  betas:
+    - 0.9
+    - 0.998
 
-# for loss
-loss_weights: [ 1.0, 1.0, 25.0 ]
+lr_scheduler:
+  eta_min:
+  T_max: 100
 
 # for early stop
 patience_early_stop: 50

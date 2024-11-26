@@ -31,7 +31,7 @@ InputSampleDict = {
         torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu'),
         torch.randn(1, 100, 512), torch.LongTensor([10])
     ),
-    "MSKA": ()
+    "MSKA": (torch.randn(1, 3, 100, 133), torch.LongTensor([100]))
 }
 
 TokenizerDict = {

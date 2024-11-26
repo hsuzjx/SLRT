@@ -1,6 +1,7 @@
 from typing import Any
 
 import torch
+from typing_extensions import override
 
 from slr.models.BaseModel.SLRBaseModel import SLRBaseModel
 from slr.models.MSKA.modules.DSTA import DSTA
@@ -69,7 +70,7 @@ class MSKA(SLRBaseModel):
         mask_lgt = (((kps_lgt - 1) / 2) + 1).long()
         mask_lgt = (((mask_lgt - 1) / 2) + 1).long()
 
-        max_len = max(mask_lgt)
+        max_len = torch.max(mask_lgt)
         mask = torch.zeros(mask_lgt.shape[0], 1, max_len)
         for i in range(mask_lgt.shape[0]):
             mask[i, :, :mask_lgt[i]] = 1
@@ -185,3 +186,30 @@ class MSKA(SLRBaseModel):
         loss = loss_ctc + loss_kldiv
 
         return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), outputs['input_lengths'], name
+
+    @override
+    def configure_optimizers(self):
+        """
+        Return whatever optimizers and learning rate schedulers you want here.
+        At least one optimizer is required.
+        """
+        # Initialize the Adam optimizer
+        optimizer = torch.optim.Adam(
+            self.trainer.model.parameters(),
+            lr=self.hparams.optimizer.lr,
+            weight_decay=self.hparams.optimizer.weight_decay,
+            betas=self.hparams.optimizer.betas,
+        )
+
+        # Define the learning rate scheduler
+        scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+            optimizer=optimizer,
+            eta_min=self.hparams.lr_scheduler.get("eta_min", 0),
+            T_max=self.hparams.lr_scheduler.get("T_max", 20),
+        )
+
+        # Return the optimizer and learning rate scheduler
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": scheduler
+        }

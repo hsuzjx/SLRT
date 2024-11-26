@@ -337,7 +337,7 @@ def concat_all_gather(tensor):
     tensors_gather = [torch.ones_like(tensor)
         for _ in range(torch.distributed.get_world_size())]
     torch.distributed.all_gather(tensors_gather, tensor, async_op=False)
-    
+
     output = torch.cat(tensors_gather,dim=0)
     return output
 
@@ -397,7 +397,7 @@ def NoiseInjecting(raw_gloss, noise_rate=0.15, noise_type='omit_last', random_sh
                         noise_gloss.append(WORD_MASK)
             else:
                 noise_gloss = [d for d in text]
-        
+
         if is_train and random_shuffle and random.uniform(0, 1) > 0.5:
             random.shuffle(noise_gloss) # random shuffle sequence
 
@@ -446,7 +446,7 @@ def ctc_decode(gloss_probabilities,sgn_lengths):
             tmp_gloss_sequences[dense_idx[0]].append(
                 ctc_decode.values[value_idx].numpy()
             )
-    
+
     decoded_gloss_sequences = []
     for seq_idx in range(0, len(tmp_gloss_sequences)):
         decoded_gloss_sequences.append(
@@ -495,11 +495,11 @@ def visualization(atten_maps):
             ax = fig.add_subplot()
             att = torch.softmax(att, dim=-1)
             sns.heatmap(att.detach().cpu().numpy(), annot=False, yticklabels=False, xticklabels=False, fmt='g', ax=ax)
-            
+
             fig.savefig(os.path.join('./demo', f'Att_score_{ii}.jpg'), dpi=fig.dpi)
             plt.close()
             continue
-        
+
         for cmp in att:
             ax = fig.add_subplot(*idx)
             sns.heatmap(cmp.detach().cpu().numpy(), cbar=idx[-1] % idx[-2] == 0, annot=False, yticklabels=False, xticklabels=False, fmt='g', ax=ax)
@@ -537,7 +537,7 @@ class KLLoss(torch.nn.Module):
         probs2 = F.softmax(label * 10, 1)
         loss = self.error_metric(probs1, probs2) * batch_size
         return loss
-        
+
 def loss_fn_kd(outputs, teacher_outputs, T=1.0, alpha=0.5):
     """
     Compute the knowledge-distillation (KD) loss given outputs, labels.
@@ -699,8 +699,8 @@ class PositionwiseFeedForward(nn.Module):
         self.layer_norm = nn.LayerNorm(input_size, eps=1e-6)
         self.kernel_size = kernel_size
         if type(self.kernel_size)==int:
-            conv_1 = nn.Conv1d(input_size, ff_size, kernel_size=kernel_size, stride=1, padding='same')
-            conv_2 = nn.Conv1d(ff_size, input_size, kernel_size=kernel_size, stride=1, padding='same')
+            conv_1 = nn.Conv1d(input_size, ff_size, kernel_size=kernel_size, stride=1, padding=(kernel_size-1)//2)
+            conv_2 = nn.Conv1d(ff_size, input_size, kernel_size=kernel_size, stride=1, padding=(kernel_size-1)//2)
             self.pwff_layer = nn.Sequential(
                 conv_1,
                 nn.ReLU(),
@@ -710,12 +710,12 @@ class PositionwiseFeedForward(nn.Module):
             )
         elif isinstance(self.kernel_size, list) or isinstance(self.kernel_size, ListConfig):
             pwff = []
-            first_conv = nn.Conv1d(input_size, ff_size, kernel_size=kernel_size[0], stride=1, padding='same')
+            first_conv = nn.Conv1d(input_size, ff_size, kernel_size=kernel_size[0], stride=1, padding=(kernel_size[0]-1)//2)
             pwff += [first_conv, nn.ReLU(), nn.Dropout(dropout)]
             for ks in kernel_size[1:-1]:
-                conv = nn.Conv1d(ff_size, ff_size, kernel_size=ks, stride=1, padding='same')
+                conv = nn.Conv1d(ff_size, ff_size, kernel_size=ks, stride=1, padding=(ks-1)//2)
                 pwff += [conv, nn.ReLU(), nn.Dropout(dropout)]
-            last_conv = nn.Conv1d(ff_size, input_size, kernel_size=kernel_size[-1], stride=1, padding='same')
+            last_conv = nn.Conv1d(ff_size, input_size, kernel_size=kernel_size[-1], stride=1, padding=(kernel_size[-1]-1)//2)
             pwff += [last_conv, nn.Dropout(dropout)]
 
             self.pwff_layer = nn.Sequential(
