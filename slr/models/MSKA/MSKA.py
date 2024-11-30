@@ -204,7 +204,6 @@ class MSKA(SLRBaseModel):
         # Define the learning rate scheduler
         scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
             optimizer=optimizer,
-            eta_min=self.hparams.lr_scheduler.get("eta_min", 0),
             T_max=self.hparams.lr_scheduler.get("T_max", 20),
         )
 

@@ -6,12 +6,7 @@ from datetime import datetime
 
 from omegaconf import DictConfig
 
-from slr.evaluation.utils import clean_phoenix_2014, clean_phoenix_2014_trans
-
-DatasetCleanFunctionDict = {
-    "phoenix2014": clean_phoenix_2014,
-    "phoenix2014T": clean_phoenix_2014_trans,
-}
+from .contents import DatasetCleanFunctionDict
 
 
 class ScliteEvaluator:
