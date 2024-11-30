@@ -3,7 +3,7 @@ import transformers
 from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizontalFlip, CenterCrop
 
 import slr
-from slr.datasets.transforms import ToTensor, TemporalRescale
+from slr.datasets.transforms import ToTensor, TemporalRescale, RandomDrop
 from slr.datasets.transforms.keypoints import DefinedDorp, RandomMove
 
 CONFIG_PATH = '../configs'
@@ -46,7 +46,7 @@ DecoderDict = {
 
 EvaluatorDict = {
     "sclite": slr.evaluation.ScliteEvaluator,
-    # "python": None,
+    "python": slr.evaluation.PythonEvaluator,
 }
 
 TransformDict = {
@@ -57,7 +57,7 @@ TransformDict = {
         'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
     },
     "keypoint": {
-        'train': Compose([DefinedDorp(0.5, 1.5, 1000), RandomMove()]),
+        'train': Compose([DefinedDorp(0.5, 1.5, 1000), RandomDrop(0.3), RandomMove()]),
         'dev': Compose([DefinedDorp(1, 1, 1000)]),
         'test': Compose([DefinedDorp(1, 1, 1000)])
     }
