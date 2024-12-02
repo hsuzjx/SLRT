@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='SLR',  # 项目的名称
+    name='SLRT',  # 项目的名称
     version='0.1.0',  # 版本号
     author='Your Name',  # 作者姓名
     author_email='your.email@example.com',  # 作者邮箱
@@ -48,7 +48,7 @@ setup(
     ],
     entry_points={  # 入口点
         'console_scripts': [
-            'slr-run=slr.main:main',  # 命令行入口点
+            'slrt-run=slrt.main:main',  # 命令行入口点
         ],
     },
 )

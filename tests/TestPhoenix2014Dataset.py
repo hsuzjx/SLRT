@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import torch
 
-from slr.datasets.Datasets.VideoDatasets.Phoenix2014Dataset import Phoenix2014Dataset
+from slrt.datasets.Datasets.VideoDatasets.Phoenix2014Dataset import Phoenix2014Dataset
 
 
 class TestPhoenix2014Dataset(unittest.TestCase):

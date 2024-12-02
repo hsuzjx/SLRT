@@ -1,4 +1,4 @@
-name: slr
+name: slrt
 channels:
   - pytorch
   - nvidia

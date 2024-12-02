@@ -2,7 +2,7 @@ import argparse
 
 import torch
 
-from slr.constants import ModelClassDict, InputSampleDict
+from slrt.constants import ModelClassDict, InputSampleDict
 
 
 def convert_to_onnx(model_name, pth_file, onnx_file):

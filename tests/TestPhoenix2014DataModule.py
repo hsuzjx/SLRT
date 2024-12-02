@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from slr.datasets.DataModules.VideoDataModules.Phoenix2014DataModule import Phoenix2014DataModule
+from slrt.datasets.DataModules.VideoDataModules.Phoenix2014DataModule import Phoenix2014DataModule
 
 # 定义数据特征和注释的路径以及手势词典的路径
 FEATURES_PATH = '../data/phoenix2014/phoenix-2014-multisigner/features/fullFrame-256x256px'

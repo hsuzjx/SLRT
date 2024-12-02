@@ -1,6 +1,6 @@
 import unittest
 
-from slr.evaluation.utils import modify_phoenix2014_output
+from slrt.evaluation.utils import modify_phoenix2014_output
 
 
 class TestModifyPhoenix2014Output(unittest.TestCase):

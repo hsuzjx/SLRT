@@ -8,9 +8,9 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 from torchvision.transforms import Compose, Resize, Normalize, CenterCrop
 
-from slr.constants import ModelClassDict
-from slr.datasets.transforms import ToTensor
-from slr.datasets.Datasets.utils import pad_video_sequence
+from slrt.constants import ModelClassDict
+from slrt.datasets.transforms import ToTensor
+from slrt.datasets.Datasets.utils import pad_video_sequence
 
 
 class SingleSampleDataset(Dataset):

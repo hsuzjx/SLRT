@@ -3,7 +3,7 @@ from unittest.mock import patch, mock_open
 
 import torch
 
-from slr.datasets.Tokenizers.simple_tokenizer import SimpleTokenizer
+from slrt.datasets.Tokenizers.simple_tokenizer import SimpleTokenizer
 
 
 class TestSimpleTokenizer(unittest.TestCase):
