@@ -59,15 +59,15 @@ class PythonEvaluator(object):
         ret = self.calc_wer(ref, hyp)
 
         with open(os.path.join(save_dir, "evaluation_results.txt"), 'w') as f:
-            f.write(f"ground truth file:{gt_file}\n")
-            f.write(f"hypothesis file:{hyp_file}\n\n")
+            f.write(f"ground_truth_file: {gt_file}\n")
+            f.write(f"hypothesis_file: {hyp_file}\n\n")
             for k in ret.keys():
-                f.write(f"{k}:{ret[k]}\n")
+                f.write(f"{k}: {ret[k]}\n")
 
         return ret["wer"]
 
     def calc_wer(self, references, hypotheses):
-        total_error = total_del = total_ins = total_sub = total_ref_len = 0
+        total_error = total_del = total_ins = total_sub = total_ref_len = total_hyp_len = 0
 
         assert len(references) >= len(hypotheses)
 
@@ -82,6 +82,7 @@ class PythonEvaluator(object):
             total_ins += res["num_ins"]
             total_sub += res["num_sub"]
             total_ref_len += res["num_ref"]
+            total_hyp_len += res["num_hyp"]
 
         wer = (total_error / total_ref_len) * 100
         del_rate = (total_del / total_ref_len) * 100
@@ -97,6 +98,7 @@ class PythonEvaluator(object):
             "total_del": total_del,
             "total_ins": total_ins,
             "total_sub": total_sub,
+            "hypotheses_total_length": total_hyp_len,
             "reference_total_length": total_ref_len
         }
 
@@ -112,6 +114,7 @@ class PythonEvaluator(object):
         num_sub = np.sum([s == "S" for s in alignment])
         num_err = num_del + num_ins + num_sub
         num_ref = len(r)
+        num_hyp = len(h)
 
         return {
             "alignment": alignment,
@@ -122,6 +125,7 @@ class PythonEvaluator(object):
             "num_sub": num_sub,
             "num_err": num_err,
             "num_ref": num_ref,
+            "num_hyp": num_hyp,
         }
 
     def edit_distance(self, r, h):
