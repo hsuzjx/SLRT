@@ -58,7 +58,7 @@ class PythonEvaluator(object):
 
         ret = self.calc_wer(ref, hyp)
 
-        with open(os.path.join(save_dir, "evaluation_results.txt"), 'w'):
+        with open(os.path.join(save_dir, "evaluation_results.txt"), 'w') as f:
             f.write(f"ground truth file:{gt_file}\n")
             f.write(f"hypothesis file:{hyp_file}\n\n")
             for k in ret.keys():
