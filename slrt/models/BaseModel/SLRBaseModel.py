@@ -234,10 +234,12 @@ class SLRBaseModel(L.LightningModule):
                     wer = torch.tensor(wer, device=self.device)
                 # Print different messages based on whether it's a sanity check
                 if self.trainer.sanity_checking:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Sanity Check,",
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                          f"Sanity Check,",
                           f"DEV_WER: {wer.item()}%")
                 else:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Epoch {self.current_epoch},",
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                          f"Epoch {self.current_epoch},",
                           f"DEV_WER: {wer.item()}%")
 
         torch.distributed.barrier()
@@ -245,7 +247,7 @@ class SLRBaseModel(L.LightningModule):
 
         # Log DEV_WER metric
         self.log('Val/Word-Error-Rate', wer,
-                 on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                 on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
 
     def on_test_epoch_end(self):
         """
@@ -286,7 +288,8 @@ class SLRBaseModel(L.LightningModule):
                 if isinstance(wer, float):
                     wer = torch.tensor(wer, device=self.device)
                 # Print messages
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} Test best model after epoch {self.current_epoch - 1},",
+                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                      f"Test best model after epoch {self.current_epoch - 1},",
                       f"TEST_WER: {wer.item()}%")
 
             torch.distributed.barrier()
@@ -294,7 +297,7 @@ class SLRBaseModel(L.LightningModule):
 
             # Log TEST_WER metric
             self.log('Test/Word-Error-Rate', wer,
-                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=True)
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
 
     def configure_optimizers(self):
         """
