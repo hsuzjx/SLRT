@@ -4,248 +4,70 @@ import torch
 import torch.nn as nn
 
 
-class DSTA(nn.Module):
-    """
-    定义DSTA网络，用于处理序列数据，如视频中的动作识别。
-    
-    参数:
-    - num_frame: 输入序列的帧数。
-    - num_subset: 子图的数量。
-    - dropout: Dropout的概率。
-    - cfg: 配置文件。
-    - args: 额外的参数。
-    - num_channel: 输入数据的通道数。
-    - glo_reg_s: 是否使用全局空间正则化。
-    - att_s: 是否使用空间注意力机制。
-    - glo_reg_t: 是否使用全局时间正则化。
-    - att_t: 是否使用时间注意力机制。
-    - use_temporal_att: 是否使用时间注意力机制。
-    - use_spatial_att: 是否使用空间注意力机制。
-    - attentiondrop: 注意力机制的dropout概率。
-    - use_pet: 是否使用位置编码。
-    - use_pes: 是否使用序列位置编码。
-    - mode: 模型模式，如'SLR'。
-    """
-
+class STAttentionModule(nn.Module):
     def __init__(
             self,
-            net_prams,
-            num_frame=1000,
-            num_subset=6,
-            dropout=0.1,
-            # cfg=None,
-            # args=None,
-            num_channel=2, glo_reg_s=True, att_s=True, glo_reg_t=False, att_t=False,
-            use_temporal_att=False, use_spatial_att=True, attentiondrop=0.1, use_pet=False,
-            use_pes=True, mode='SLR',
+            st_attention_module_prams: list[list[int, int, int, int, int]],
+            num_channel: int,
+            num_node: int,
+            max_frame: int,
+            num_subset: int = 6,
+            glo_reg_s=True, att_s=True, glo_reg_t=False, att_t=False,
+            use_temporal_att=False, use_spatial_att=True, attentiondrop=0.1,
+            use_pes=True, use_pet=False,
     ):
-        super(DSTA, self).__init__()
-        self.mode = mode
-        # self.cfg = cfg
-        # self.args = args
-        config = net_prams
-        self.out_channels = config[-1][1]
-        in_channels = config[0][0]
-        self.num_frame = num_frame
-        param = {
-            'num_subset': num_subset,
-            'glo_reg_s': glo_reg_s,
-            'att_s': att_s,
-            'glo_reg_t': glo_reg_t,
-            'att_t': att_t,
-            'use_spatial_att': use_spatial_att,
-            'use_temporal_att': use_temporal_att,
-            'use_pet': use_pet,
-            'use_pes': use_pes,
-            'attentiondrop': attentiondrop
-        }
+        super(STAttentionModule, self).__init__()
 
-        # 定义输入映射，将输入数据转换为适合网络处理的形式
-        self.left_input_map = nn.Sequential(
-            nn.Conv2d(num_channel, in_channels, 1),
-            nn.BatchNorm2d(in_channels),
-            nn.LeakyReLU(0.1),
-        )
-        self.right_input_map = nn.Sequential(
-            nn.Conv2d(num_channel, in_channels, 1),
-            nn.BatchNorm2d(in_channels),
-            nn.LeakyReLU(0.1),
-        )
-        self.body_input_map = nn.Sequential(
-            nn.Conv2d(num_channel, in_channels, 1),
-            nn.BatchNorm2d(in_channels),
-            nn.LeakyReLU(0.1),
-        )
-        self.face_input_map = nn.Sequential(
-            nn.Conv2d(num_channel, in_channels, 1),
-            nn.BatchNorm2d(in_channels),
+        self.sta_module_prams = st_attention_module_prams
+        assert len(self.sta_module_prams) > 0
+
+        self.in_channel = self.sta_module_prams[0][0]
+        self.out_channel = self.sta_module_prams[-1][1]
+
+        self.map_layer = nn.Sequential(
+            nn.Conv2d(num_channel, self.in_channel, 1),
+            nn.BatchNorm2d(self.in_channel),
             nn.LeakyReLU(0.1),
         )
 
-        # 定义面部、左手、右手、身体的时空注意力块
-        self.face_graph_layers = nn.ModuleList()
-        for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
-            self.face_graph_layers.append(
+        self.graph_layers = nn.Sequential()
+        num_frame = max_frame
+        for index, (in_c, out_c, inter_c, t_k, s) in enumerate(self.sta_module_prams):
+            self.graph_layers.add_module(
+                f'STAttentionBlock_{index}',
                 STAttentionBlock(
-                    in_channels, out_channels, inter_channels,
-                    stride=stride, t_kernel=t_kernel,
-                    num_node=26,
+                    in_c, out_c, inter_c,
+                    stride=s,
+                    t_kernel=t_k,
+                    num_node=num_node,
                     num_frame=num_frame,
-                    **param
+                    num_subset=num_subset,
+                    # 其他参数
+                    glo_reg_s=glo_reg_s,
+                    att_s=att_s,
+                    glo_reg_t=glo_reg_t,
+                    att_t=att_t,
+                    use_temporal_att=use_temporal_att,
+                    use_spatial_att=use_spatial_att,
+                    attentiondrop=attentiondrop,
+                    use_pes=use_pes,
+                    use_pet=use_pet,
                 )
             )
-            num_frame = int(num_frame / stride + 0.5)
-        num_frame = self.num_frame
-        self.left_graph_layers = nn.ModuleList()
-        for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
-            self.left_graph_layers.append(
-                STAttentionBlock(
-                    in_channels, out_channels, inter_channels,
-                    stride=stride, num_node=27,
-                    t_kernel=t_kernel, num_frame=num_frame,
-                    **param
-                )
-            )
-            num_frame = int(num_frame / stride + 0.5)
-        num_frame = self.num_frame
-        self.right_graph_layers = nn.ModuleList()
-        for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
-            self.right_graph_layers.append(
-                STAttentionBlock(
-                    in_channels, out_channels, inter_channels,
-                    stride=stride, t_kernel=t_kernel,
-                    num_frame=num_frame,
-                    **param
-                )
-            )
-            num_frame = int(num_frame / stride + 0.5)
-        num_frame = self.num_frame
-        self.body_graph_layers = nn.ModuleList()
-        for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
-            self.body_graph_layers.append(
-                STAttentionBlock(
-                    in_channels, out_channels, inter_channels,
-                    stride=stride, num_node=79,
-                    t_kernel=t_kernel, num_frame=num_frame,
-                    **param
-                )
-            )
-            num_frame = int(num_frame / stride + 0.5)
+            num_frame = int(num_frame / s + 0.5)
 
-        self.drop_out = nn.Dropout(dropout)
-
-    def forward(self, kps, body_idx, left_idx, right_idx, face_idx):
-        """
-        前向传播函数。
-        
-        参数:
-        - kps: 输入的关键点数据。
-        
-        返回:
-        - output: 网络的输出。
-        - left_output: 左手的输出。
-        - right_output: 右手的输出。
-        - body: 身体的输出。
-        """
-        # 初始化输入数据
-        x = kps
+    def forward(self, x):
         # 获取输入数据的维度
         N, C, T, V = x.shape
         # 调整输入数据的维度顺序并保持连续性
         x = x.permute(0, 1, 2, 3).contiguous().view(N, C, T, V)
 
-        # 提取左手、右手、脸部和身体的关键点数据
-        left = self.left_input_map(x[:, :, :, left_idx])
-        right = self.right_input_map(x[:, :, :, right_idx])
-        face = self.face_input_map(x[:, :, :, face_idx])
-        body = self.body_input_map(x[:, :, :, body_idx])
+        x = self.map_layer(x)
+        x = self.graph_layers(x)
 
-        # 通过图卷积层处理脸部、左手、右手和身体的关键点数据
-        for i, m in enumerate(self.face_graph_layers):
-            face = m(face)
-        for i, m in enumerate(self.left_graph_layers):
-            left = m(left)
-        for i, m in enumerate(self.right_graph_layers):
-            right = m(right)
-        for i, m in enumerate(self.body_graph_layers):
-            body = m(body)  # [B,256,T/4,N] -> [B,256]
+        x = x.permute(0, 2, 1, 3).contiguous()
+        x = x.mean(3)
 
-        # 调整维度顺序并保持连续性，以进行后续的平均操作
-        left = left.permute(0, 2, 1, 3).contiguous()
-        right = right.permute(0, 2, 1, 3).contiguous()
-        face = face.permute(0, 2, 1, 3).contiguous()
-        body = body.permute(0, 2, 1, 3).contiguous()
-
-        # 在特定维度上计算平均值，以减少数据的维度
-        body = body.mean(3)
-        face = face.mean(3)
-        left = left.mean(3)
-        right = right.mean(3)
-
-        # 按照左手、脸部、右手和身体的顺序合并数据
-        output = torch.cat([left, face, right, body], dim=-1)
-        # 合并左手和脸部数据作为左手的输出
-        left_output = torch.cat([left, face], dim=-1)
-        # 合并右手和脸部数据作为右手的输出
-        right_output = torch.cat([right, face], dim=-1)
-        # 返回网络的输出、左手的输出、右手的输出和身体的输出
-        return output, left_output, right_output, body
-
-
-class PositionalEncoding(nn.Module):
-    """
-    实现位置编码功能。
-    
-    位置编码可以分为时间编码和空间编码，取决于domain参数。
-    该类的主要作用是为输入数据添加位置信息，以便于后续处理。
-    
-    参数:
-    - channel: 输入数据的通道数。
-    - joint_num: 关节数量。
-    - time_len: 时间序列长度。
-    - domain: 编码领域，可以是'temporal'（时间）或'spatial'（空间）。
-    """
-
-    def __init__(self, channel, joint_num, time_len, domain):
-        super(PositionalEncoding, self).__init__()
-        self.joint_num = joint_num
-        self.time_len = time_len
-
-        self.domain = domain
-
-        # 根据domain参数选择合适的编码方式
-        if domain == "temporal":
-            # temporal embedding
-            pos_list = []
-            for t in range(self.time_len):
-                for j_id in range(self.joint_num):
-                    pos_list.append(t)
-        elif domain == "spatial":
-            # spatial embedding
-            pos_list = []
-            for t in range(self.time_len):
-                for j_id in range(self.joint_num):
-                    pos_list.append(j_id)
-
-        # 将位置列表转换为张量，并为其添加一个维度
-        position = torch.from_numpy(np.array(pos_list)).unsqueeze(1).float()
-        # 初始化位置编码张量
-        pe = torch.zeros(self.time_len * self.joint_num, channel)
-
-        # 计算位置编码中的分母项
-        div_term = torch.exp(torch.arange(0, channel, 2).float() *
-                             -(math.log(10000.0) / channel))  # channel//2
-        # 计算位置编码的正弦和余弦分量
-        pe[:, 0::2] = torch.sin(position * div_term)
-        pe[:, 1::2] = torch.cos(position * div_term)
-        # 将位置编码张量重新整形并添加一个批次维度
-        pe = pe.view(time_len, joint_num, channel).permute(2, 0, 1).unsqueeze(0)
-        # 将位置编码张量注册为缓冲区变量
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        # 将输入数据与位置编码相加
-        x = x + self.pe[:, :, :x.size(2)]
         return x
 
 
@@ -421,3 +243,60 @@ class STAttentionBlock(nn.Module):
         z = self.relu(self.downt2(y) + z)
 
         return z
+
+
+class PositionalEncoding(nn.Module):
+    """
+    实现位置编码功能。
+
+    位置编码可以分为时间编码和空间编码，取决于domain参数。
+    该类的主要作用是为输入数据添加位置信息，以便于后续处理。
+
+    参数:
+    - channel: 输入数据的通道数。
+    - joint_num: 关节数量。
+    - time_len: 时间序列长度。
+    - domain: 编码领域，可以是'temporal'（时间）或'spatial'（空间）。
+    """
+
+    def __init__(self, channel, joint_num, time_len, domain):
+        super(PositionalEncoding, self).__init__()
+        self.joint_num = joint_num
+        self.time_len = time_len
+
+        self.domain = domain
+
+        # 根据domain参数选择合适的编码方式
+        if domain == "temporal":
+            # temporal embedding
+            pos_list = []
+            for t in range(self.time_len):
+                for j_id in range(self.joint_num):
+                    pos_list.append(t)
+        elif domain == "spatial":
+            # spatial embedding
+            pos_list = []
+            for t in range(self.time_len):
+                for j_id in range(self.joint_num):
+                    pos_list.append(j_id)
+
+        # 将位置列表转换为张量，并为其添加一个维度
+        position = torch.from_numpy(np.array(pos_list)).unsqueeze(1).float()
+        # 初始化位置编码张量
+        pe = torch.zeros(self.time_len * self.joint_num, channel)
+
+        # 计算位置编码中的分母项
+        div_term = torch.exp(torch.arange(0, channel, 2).float() *
+                             -(math.log(10000.0) / channel))  # channel//2
+        # 计算位置编码的正弦和余弦分量
+        pe[:, 0::2] = torch.sin(position * div_term)
+        pe[:, 1::2] = torch.cos(position * div_term)
+        # 将位置编码张量重新整形并添加一个批次维度
+        pe = pe.view(time_len, joint_num, channel).permute(2, 0, 1).unsqueeze(0)
+        # 将位置编码张量注册为缓冲区变量
+        self.register_buffer('pe', pe)
+
+    def forward(self, x):
+        # 将输入数据与位置编码相加
+        x = x + self.pe[:, :, :x.size(2)]
+        return x
