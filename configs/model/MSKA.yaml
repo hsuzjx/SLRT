@@ -80,7 +80,6 @@ optimizer:
     - 0.998
 
 lr_scheduler:
-  eta_min:
   T_max: 100
 
 # for early stop

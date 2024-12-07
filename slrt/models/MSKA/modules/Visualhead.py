@@ -179,29 +179,30 @@ class VisualHead(torch.nn.Module):
 
         # 分类层
         logits = self.gloss_output_layer(x)  # B,T,V
-        gloss_probabilities_log = logits.log_softmax(2)
-        gloss_probabilities = logits.softmax(2)
-
-        # 计算输出的有效长度
-        if self.plus_conv_cfg != {}:
-            B, Tout, D = x.shape
-            valid_len_out = torch.floor(valid_len_in * Tout / Tin).long()  # B,
-        else:
-            valid_len_out = valid_len_in
-        # SSL投影层
-        if self.ssl_projection_cfg != {}:
-            x_ssl = self.ssl_projection(x)
-            if self.ssl_projection_cfg['normalize'] == True:
-                x_ssl = F.normalize(x_ssl, dim=-1)
-        else:
-            x_ssl = None
-        # 返回包含多个输出特征和概率的字典
-        return {
-            'gloss_feature_ssl': x_ssl,
-            'gloss_feature': x,
-            'gloss_feature_norm': F.normalize(x, dim=-1),
-            'gloss_logits': logits,
-            'gloss_probabilities_log': gloss_probabilities_log,
-            'gloss_probabilities': gloss_probabilities,
-            'valid_len_out': valid_len_out
-        }
+        return logits
+        # gloss_probabilities_log = logits.log_softmax(2)
+        # gloss_probabilities = logits.softmax(2)
+        #
+        # # 计算输出的有效长度
+        # if self.plus_conv_cfg != {}:
+        #     B, Tout, D = x.shape
+        #     valid_len_out = torch.floor(valid_len_in * Tout / Tin).long()  # B,
+        # else:
+        #     valid_len_out = valid_len_in
+        # # SSL投影层
+        # if self.ssl_projection_cfg != {}:
+        #     x_ssl = self.ssl_projection(x)
+        #     if self.ssl_projection_cfg['normalize'] == True:
+        #         x_ssl = F.normalize(x_ssl, dim=-1)
+        # else:
+        #     x_ssl = None
+        # # 返回包含多个输出特征和概率的字典
+        # return {
+        #     'gloss_feature_ssl': x_ssl,
+        #     'gloss_feature': x,
+        #     'gloss_feature_norm': F.normalize(x, dim=-1),
+        #     'gloss_logits': logits,
+        #     'gloss_probabilities_log': gloss_probabilities_log,
+        #     'gloss_probabilities': gloss_probabilities,
+        #     'valid_len_out': valid_len_out
+        # }

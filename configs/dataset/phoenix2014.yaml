@@ -6,7 +6,7 @@ data_cfgs:
   annotations_dir: null # if null, use default annotations directory in $dataset_dir
 
 # keypoints
-keypoints_file: "../data/preprocessed/phoenix2014/phoenix2014-keypoints.pkl"
+keypoints_file: "../data/preprocessed/phoenix2014/phoenix2014-keypoints-mska.pkl"
 
 # for recognization
 glosses_groundtruth_file:

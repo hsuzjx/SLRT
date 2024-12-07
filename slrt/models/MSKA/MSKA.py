@@ -27,25 +27,25 @@ class MSKA(SLRBaseModel):
     def __init_network(self, **kwargs):
         self.face_visual_backbone = STAttentionModule(
             num_channel=3,
-            max_frame=1000,
+            max_frame=400,
             num_node=len(self.hparams.kps_idx["face"]),
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
         self.body_visual_backbone = STAttentionModule(
             num_channel=3,
-            max_frame=1000,
+            max_frame=400,
             num_node=len(self.hparams.kps_idx["body"]),
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
         self.left_visual_backbone = STAttentionModule(
             num_channel=3,
-            max_frame=1000,
+            max_frame=400,
             num_node=len(self.hparams.kps_idx["left"]),
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
         self.right_visual_backbone = STAttentionModule(
             num_channel=3,
-            max_frame=1000,
+            max_frame=400,
             num_node=len(self.hparams.kps_idx["right"]),
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
@@ -128,18 +128,29 @@ class MSKA(SLRBaseModel):
             mask=mask.to(self.device),
             valid_len_in=mask_lgt.to(self.device)
         )
-
         return {
-            'fuse_gloss_logits': fuse_head_output["gloss_logits"],
-            'left_gloss_logits': left_head_output["gloss_logits"],
-            'right_gloss_logits': right_head_output["gloss_logits"],
-            'body_gloss_logits': body_head_output["gloss_logits"],
+            'fuse_gloss_logits': fuse_head_output,
+            'left_gloss_logits': left_head_output,
+            'right_gloss_logits': right_head_output,
+            'body_gloss_logits': body_head_output,
             'ensemble_last_gloss_logits': (
-                    left_head_output['gloss_probabilities'] + right_head_output['gloss_probabilities'] +
-                    body_head_output['gloss_probabilities'] + fuse_head_output['gloss_probabilities']
+                    left_head_output.softmax(dim=2) + right_head_output.softmax(dim=2) +
+                    body_head_output.softmax(dim=2) + fuse_head_output.softmax(dim=2)
             ).log(),
             'input_lengths': mask_lgt
         }
+
+        # return {
+        #     'fuse_gloss_logits': fuse_head_output["gloss_logits"],
+        #     'left_gloss_logits': left_head_output["gloss_logits"],
+        #     'right_gloss_logits': right_head_output["gloss_logits"],
+        #     'body_gloss_logits': body_head_output["gloss_logits"],
+        #     'ensemble_last_gloss_logits': (
+        #             left_head_output['gloss_probabilities'] + right_head_output['gloss_probabilities'] +
+        #             body_head_output['gloss_probabilities'] + fuse_head_output['gloss_probabilities']
+        #     ).log(),
+        #     'input_lengths': mask_lgt
+        # }
 
     def step_forward(self, batch) -> Any:
         # x = batch['kps']
@@ -179,7 +190,7 @@ class MSKA(SLRBaseModel):
             )
         loss_kldiv = loss_kldiv_list[0] + loss_kldiv_list[1] + loss_kldiv_list[2] + loss_kldiv_list[3]
 
-        loss = loss_ctc + loss_kldiv
+        loss = 1.0 * loss_ctc + 25.0 * loss_kldiv
 
         return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), outputs['input_lengths'], name
 

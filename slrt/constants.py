@@ -57,8 +57,10 @@ TransformDict = {
         'test': Compose([ToTensor(), CenterCrop(224), Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])])
     },
     "keypoint": {
-        'train': Compose([DefinedDorp(0.5, 1.5, 1000), RandomDrop(0.3), RandomMove()]),
-        'dev': Compose([DefinedDorp(1, 1, 1000)]),
-        'test': Compose([DefinedDorp(1, 1, 1000)])
+        'train': Compose([DefinedDorp(0.5, 1.5, 400),
+                          # RandomDrop(0.3),
+                          RandomMove()]),
+        'dev': Compose([DefinedDorp(1, 1, 400)]),
+        'test': Compose([DefinedDorp(1, 1, 400)])
     }
 }

@@ -7,7 +7,7 @@ data_cfgs:
   split_file: null # if null, use default split file in $dataset_dir
 
 # keypoints
-keypoints_file: "../data/preprocessed/csl-daily/csl-daily-keypoints.pkl"
+keypoints_file: "../data/preprocessed/csl-daily/csl-daily-keypoints-mska.pkl"
 
 # for recognization
 glosses_groundtruth_file:
@@ -15,7 +15,7 @@ glosses_groundtruth_file:
   dev: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-dev.stm"
   test: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-test.stm"
 
-gloss_vocab_file: "../data/preprocessed/csl-daily/csl-daily-gloss-vocab.txt"
+gloss_vocab_file: "../data/preprocessed/csl-daily/csl-daily-gloss-vocab-2.txt"
 
 # for translation
 translation_groundtruth_file:
