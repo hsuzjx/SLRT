@@ -7,7 +7,7 @@ defaults:
   - tokenizer: simple_tokenizer
   - model: MSKA # 模型配置
   - decoder: tf_ctc_beam_search
-  - evaluator: sclite
+  - evaluator: python
   - trainer: keypoints # 训练配置
   - logger: wandb # 日志记录器配置
 
@@ -17,16 +17,16 @@ hydra:
     dir: ../experiments/${project}/${name}/${times}/hydra
 
 # 项目相关配置
-project: CSL-Daily_Experiment
+project: CSL-Daily_Experiment-debug
 name: MSKA
-times: 0
+times: 302
 
 model_name: MSKA
 dataset_name: csl-daily-keypoint
 dataset_type: "keypoint"
 decoder_name: TFCTCBeamSearchDecoder
 tokenizer_name: SimpleTokenizer
-evaluator_name: sclite
+evaluator_name: python
 
 checkpoint: null # if null, no checkpoint loading
 

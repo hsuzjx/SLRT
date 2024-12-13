@@ -7,10 +7,10 @@ max_epochs: 1000
 accelerator: "gpu"
 
 # 指定使用的GPU设备编号，此处仅使用第一个GPU
-devices: [ 0, 1 ]
+devices: [ 0 ]
 
 # 精度模式，"16-mixed" 表示使用混合精度训练，有助于加速训练和减少内存使用
-precision: "16-mixed"
+precision: "32-true"
 
 # 指定训练策略，此处使用 'ddp_find_unused_parameters_true' 策略
 strategy: 'ddp'
