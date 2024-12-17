@@ -1,0 +1,9 @@
+# /configs/common_keypoint.yaml
+
+defaults:
+  - common_base
+  - _self_
+  - override dataloader: keypoint
+  - override trainer: keypoint
+
+dataset_type: "keypoint"

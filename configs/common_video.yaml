@@ -1,0 +1,9 @@
+# /configs/common_video.yaml
+
+defaults:
+  - common_base
+  - _self_
+  - override dataloader: video
+  - override trainer: video
+
+dataset_type: "video"

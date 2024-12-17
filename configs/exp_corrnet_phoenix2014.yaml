@@ -1,0 +1,16 @@
+# /configs/exp_corrnet_phoenix2014.yaml
+
+defaults:
+  - common_video
+  - _self_
+  - common_hydra
+  - override dataset: phoenix2014 # 数据集配置
+  - override model: CorrNet # 模型配置
+
+# 项目相关配置
+project: Phoenix2014_Experiment
+name: CorrNet
+times: 0
+
+model_name: CorrNet
+dataset_name: phoenix2014

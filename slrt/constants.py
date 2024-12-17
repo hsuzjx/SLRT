@@ -7,7 +7,7 @@ from slrt.datasets.transforms import ToTensor, TemporalRescale, RandomDrop
 from slrt.datasets.transforms.keypoints import DefinedDorp, RandomMove
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'kps_MSKA_CSL-Daily_experiment.yaml'
+CONFIG_NAME = 'exp_mska_csldaily.yaml'
 
 DataModuleClassDict = {
     "phoenix2014": slrt.datasets.DataModules.Phoenix2014DataModule,

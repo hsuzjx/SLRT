@@ -1,4 +1,4 @@
-# configs/trainer/use_gpu.yaml
+# configs/trainer/video.yaml
 
 # 进行训练的周期数，即模型在全部训练集上迭代的次数
 max_epochs: 40
@@ -23,4 +23,3 @@ limit_val_batches: 1.0
 limit_test_batches: 1.0
 
 profiler: "simple"
-

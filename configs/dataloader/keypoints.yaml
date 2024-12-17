@@ -1,4 +1,0 @@
-# configs/dataloader/keypoints.yaml
-
-batch_size: 4
-num_workers: 8

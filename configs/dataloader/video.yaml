@@ -1,4 +1,4 @@
-# configs/dataloader/default.yaml
+# configs/dataloader/video.yaml
 
 batch_size: 2
 num_workers: 8
