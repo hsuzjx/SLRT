@@ -25,9 +25,10 @@ def convert_to_onnx(model_name, pth_file, onnx_file):
             raise ValueError(f"Invalid model name: {model_name}")
 
         # 加载模型并转移到CPU上进行后续操作
-        model = ModelClassDict[model_name].load_from_checkpoint(pth_file)
-        model = model.to('cpu')
-        model.eval()  # 将模型设置为评估模式
+        model = ModelClassDict[model_name].load_from_checkpoint(pth_file, map_location='cpu')
+
+        # 将模型设置为评估模式
+        model.eval()
 
         # 获取模型对应的输入样本
         input_sample = InputSampleDict[model_name]

@@ -162,6 +162,7 @@ class MSKA(SLRBaseModel):
         # name = batch['name']
 
         x, y_glosses, y_translation, x_lgt, y_glosses_lgt, y_translation_lgt, name = batch
+        batch_size = len(name)
 
         outputs = self.forward(x, x_lgt)
 
@@ -173,7 +174,7 @@ class MSKA(SLRBaseModel):
                     targets=y_glosses.to(self.device),
                     input_lengths=outputs['input_lengths'].to(self.device),
                     target_lengths=y_glosses_lgt.to(self.device)
-                )
+                ) / batch_size
             )
         loss_ctc = loss_ctc_list[0] + loss_ctc_list[1] + loss_ctc_list[2] + loss_ctc_list[3]
 
@@ -190,7 +191,7 @@ class MSKA(SLRBaseModel):
             )
         loss_kldiv = loss_kldiv_list[0] + loss_kldiv_list[1] + loss_kldiv_list[2] + loss_kldiv_list[3]
 
-        loss = 1.0 * loss_ctc + 25.0 * loss_kldiv
+        loss = loss_ctc + loss_kldiv
 
         return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), outputs['input_lengths'], name
 
