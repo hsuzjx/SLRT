@@ -2,6 +2,7 @@ from typing import Tuple, Any
 
 import torch
 from torch import nn
+from typing_extensions import override
 
 from slrt.models.BaseModel import SLRTBaseModel
 from slrt.models.CorrNet.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
@@ -42,14 +43,10 @@ class CorrNet(SLRTBaseModel):
                 - loss_weights (list): Weights for different loss components.
         """
         super().__init__(**kwargs)
+        self.save_hyperparameters()
         self.name = "CorrNet"
 
-        # Initialize all network components
-        self._init_network(**kwargs)
-
-        # Define the loss functions
-        self._define_loss_function()
-
+    @override
     def _init_network(self, **kwargs):
         """
         Initializes all network components.
@@ -87,6 +84,14 @@ class CorrNet(SLRTBaseModel):
             self.classifier = self.temporal_feature_extractor.fc  # Use the same classifier as the 1D convolutional layer
         else:
             self.classifier = NormLinear(self.hparams.hidden_size, self.hparams.num_classes)  # Create a new classifier
+
+    @override
+    def _define_loss_function(self):
+        """
+        Defines the loss functions used by the model.
+        """
+        self.ctc_loss = nn.CTCLoss(reduction='none', zero_infinity=False)  # Define CTC loss function
+        self.dist_loss = SeqKD(T=8)  # Define distillation loss function
 
     def forward(self, x: torch.Tensor, x_lgt: torch.Tensor) -> Tuple[Any, Any, Any]:
         """
@@ -126,15 +131,8 @@ class CorrNet(SLRTBaseModel):
 
         return conv1d_logits, output_logits, feature_lengths
 
-    def _define_loss_function(self):
-        """
-        Defines the loss functions used by the model.
-        """
-        self.ctc_loss = nn.CTCLoss(reduction='none', zero_infinity=False)  # Define CTC loss function
-        self.dist_loss = SeqKD(T=8)  # Define distillation loss function
-
     def step_forward(self, batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]) -> Tuple[
-        torch.Tensor, Any, Any, Any]:
+        torch.Tensor, Any, Any, Any, Any, Any]:
         """
         Performs a forward pass and computes the loss for a given batch.
 
@@ -148,7 +146,7 @@ class CorrNet(SLRTBaseModel):
         conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         if self.trainer.predicting:
-            return torch.tensor([]), y_hat, y_hat_lgt, info
+            return torch.tensor([]), y_hat, None, y_hat_lgt, None, info
 
         loss = (
                 self.hparams.loss_weights[0] * self.ctc_loss(conv1d_hat.log_softmax(-1), y, y_hat_lgt, y_lgt).mean() +
@@ -160,4 +158,4 @@ class CorrNet(SLRTBaseModel):
         if torch.isnan(loss):
             print('\nWARNING: Detected NaN in loss.')
 
-        return loss, y_hat, y_hat_lgt, info
+        return loss, y_hat, None, y_hat_lgt, None, info

@@ -17,10 +17,8 @@ class STKA(SLRTBaseModel):
         self.save_hyperparameters()
         self.name = 'STKA'
 
-        self.__init_network(**kwargs)
-        self._define_loss_function()
-
-    def __init_network(self, **kwargs):
+    @override
+    def _init_network(self, **kwargs):
         self.backbone = STAttentionModule(
             num_channel=3,
             max_frame=400,
@@ -34,6 +32,7 @@ class STKA(SLRTBaseModel):
             **self.hparams.network.head_cfg
         )
 
+    @override
     def _define_loss_function(self):
         self.ctc_loss = torch.nn.CTCLoss(
             blank=0,
@@ -66,6 +65,8 @@ class STKA(SLRTBaseModel):
         batch_size = len(name)
 
         logits, input_lengths = self.forward(x, x_lgt)
+        if self.trainer.predicting:
+            return torch.tensor([]), logits.log().permute(1, 0, 2), None, input_lengths, None, name
 
         loss_ctc = self.ctc_loss(
             log_probs=logits.log_softmax(2).permute(1, 0, 2).to(self.device),
@@ -74,7 +75,7 @@ class STKA(SLRTBaseModel):
             target_lengths=y_glosses_lgt.to(self.device)
         ) / batch_size
 
-        return loss_ctc, logits.log().permute(1, 0, 2), input_lengths, name
+        return loss_ctc, logits.log().permute(1, 0, 2), None, input_lengths, None, name
 
     @override
     def configure_optimizers(self):

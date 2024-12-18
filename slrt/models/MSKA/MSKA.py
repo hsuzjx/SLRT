@@ -18,12 +18,8 @@ class MSKA(SLRTBaseModel):
         self.save_hyperparameters()
         self.name = 'MSKA'
 
-        self.__init_network(**kwargs)
-
-        self._define_loss_function()
-
-
-    def __init_network(self, **kwargs):
+    @override
+    def _init_network(self, **kwargs):
         self.face_visual_backbone = STAttentionModule(
             num_channel=3,
             max_frame=400,
@@ -67,6 +63,7 @@ class MSKA(SLRTBaseModel):
             **self.hparams.network.head_cfg['right_visual_head']
         )
 
+    @override
     def _define_loss_function(self):
         self.ctc_loss = torch.nn.CTCLoss(
             blank=0,
@@ -165,6 +162,10 @@ class MSKA(SLRTBaseModel):
 
         outputs = self.forward(x, x_lgt)
 
+        if self.trainer.predicting:
+            return torch.tensor([]), outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), None, outputs[
+                'input_lengths'], None, name
+
         loss_ctc_list = []
         for k in ['left', 'right', 'fuse', 'body']:
             loss_ctc_list.append(
@@ -192,7 +193,7 @@ class MSKA(SLRTBaseModel):
 
         loss = loss_ctc + loss_kldiv
 
-        return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), outputs['input_lengths'], name
+        return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), None,outputs['input_lengths'],None, name
 
     @override
     def configure_optimizers(self):

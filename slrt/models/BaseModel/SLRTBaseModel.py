@@ -1,5 +1,6 @@
 import os
 import re
+from abc import abstractmethod
 from datetime import datetime
 from typing import Any, Union, Sequence
 
@@ -54,29 +55,52 @@ class SLRTBaseModel(L.LightningModule):
         self.translation_evaluator = self.hparams.evaluator['translation'] \
             if 'translation' in self.hparams.evaluator.keys() else None
 
+        self.task = self.hparams.get("task", "recognition")
+        if isinstance(self.task, str):
+            self.task = [self.task]
+
+        self._init_network(**kwargs)
+        self._define_loss_function()
+
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
 
+    @abstractmethod
+    def _init_network(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def _define_loss_function(self, **kwargs):
+        pass
+
     def set_decoder(self, decoder, task='recognition'):
-        if task == 'recognition':
+        if isinstance(task, str):
+            task = [task]
+
+        if 'recognition' in task:
             self.recognition_decoder = decoder
             self.recognition_tokenizer = decoder.tokenizer
             print('Recognition decoder and tokenizer is set')
-        elif task == 'translation':
+        if 'translation' in task:
             self.translation_decoder = decoder
             self.translation_tokenizer = decoder.tokenizer
             print('Translation decoder and tokenizer is set')
-        else:
+
+        if 'recognition' not in task and 'translation' not in task:
             print('Task not supported, the supported task is in [\'recognition\', \'translation\']')
 
     def set_evaluator(self, evaluator, task='recognition'):
-        if task == 'recognition':
+        if isinstance(task, str):
+            task = [task]
+
+        if 'recognition' in task:
             self.recognition_evaluator = evaluator
             print('Recognition evaluator is set')
-        elif task == 'translation':
+        if 'translation' in task:
             self.translation_evaluator = evaluator
             print('Translation evaluator is set')
-        else:
+
+        if 'recognition' not in task and 'translation' not in task:
             print('Task not supported, the supported task is in [\'recognition\', \'translation\']')
 
     def training_step(self, batch, batch_idx):
@@ -90,7 +114,7 @@ class SLRTBaseModel(L.LightningModule):
         Returns:
             Loss value.
         """
-        loss, _, _, _ = self.step_forward(batch)
+        loss, _, _, _, _, _ = self.step_forward(batch)
 
         # Log learning rate
         self.log(
@@ -118,7 +142,7 @@ class SLRTBaseModel(L.LightningModule):
             Loss value.
         """
         # Perform forward pass and compute loss, predictions, and additional info
-        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
+        loss, y_glosses_hat, y_words_hat, y_glosses_hat_lgt, y_words_lgt, info = self.step_forward(batch)
 
         # Log the validation loss
         self.log(
@@ -127,19 +151,33 @@ class SLRTBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.recognition_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        if 'recognition' in self.task:
+            glosses_decoded = self.recognition_decoder.decode(y_glosses_hat.softmax(-1).cpu(), y_glosses_hat_lgt.cpu())
 
-        # Remove special tokens from the decoded predictions
-        for tokens in decoded:
-            for token in self.recognition_tokenizer.special_tokens:
-                if token == self.recognition_tokenizer.unk_token:
-                    continue
-                while token in tokens:
-                    tokens.remove(token)
+            # Remove special tokens from the decoded predictions
+            for tokens in glosses_decoded:
+                for token in self.recognition_tokenizer.special_tokens:
+                    if token == self.recognition_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
 
-        # Write the decoded predictions to the output file
-        for i in range(len(info)):
-            self.rank_output_file.write(f"{info[i]} {' '.join(decoded[i])}\n")
+            # Write the decoded predictions to the output file
+            for i in range(len(info)):
+                self.recognition_rank_output_file.write(f"{info[i]} {' '.join(glosses_decoded[i])}\n")
+
+        if 'translation' in self.task:
+            words_decoded = self.translation_decoder.decode(y_words_hat.softmax(-1).cpu(), y_words_lgt.cpu())
+            for tokens in words_decoded:
+                for token in self.translation_tokenizer.special_tokens:
+                    if token == self.translation_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
+
+            # Write the decoded predictions to the output file
+            for i in range(len(info)):
+                self.translation_rank_output_file.write(f"{info[i]} {' '.join(words_decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -156,7 +194,7 @@ class SLRTBaseModel(L.LightningModule):
             Loss value.
         """
         # Perform forward pass and compute loss, predictions, and additional info
-        loss, y_hat, y_hat_lgt, info = self.step_forward(batch)
+        loss, y_glosses_hat, y_words_hat, y_glosses_hat_lgt, y_words_lgt, info = self.step_forward(batch)
 
         # Log test loss
         self.log(
@@ -165,19 +203,33 @@ class SLRTBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.recognition_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        if 'recognition' in self.task:
+            glosses_decoded = self.recognition_decoder.decode(y_glosses_hat.softmax(-1).cpu(), y_glosses_hat_lgt.cpu())
 
-        # Remove special tokens from the decoded predictions
-        for tokens in decoded:
-            for token in self.recognition_tokenizer.special_tokens:
-                if token == self.recognition_tokenizer.unk_token:
-                    continue
-                while token in tokens:
-                    tokens.remove(token)
+            # Remove special tokens from the decoded predictions
+            for tokens in glosses_decoded:
+                for token in self.recognition_tokenizer.special_tokens:
+                    if token == self.recognition_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
 
-        # Write the decoded predictions to the output file
-        for i in range(len(info)):
-            self.rank_output_file.write(f"{info[i]} {' '.join(decoded[i])}\n")
+            # Write the decoded predictions to the output file
+            for i in range(len(info)):
+                self.recognition_rank_output_file.write(f"{info[i]} {' '.join(glosses_decoded[i])}\n")
+
+        if 'translation' in self.task:
+            words_decoded = self.translation_decoder.decode(y_words_hat.softmax(-1).cpu(), y_words_lgt.cpu())
+            for tokens in words_decoded:
+                for token in self.translation_tokenizer.special_tokens:
+                    if token == self.translation_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
+
+            # Write the decoded predictions to the output file
+            for i in range(len(info)):
+                self.translation_rank_output_file.write(f"{info[i]} {' '.join(words_decoded[i])}\n")
 
         # Return the loss value
         return loss
@@ -194,17 +246,31 @@ class SLRTBaseModel(L.LightningModule):
         Returns:
             Decoded predictions.
         """
-        _, y_hat, y_hat_lgt, info = self.step_forward(batch)
-        decoded = self.glosses_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        _, y_glosses_hat, y_words_hat, y_glosses_hat_lgt, y_words_lgt, info = self.step_forward(batch)
+        if 'recognition' in self.task:
+            glosses_decoded = self.recognition_decoder.decode(y_glosses_hat.softmax(-1).cpu(), y_glosses_hat_lgt.cpu())
 
-        for tokens in decoded:
-            for token in self.recognition_tokenizer.special_tokens:
-                if token == self.recognition_tokenizer.unk_token:
-                    continue
-                while token in tokens:
-                    tokens.remove(token)
+            for tokens in glosses_decoded:
+                for token in self.recognition_tokenizer.special_tokens:
+                    if token == self.recognition_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
+        else:
+            glosses_decoded = None
 
-        return info, decoded
+        if 'translation' in self.task:
+            words_decoded = self.translation_decoder.decode(y_words_hat.softmax(-1).cpu(), y_words_lgt.cpu())
+            for tokens in words_decoded:
+                for token in self.translation_tokenizer.special_tokens:
+                    if token == self.translation_tokenizer.unk_token:
+                        continue
+                    while token in tokens:
+                        tokens.remove(token)
+        else:
+            words_decoded = None
+
+        return info, glosses_decoded, words_decoded
 
     def on_validation_epoch_start(self):
         """
@@ -216,9 +282,20 @@ class SLRTBaseModel(L.LightningModule):
             self.file_save_dir = os.path.join(self.hypothesis_save_dir, "dev", f"epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
-        self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
-        self.rank_output_file = open(
-            os.path.join(self.file_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w")
+        if "recognition" in self.task:
+            self.recognition_save_dir = os.path.join(self.file_save_dir, "recognition")
+            os.makedirs(self.recognition_save_dir, exist_ok=True)
+            self.recognition_output_file = os.path.join(self.recognition_save_dir, f'output-hypothesis.txt')
+            self.recognition_rank_output_file = open(
+                os.path.join(self.recognition_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w"
+            )
+        if "translation" in self.task:
+            self.translation_save_dir = os.path.join(self.file_save_dir, "translation")
+            os.makedirs(self.translation_save_dir, exist_ok=True)
+            self.translation_output_file = os.path.join(self.translation_save_dir, f'output-hypothesis.txt')
+            self.translation_rank_output_file = open(
+                os.path.join(self.translation_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w"
+            )
 
     def on_test_epoch_start(self):
         """
@@ -228,113 +305,140 @@ class SLRTBaseModel(L.LightningModule):
                                           f"test_best_model_after_epoch_{self.current_epoch}")
         os.makedirs(self.file_save_dir, exist_ok=True)
 
-        self.output_file = os.path.join(self.file_save_dir, f'output-hypothesis.txt')
-        self.rank_output_file = open(
-            os.path.join(self.file_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w")
+        if "recognition" in self.task:
+            self.recognition_save_dir = os.path.join(self.file_save_dir, "recognition")
+            os.makedirs(self.recognition_save_dir, exist_ok=True)
+            self.recognition_output_file = os.path.join(self.recognition_save_dir, f'output-hypothesis.txt')
+            self.recognition_rank_output_file = open(
+                os.path.join(self.recognition_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w"
+            )
+        if "translation" in self.task:
+            self.translation_save_dir = os.path.join(self.file_save_dir, "translation")
+            os.makedirs(self.translation_save_dir, exist_ok=True)
+            self.translation_output_file = os.path.join(self.translation_save_dir, f'output-hypothesis.txt')
+            self.translation_rank_output_file = open(
+                os.path.join(self.translation_save_dir, f'output-hypothesis-rank{self.trainer.global_rank}.txt'), "w"
+            )
 
     def on_validation_epoch_end(self):
         """
         Called at the end of each validation epoch.
         """
-        self.rank_output_file.close()
+        if "recognition" in self.task:
+            self.recognition_rank_output_file.close()
+            torch.distributed.barrier()
+
+            wer = torch.tensor([100.0], device=self.device)
+            if self.trainer.is_global_zero:
+                all_lines = dict()
+                for rank in range(self.trainer.world_size):
+                    rank_output_file = os.path.join(self.recognition_save_dir, f'output-hypothesis-rank{rank}.txt')
+                    with open(rank_output_file, 'r') as f:
+                        for line in f.readlines():
+                            all_lines[line.split(' ')[0]] = line
+
+                with open(self.recognition_output_file, 'w') as f:
+                    f.writelines(list(all_lines.values()))
+
+                try:
+                    # Call evaluate function to compute WER
+                    wer = self.recognition_evaluator.evaluate(
+                        save_dir=self.recognition_save_dir,
+                        hyp_file=self.recognition_output_file,
+                        mode="dev"
+                    )
+                except Exception as e:
+                    # Handle exceptions and log error information
+                    print(f"ERROR: Exception occurred at the end of validation epoch: {e},",
+                          f"please check detailed error message.")
+                finally:
+                    # Process WER logging, ensuring even string values are logged correctly
+                    if isinstance(wer, str):
+                        wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
+                    if isinstance(wer, float):
+                        wer = torch.tensor(wer, device=self.device)
+                    # Print different messages based on whether it's a sanity check
+                    if self.trainer.sanity_checking:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                              f"Sanity Check,",
+                              f"DEV_WER: {wer.item()}%")
+                    else:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                              f"Epoch {self.current_epoch},",
+                              f"DEV_WER: {wer.item()}%")
+
+            torch.distributed.barrier()
+            # wer = self.all_gather(wer)[0]
+
+            # Log DEV_WER metric
+            self.log('Val/Word-Error-Rate', wer,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+
+        if "translation" in self.task:
+            self.translation_rank_output_file.close()
+            torch.distributed.barrier()
+            # TODO: ...
+            pass
+
         torch.distributed.barrier()
-
-        wer = torch.tensor([100.0], device=self.device)
-
-        if self.trainer.is_global_zero:
-            all_lines = dict()
-            for rank in range(self.trainer.world_size):
-                rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
-                with open(rank_output_file, 'r') as f:
-                    for line in f.readlines():
-                        all_lines[line.split(' ')[0]] = line
-
-            with open(self.output_file, 'w') as f:
-                f.writelines(list(all_lines.values()))
-
-            try:
-                # Call evaluate function to compute WER
-                wer = self.recognition_evaluator.evaluate(
-                    save_dir=self.file_save_dir,
-                    hyp_file=self.output_file,
-                    mode="dev"
-                )
-            except Exception as e:
-                # Handle exceptions and log error information
-                print(f"ERROR: Exception occurred at the end of validation epoch: {e},",
-                      f"please check detailed error message.")
-            finally:
-                # Process WER logging, ensuring even string values are logged correctly
-                if isinstance(wer, str):
-                    wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
-                if isinstance(wer, float):
-                    wer = torch.tensor(wer, device=self.device)
-                # Print different messages based on whether it's a sanity check
-                if self.trainer.sanity_checking:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                          f"Sanity Check,",
-                          f"DEV_WER: {wer.item()}%")
-                else:
-                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                          f"Epoch {self.current_epoch},",
-                          f"DEV_WER: {wer.item()}%")
-
-        torch.distributed.barrier()
-        wer = self.all_gather(wer)[0]
-
-        # Log DEV_WER metric
-        self.log('Val/Word-Error-Rate', wer,
-                 on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
 
     def on_test_epoch_end(self):
         """
         Called at the end of each test epoch.
         """
-        self.rank_output_file.close()
-        torch.distributed.barrier()
+        if "recognition" in self.task:
+            self.recognition_rank_output_file.close()
+            torch.distributed.barrier()
 
-        wer = torch.tensor([100.0], device=self.device)
+            wer = torch.tensor([100.0], device=self.device)
+            if self.trainer.is_global_zero:
+                all_lines = dict()
+                for rank in range(self.trainer.world_size):
+                    rank_output_file = os.path.join(self.recognition_save_dir, f'output-hypothesis-rank{rank}.txt')
+                    with open(rank_output_file, 'r') as f:
+                        for line in f.readlines():
+                            all_lines[line.split(' ')[0]] = line
 
-        if self.trainer.is_global_zero:
-            all_lines = dict()
-            for rank in range(self.trainer.world_size):
-                rank_output_file = os.path.join(self.file_save_dir, f'output-hypothesis-rank{rank}.txt')
-                with open(rank_output_file, 'r') as f:
-                    for line in f.readlines():
-                        all_lines[line.split(' ')[0]] = line
+                with open(self.recognition_output_file, 'w') as f:
+                    f.writelines(list(all_lines.values()))
 
-            with open(self.output_file, 'w') as f:
-                f.writelines(list(all_lines.values()))
-
-            try:
-                # Call evaluate function to compute WER
-                wer = self.recognition_evaluator.evaluate(
-                    save_dir=self.file_save_dir,
-                    hyp_file=self.output_file,
-                    mode="test"
-                )
-            except Exception as e:
-                # Handle exceptions and log error information
-                print(f"ERROR: Exception occurred at the end of the test epoch: {e},",
-                      f"please check the detailed error message.")
-                wer = '100.0'
-            finally:
-                # Process WER logging, ensuring even string values are logged correctly
-                if isinstance(wer, str):
-                    wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
-                if isinstance(wer, float):
-                    wer = torch.tensor(wer, device=self.device)
-                # Print messages
-                print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-                      f"Test best model after epoch {self.current_epoch - 1},",
-                      f"TEST_WER: {wer.item()}%")
+                try:
+                    # Call evaluate function to compute WER
+                    wer = self.recognition_evaluator.evaluate(
+                        save_dir=self.recognition_save_dir,
+                        hyp_file=self.recognition_output_file,
+                        mode="test"
+                    )
+                except Exception as e:
+                    # Handle exceptions and log error information
+                    print(f"ERROR: Exception occurred at the end of the test epoch: {e},",
+                          f"please check the detailed error message.")
+                    wer = '100.0'
+                finally:
+                    # Process WER logging, ensuring even string values are logged correctly
+                    if isinstance(wer, str):
+                        wer = torch.tensor(float(re.findall("\d+\.?\d*", wer)[0]), device=self.device)
+                    if isinstance(wer, float):
+                        wer = torch.tensor(wer, device=self.device)
+                    # Print messages
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                          f"Test best model after epoch {self.current_epoch - 1},",
+                          f"TEST_WER: {wer.item()}%")
 
             torch.distributed.barrier()
-            wer = self.all_gather(wer)[0]
+            # wer = self.all_gather(wer)[0]
 
             # Log TEST_WER metric
             self.log('Test/Word-Error-Rate', wer,
                      on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+
+        if "translation" in self.task:
+            self.translation_rank_output_file.close()
+            torch.distributed.barrier()
+            # TODO: ...
+            pass
+
+        torch.distributed.barrier()
 
     def configure_optimizers(self):
         """
