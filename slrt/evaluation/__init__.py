@@ -1,2 +1,2 @@
-from .PythonEvaluator import PythonEvaluator
-from .ScliteEvaluator import ScliteEvaluator
+from .recognition import *
+from .translation import *
