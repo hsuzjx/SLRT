@@ -7,7 +7,7 @@ from slrt.datasets.transforms import ToTensor, TemporalRescale, RandomDrop
 from slrt.datasets.transforms.keypoints import DefinedDorp, RandomMove
 
 CONFIG_PATH = '../configs'
-CONFIG_NAME = 'exp_mska_csldaily.yaml'
+CONFIG_NAME = 'exp_stka_csldaily.yaml'
 
 DataModuleClassDict = {
     "phoenix2014": slrt.datasets.DataModules.Phoenix2014DataModule,
@@ -22,6 +22,7 @@ ModelClassDict = {
     "CorrNet": slrt.models.CorrNet,
     "SwinBertSLR": slrt.models.SwinBertSLR,
     "MSKA": slrt.models.MSKA,
+    "STKA": slrt.models.STKA,
 }
 
 InputSampleDict = {
@@ -31,7 +32,8 @@ InputSampleDict = {
         torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu'),
         torch.randn(1, 100, 512), torch.LongTensor([10])
     ),
-    "MSKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu'))
+    "MSKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
+    "STKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
 }
 
 TokenizerDict = {

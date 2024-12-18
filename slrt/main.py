@@ -14,6 +14,8 @@ from slrt.constants import DataModuleClassDict, ModelClassDict, TransformDict, C
     DecoderDict, EvaluatorDict, InputSampleDict
 from slrt.utils import set_seed
 
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
 
 @hydra.main(version_base=None, config_path=CONFIG_PATH, config_name=CONFIG_NAME)
 def main(cfg: DictConfig):
