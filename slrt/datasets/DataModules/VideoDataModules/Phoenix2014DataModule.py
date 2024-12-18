@@ -35,7 +35,7 @@ class Phoenix2014DataModule(BaseDataModule):
             batch_size: int = 2,
             num_workers: int = 8,
             transform: [callable, dict] = None,
-            tokenizer: [object, dict] = None,
+            tokenizer: [dict] = None,
             read_hdf5: bool = False
     ):
         """
@@ -73,13 +73,13 @@ class Phoenix2014DataModule(BaseDataModule):
             Phoenix2014Dataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, self.transforms['test'])
-        tokenizer = self.tokenizers.get(mode, self.tokenizers['test'])
         return Phoenix2014Dataset(
             dataset_dir=self.dataset_dir,
             features_dir=self.features_dir,
             annotations_dir=self.annotations_dir,
             mode=mode,
             transform=transform,
-            tokenizer=tokenizer,
+            recognition_tokenizer=self.recognition_tokenizer,
+            translation_tokenizer=self.translation_tokenizer,
             read_hdf5=self.read_hdf5
         )

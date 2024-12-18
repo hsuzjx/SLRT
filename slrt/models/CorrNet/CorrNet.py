@@ -3,11 +3,11 @@ from typing import Tuple, Any
 import torch
 from torch import nn
 
-from slrt.models.BaseModel import SLRBaseModel
+from slrt.models.BaseModel import SLRTBaseModel
 from slrt.models.CorrNet.modules import resnet18, Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 
 
-class CorrNet(SLRBaseModel):
+class CorrNet(SLRTBaseModel):
     """
     A custom neural network architecture designed for Sign Language Recognition tasks.
 
@@ -144,7 +144,7 @@ class CorrNet(SLRBaseModel):
         Returns:
             Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
-        x, y, x_lgt, y_lgt, info = batch
+        x, y, _, x_lgt, y_lgt, _, info = batch
         conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         if self.trainer.predicting:

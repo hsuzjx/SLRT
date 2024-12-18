@@ -33,7 +33,8 @@ class Phoenix2014TDataset(BaseDataset):
             annotations_dir: str = None,
             mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
-            tokenizer: object = None,
+            recognition_tokenizer: object = None,
+            translation_tokenizer: object = None,
             read_hdf5: bool = False
     ):
         """
@@ -51,7 +52,12 @@ class Phoenix2014TDataset(BaseDataset):
             transform (callable, optional): Transformation function applied to video frames.
             tokenizer (object, optional): Tokenizer used for encoding labels.
         """
-        super().__init__(transform=transform, tokenizer=tokenizer, read_hdf5=read_hdf5)
+        super().__init__(
+            transform=transform,
+            recognition_tokenizer=recognition_tokenizer,
+            translation_tokenizer=translation_tokenizer,
+            read_hdf5=read_hdf5
+        )
 
         # Ensure all directory paths are set correctly
         self.features_dir = os.path.join(dataset_dir, 'PHOENIX-2014-T/features/fullFrame-210x260px') \
@@ -104,3 +110,10 @@ class Phoenix2014TDataset(BaseDataset):
             item: pd.DataFrame
     ) -> [str, list]:
         return [gloss for gloss in item['orth'].split(' ') if gloss]
+
+    @override
+    def _get_translation(
+            self,
+            item: pd.DataFrame
+    ) -> [str, list]:
+        return [word for word in item['translation'].split(' ') if word]

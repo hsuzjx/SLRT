@@ -30,7 +30,8 @@ class BaseDataModule(L.LightningDataModule):
         self.transforms = self.__process_transforms(self.hparams.get("transform", None))
 
         # Process tokenizers
-        self.tokenizers = self.__process_tokenizers(self.hparams.get("tokenizer", None))
+        self.recognition_tokenizer = self.hparams.tokenizer.get('recognition', None)
+        self.translation_tokenizer = self.hparams.tokenizer.get('translation', None)
 
     @abstractmethod
     def load_dataset(self, mode):
@@ -138,28 +139,3 @@ class BaseDataModule(L.LightningDataModule):
             return {'train': transform, 'dev': transform, 'test': transform}
         else:
             raise ValueError("Invalid transform type. Expected dict or Compose instance.")
-
-    @staticmethod
-    def __process_tokenizers(tokenizer):
-        """
-        Processes the tokenizer parameter into a dictionary.
-
-        Args:
-            tokenizer ([object, dict]): Tokenizer to use for text processing.
-
-        Returns:
-            dict: A dictionary of tokenizers for each dataset mode.
-        """
-        if tokenizer is None:
-            print("Warning: 'tokenizer' is None, using default values.")
-            return {'train': None, 'dev': None, 'test': None}
-        elif isinstance(tokenizer, dict):
-            keys = ['train', 'dev', 'test']
-            for key in keys:
-                if key not in tokenizer:
-                    print(f"Warning: '{key}' key missing from tokenizer dict, setting to None.")
-            return {key: tokenizer.get(key, None) for key in keys}
-        elif tokenizer is not None:
-            return {'train': tokenizer, 'dev': tokenizer, 'test': tokenizer}
-        else:
-            raise ValueError("Invalid tokenizer type. Expected dict or Tokenizer object.")

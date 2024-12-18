@@ -63,15 +63,25 @@ def main(cfg: DictConfig):
     ##################### Load Dataset Configurations #####################################
     data_cfgs = cfg.dataset.get('data_cfgs', None)
     kps_file = cfg.dataset.get('keypoints_file', None)
-    gt_file = cfg.dataset.get('glosses_groundtruth_file', None)
-    vocab_file = cfg.dataset.get('gloss_vocab_file', None)
+
+    recognition_gt_file = cfg.dataset.get('glosses_groundtruth_file', None)
+    recognition_vocab_file = cfg.dataset.get('gloss_vocab_file', None)
+
+    translation_gt_file = cfg.dataset.get('translation_groundtruth_file', None)
+    translation_vocab_file = cfg.dataset.get('word_vocab_file', None)
 
     #######################################################################################
     ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
-    tokenizer = TokenizerDict[tokenizer_name](vocab_file=vocab_file, **cfg.tokenizer)
-    ctc_decoder = DecoderDict[decoder_name](tokenizer=tokenizer, **cfg.decoder)
-    evaluator = EvaluatorDict[evaluator_name](gt_file=gt_file, dataset=dataset_name, **cfg.evaluator)
+    recognition_tokenizer = TokenizerDict[tokenizer_name](vocab_file=recognition_vocab_file, **cfg.tokenizer)
+    recognition_decoder = DecoderDict[decoder_name](tokenizer=recognition_tokenizer, **cfg.decoder)
+    recognition_evaluator = EvaluatorDict[evaluator_name](gt_file=recognition_gt_file, dataset=dataset_name,
+                                                          **cfg.evaluator)
+
+    translation_tokenizer = TokenizerDict[tokenizer_name](vocab_file=translation_vocab_file, **cfg.tokenizer)
+    translation_decoder = DecoderDict[decoder_name](tokenizer=translation_tokenizer, **cfg.decoder)
+    translation_evaluator = EvaluatorDict[evaluator_name](gt_file=translation_gt_file, dataset=dataset_name,
+                                                          **cfg.evaluator)
 
     #######################################################################################
     ##################### Initialize WandbLogger ##########################################
@@ -90,14 +100,14 @@ def main(cfg: DictConfig):
     if dataset_type == 'video':
         data_module = DataModuleClassDict[dataset_name](
             transform=TransformDict[dataset_type],
-            tokenizer=tokenizer,
+            tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             **data_cfgs,
             **cfg.dataloader
         )
     elif dataset_type == 'keypoint':
         data_module = DataModuleClassDict[dataset_name](
             transform=TransformDict[dataset_type],
-            tokenizer=tokenizer,
+            tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             keypoints_file=kps_file,
             **cfg.dataloader
         )
@@ -109,8 +119,8 @@ def main(cfg: DictConfig):
     # Initialize model
     model = ModelClassDict[model_name](
         save_dir=save_dir,
-        probs_decoder=ctc_decoder,
-        evaluator=evaluator,
+        probs_decoder={'recognition': recognition_decoder, 'translation': translation_decoder},
+        evaluator={'recognition': recognition_evaluator, 'translation': translation_evaluator},
         **cfg.model
     )
 

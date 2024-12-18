@@ -12,12 +12,19 @@ class Phoenix2014KeypointDataset(KeypointBaseDataset):
             keypoints_file: str = None,
             mode: [str, list] = "train",
             transform: callable = None,
-            tokenizer: object = None,
+            recognition_tokenizer: object = None,
+            translation_tokenizer: object = None,
             frame_size: tuple = (210, 260)
     ):
         """
         """
-        super().__init__(keypoints_file=keypoints_file, transform=transform, tokenizer=tokenizer, frame_size=frame_size)
+        super().__init__(
+            keypoints_file=keypoints_file,
+            transform=transform,
+            recognition_tokenizer=recognition_tokenizer,
+            translation_tokenizer=translation_tokenizer,
+            frame_size=frame_size
+        )
 
         # Convert mode to list and validate
         self.mode = [mode] if isinstance(mode, str) else mode

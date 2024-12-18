@@ -16,7 +16,7 @@ class Phoenix2014KeypointDataModule(KeypointBaseDataModule):
             batch_size: int = 2,
             num_workers: int = 8,
             transform: [callable, dict] = None,
-            tokenizer: [object, dict] = None,
+            tokenizer: [dict] = None,
     ):
         """
         """
@@ -37,10 +37,10 @@ class Phoenix2014KeypointDataModule(KeypointBaseDataModule):
             Phoenix2014KeypointDataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, None)
-        tokenizer = self.tokenizers
         return Phoenix2014KeypointDataset(
             keypoints_file=self.keypoints_file,
             mode=mode,
             transform=transform,
-            tokenizer=tokenizer
+            recognition_tokenizer=self.recognition_tokenizer,
+            translation_tokenizer=self.translation_tokenizer
         )

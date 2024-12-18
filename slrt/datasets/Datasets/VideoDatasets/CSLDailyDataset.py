@@ -36,7 +36,8 @@ class CSLDailyDataset(BaseDataset):
             split_file: str = None,
             mode: [str, list] = "train",
             transform: callable = Compose([ToTensor()]),
-            tokenizer: object = None,
+            recognition_tokenizer: object = None,
+            translation_tokenizer: object = None,
             read_hdf5: bool = False
     ):
         """
@@ -61,7 +62,12 @@ class CSLDailyDataset(BaseDataset):
                                             augmentation or normalization.
             tokenizer (object, optional): Tokenizer object for text tokenization.
         """
-        super().__init__(transform=transform, tokenizer=tokenizer, read_hdf5=read_hdf5)
+        super().__init__(
+            transform=transform,
+            recognition_tokenizer=recognition_tokenizer,
+            translation_tokenizer=translation_tokenizer,
+            read_hdf5=read_hdf5
+        )
 
         # Ensure all directory paths are set correctly
         self.features_dir = os.path.join(dataset_dir, 'sentence_frames-512x512/frames_512x512') \
@@ -120,3 +126,10 @@ class CSLDailyDataset(BaseDataset):
             item: pd.DataFrame
     ) -> [str, list]:
         return item['label_gloss']
+
+    @override
+    def _get_translation(
+            self,
+            item: pd.DataFrame
+    ) -> [str, list]:
+        return item['label_word']

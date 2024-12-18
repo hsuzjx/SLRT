@@ -9,7 +9,7 @@ from lightning import Callback
 from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
 
 
-class SLRBaseModel(L.LightningModule):
+class SLRTBaseModel(L.LightningModule):
     """
     Base LightningModule for Sign Language Recognition models.
 
@@ -38,6 +38,21 @@ class SLRBaseModel(L.LightningModule):
         self.file_save_dir = None
         self.output_file = None
         self.rank_output_file = None
+
+        self.recognition_decoder = self.hparams.probs_decoder['recognition'] \
+            if 'recognition' in self.hparams.probs_decoder.keys() else None
+        self.translation_decoder = self.hparams.probs_decoder['translation'] \
+            if 'translation' in self.hparams.probs_decoder.keys() else None
+
+        self.recognition_tokenizer = self.recognition_decoder.tokenizer \
+            if self.recognition_tokenizer else None
+        self.translation_tokenizer = self.translation_decoder.tokenizer \
+            if self.translation_tokenizer else None
+
+        self.recognition_evaluator = self.hparams.evaluator['recognition'] \
+            if 'recognition' in self.hparams.evaluator.keys() else None
+        self.translation_evaluator = self.hparams.evaluator['translation'] \
+            if 'translation' in self.hparams.evaluator.keys() else None
 
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
@@ -90,12 +105,12 @@ class SLRBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.recognition_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         # Remove special tokens from the decoded predictions
         for tokens in decoded:
-            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
-                if token == self.hparams.probs_decoder.tokenizer.unk_token:
+            for token in self.recognition_tokenizer.special_tokens:
+                if token == self.recognition_tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
@@ -128,12 +143,12 @@ class SLRBaseModel(L.LightningModule):
         )
 
         # Decode the predictions
-        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.recognition_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         # Remove special tokens from the decoded predictions
         for tokens in decoded:
-            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
-                if token == self.hparams.probs_decoder.tokenizer.unk_token:
+            for token in self.recognition_tokenizer.special_tokens:
+                if token == self.recognition_tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
@@ -158,11 +173,11 @@ class SLRBaseModel(L.LightningModule):
             Decoded predictions.
         """
         _, y_hat, y_hat_lgt, info = self.step_forward(batch)
-        decoded = self.hparams.probs_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
+        decoded = self.glosses_decoder.decode(y_hat.softmax(-1).cpu(), y_hat_lgt.cpu())
 
         for tokens in decoded:
-            for token in self.hparams.probs_decoder.tokenizer.special_tokens:
-                if token == self.hparams.probs_decoder.tokenizer.unk_token:
+            for token in self.recognition_tokenizer.special_tokens:
+                if token == self.recognition_tokenizer.unk_token:
                     continue
                 while token in tokens:
                     tokens.remove(token)
@@ -217,7 +232,7 @@ class SLRBaseModel(L.LightningModule):
 
             try:
                 # Call evaluate function to compute WER
-                wer = self.hparams.evaluator.evaluate(
+                wer = self.recognition_evaluator.evaluate(
                     save_dir=self.file_save_dir,
                     hyp_file=self.output_file,
                     mode="dev"
@@ -271,7 +286,7 @@ class SLRBaseModel(L.LightningModule):
 
             try:
                 # Call evaluate function to compute WER
-                wer = self.hparams.evaluator.evaluate(
+                wer = self.recognition_evaluator.evaluate(
                     save_dir=self.file_save_dir,
                     hyp_file=self.output_file,
                     mode="test"

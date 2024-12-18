@@ -29,7 +29,8 @@ class KeypointBaseDataModule(L.LightningDataModule):
         self.transforms = self.hparams.get("transform", None)
 
         # Process tokenizers
-        self.tokenizers = self.hparams.get("tokenizer", None)
+        self.recognition_tokenizer = self.hparams.tokenizer.get('recognition', None)
+        self.translation_tokenizer = self.hparams.tokenizer.get('translation', None)
 
     @abstractmethod
     def load_dataset(self, mode):

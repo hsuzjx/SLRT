@@ -1,7 +1,6 @@
 import os
 import pickle
 from abc import abstractmethod
-from typing import Union
 
 import torch
 from torch.utils.data import Dataset
@@ -17,7 +16,8 @@ class KeypointBaseDataset(Dataset):
             self,
             keypoints_file: str = None,
             transform: callable = None,
-            tokenizer: Union[list[object], object] = [None, None],
+            recognition_tokenizer: object = None,
+            translation_tokenizer: object = None,
             frame_size: tuple = (210, 260)
     ):
         """
@@ -38,13 +38,8 @@ class KeypointBaseDataset(Dataset):
         # Set transform and tokenizer
         self.transform = transform
 
-        if isinstance(tokenizer, list):
-            self.tokenizer = tokenizer
-        else:
-            self.tokenizer = [tokenizer, None]
-
-        self.gloss_tokenizer = self.tokenizer[0] if len(self.tokenizer) > 0 else None
-        self.word_tokenizer = self.tokenizer[1] if len(self.tokenizer) > 1 else None
+        self.recognition_tokenizer = recognition_tokenizer
+        self.translation_tokenizer = translation_tokenizer
 
         self.frame_size = frame_size
 
@@ -80,13 +75,13 @@ class KeypointBaseDataset(Dataset):
         if self.transform:
             kps = self.transform(kps)
 
-        if self.gloss_tokenizer:
-            glosses = self.gloss_tokenizer.encode(glosses)
-        if self.word_tokenizer:
-            translation = self.word_tokenizer.encode(translation)
+        glosses = self.recognition_tokenizer.encode(glosses) \
+            if self.recognition_tokenizer and glosses else None
+        translation = self.translation_tokenizer.encode(translation) \
+            if self.translation_tokenizer and translation else None
 
         # return kps, glosses, translation, name
-        return kps, glosses, None, name
+        return kps, glosses, translation, name
 
     @abstractmethod
     def _get_glosses(self, item) -> [str, list]:
@@ -114,13 +109,13 @@ class KeypointBaseDataset(Dataset):
     #
     #     label_gloss, label_gloss_length = pad_label_sequence(
     #         label_gloss, batch_first=True,
-    #         padding_value=self.gloss_tokenizer.convert_tokens_to_ids(self.gloss_tokenizer.pad_token)
+    #         padding_value=self.recognition_tokenizer.convert_tokens_to_ids(self.recognition_tokenizer.pad_token)
     #     )
     #     label_gloss_length = torch.LongTensor(label_gloss_length)
     #
     #     label_translation, label_translation_length = pad_label_sequence(
     #         label_translation, batch_first=True,
-    #         padding_value=self.word_tokenizer.convert_tokens_to_ids(self.word_tokenizer.pad_token)
+    #         padding_value=self.translation_tokenizer.convert_tokens_to_ids(self.translation_tokenizer.pad_token)
     #     )
     #     label_translation_length = torch.LongTensor(label_translation_length)
     #
@@ -145,7 +140,7 @@ class KeypointBaseDataset(Dataset):
         if not None in label_gloss:
             label_gloss, label_gloss_length = pad_label_sequence(
                 label_gloss, batch_first=True,
-                padding_value=self.gloss_tokenizer.convert_tokens_to_ids(self.gloss_tokenizer.pad_token)
+                padding_value=self.recognition_tokenizer.convert_tokens_to_ids(self.recognition_tokenizer.pad_token)
             )
             label_gloss_length = torch.LongTensor(label_gloss_length)
         else:
@@ -154,7 +149,7 @@ class KeypointBaseDataset(Dataset):
         if not None in label_translation:
             label_translation, label_translation_length = pad_label_sequence(
                 label_translation, batch_first=True,
-                padding_value=self.word_tokenizer.convert_tokens_to_ids(self.word_tokenizer.pad_token)
+                padding_value=self.translation_tokenizer.convert_tokens_to_ids(self.translation_tokenizer.pad_token)
             )
             label_translation_length = torch.LongTensor(label_translation_length)
         else:

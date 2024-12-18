@@ -3,11 +3,11 @@ from typing import Any
 import torch
 from typing_extensions import override
 
-from slrt.models.BaseModel import SLRBaseModel
+from slrt.models.BaseModel import SLRTBaseModel
 from slrt.models.STKA.layers import STAttentionModule, VisualHead
 
 
-class STKA(SLRBaseModel):
+class STKA(SLRTBaseModel):
     """
 
     """

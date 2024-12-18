@@ -3,12 +3,12 @@ from typing import Any
 import torch
 from typing_extensions import override
 
-from slrt.models.BaseModel.SLRBaseModel import SLRBaseModel
+from slrt.models.BaseModel.SLRTBaseModel import SLRTBaseModel
 from slrt.models.MSKA.modules.DSTA import STAttentionModule
 from slrt.models.MSKA.modules.Visualhead import VisualHead
 
 
-class MSKA(SLRBaseModel):
+class MSKA(SLRTBaseModel):
     """
     MSKA model
     """

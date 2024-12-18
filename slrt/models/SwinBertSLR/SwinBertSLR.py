@@ -4,11 +4,11 @@ import torch
 from torch import nn
 from transformers import SwinModel
 
-from slrt.models.BaseModel.SLRBaseModel import SLRBaseModel
+from slrt.models.BaseModel.SLRTBaseModel import SLRTBaseModel
 from slrt.models.CorrNet.modules import Identity, TemporalConv, NormLinear, BiLSTMLayer, SeqKD
 
 
-class SwinBertSLR(SLRBaseModel):
+class SwinBertSLR(SLRTBaseModel):
     """
     A custom neural network architecture designed for Sign Language Recognition tasks.
 

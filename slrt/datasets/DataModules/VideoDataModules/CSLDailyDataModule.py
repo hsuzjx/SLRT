@@ -37,7 +37,7 @@ class CSLDailyDataModule(BaseDataModule):
             batch_size: int = 2,
             num_workers: int = 8,
             transform: [callable, dict] = None,
-            tokenizer: [object, dict] = None,
+            tokenizer: [dict] = None,
             read_hdf5: bool = False
     ):
         """
@@ -77,7 +77,6 @@ class CSLDailyDataModule(BaseDataModule):
             CSLDailyDataset: The dataset instance for the specified mode.
         """
         transform = self.transforms.get(mode, self.transforms['test'])
-        tokenizer = self.tokenizers.get(mode, self.tokenizers['test'])
         return CSLDailyDataset(
             dataset_dir=self.dataset_dir,
             features_dir=self.features_dir,
@@ -85,6 +84,7 @@ class CSLDailyDataModule(BaseDataModule):
             split_file=self.split_file,
             mode=mode,
             transform=transform,
-            tokenizer=tokenizer,
+            recognition_tokenizer=self.recognition_tokenizer,
+            translation_tokenizer=self.translation_tokenizer,
             read_hdf5=self.read_hdf5
         )

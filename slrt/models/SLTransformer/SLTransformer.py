@@ -4,10 +4,10 @@ import torch
 import transformers
 from torch import nn, Tensor
 
-from slrt.models.BaseModel.SLRBaseModel import SLRBaseModel
+from slrt.models.BaseModel.SLRTBaseModel import SLRTBaseModel
 
 
-class SLTransformer(SLRBaseModel):
+class SLTransformer(SLRTBaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.model_name = "SLTransformer"

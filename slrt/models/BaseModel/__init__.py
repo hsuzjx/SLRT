@@ -1,1 +1,1 @@
-from .SLRBaseModel import SLRBaseModel
+from .SLRTBaseModel import SLRTBaseModel
