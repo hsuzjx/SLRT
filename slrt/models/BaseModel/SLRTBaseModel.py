@@ -45,9 +45,9 @@ class SLRTBaseModel(L.LightningModule):
             if 'translation' in self.hparams.probs_decoder.keys() else None
 
         self.recognition_tokenizer = self.recognition_decoder.tokenizer \
-            if self.recognition_tokenizer else None
+            if self.recognition_decoder else None
         self.translation_tokenizer = self.translation_decoder.tokenizer \
-            if self.translation_tokenizer else None
+            if self.translation_decoder else None
 
         self.recognition_evaluator = self.hparams.evaluator['recognition'] \
             if 'recognition' in self.hparams.evaluator.keys() else None
@@ -56,6 +56,28 @@ class SLRTBaseModel(L.LightningModule):
 
         # Register hook for handling NaN gradients
         self.register_full_backward_hook(self.handle_nan_gradients)
+
+    def set_decoder(self, decoder, task='recognition'):
+        if task == 'recognition':
+            self.recognition_decoder = decoder
+            self.recognition_tokenizer = decoder.tokenizer
+            print('Recognition decoder and tokenizer is set')
+        elif task == 'translation':
+            self.translation_decoder = decoder
+            self.translation_tokenizer = decoder.tokenizer
+            print('Translation decoder and tokenizer is set')
+        else:
+            print('Task not supported, the supported task is in [\'recognition\', \'translation\']')
+
+    def set_evaluator(self, evaluator, task='recognition'):
+        if task == 'recognition':
+            self.recognition_evaluator = evaluator
+            print('Recognition evaluator is set')
+        elif task == 'translation':
+            self.translation_evaluator = evaluator
+            print('Translation evaluator is set')
+        else:
+            print('Task not supported, the supported task is in [\'recognition\', \'translation\']')
 
     def training_step(self, batch, batch_idx):
         """

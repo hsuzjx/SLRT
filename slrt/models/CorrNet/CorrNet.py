@@ -68,10 +68,10 @@ class CorrNet(SLRTBaseModel):
             hidden_size=self.hparams.hidden_size,
             conv_type=self.hparams.conv_type,
             use_bn=self.hparams.use_bn,
-            num_classes=self.hparams.probs_decoder.tokenizer.vocab_size
+            num_classes=self.recognition_tokenizer.vocab_size
         )
         self.temporal_feature_extractor.fc = NormLinear(self.hparams.hidden_size,
-                                                        self.hparams.probs_decoder.tokenizer.vocab_size)  # Set the classifier
+                                                        self.recognition_tokenizer.vocab_size)  # Set the classifier
 
         # Initialize BiLSTM Layers
         self.sequence_modeler = BiLSTMLayer(

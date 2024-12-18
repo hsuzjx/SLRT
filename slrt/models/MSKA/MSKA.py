@@ -22,7 +22,6 @@ class MSKA(SLRTBaseModel):
 
         self._define_loss_function()
 
-        self.probs_decoder = self.hparams.probs_decoder
 
     def __init_network(self, **kwargs):
         self.face_visual_backbone = STAttentionModule(
@@ -50,7 +49,7 @@ class MSKA(SLRTBaseModel):
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
 
-        num_classes = len(self.hparams.probs_decoder.tokenizer)
+        num_classes = len(self.recognition_tokenizer)
         self.fuse_visual_head = VisualHead(
             cls_num=num_classes,
             **self.hparams.network.head_cfg['fuse_visual_head']

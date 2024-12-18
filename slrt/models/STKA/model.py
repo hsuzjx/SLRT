@@ -19,7 +19,6 @@ class STKA(SLRTBaseModel):
 
         self.__init_network(**kwargs)
         self._define_loss_function()
-        self.glosses_decoder = self.hparams.probs_decoder
 
     def __init_network(self, **kwargs):
         self.backbone = STAttentionModule(
@@ -29,7 +28,7 @@ class STKA(SLRTBaseModel):
             st_attention_module_prams=self.hparams.network.st_attention_module_prams
         )
 
-        num_classes = len(self.hparams.probs_decoder.tokenizer)
+        num_classes = len(self.recognition_tokenizer)
         self.head = VisualHead(
             cls_num=num_classes,
             **self.hparams.network.head_cfg
