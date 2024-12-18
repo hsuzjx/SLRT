@@ -27,7 +27,7 @@ class BasePreprocessor:
         pass
 
     @abstractmethod
-    def _check_recognization(self) -> bool:
+    def _check_recognition(self) -> bool:
         pass
 
     @abstractmethod
@@ -74,7 +74,7 @@ class BasePreprocessor:
             cv2.imwrite(saved_file, img_resized)
 
     def generate_gloss_vocab(self, output_dir: str):
-        self._check_recognization()
+        self._check_recognition()
 
         output_dir = os.path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
@@ -131,7 +131,7 @@ class BasePreprocessor:
         return sorted(input_list)
 
     def generate_glosses_groundtruth(self, output_dir: str, keep_tmp_file: bool = False):
-        self._check_recognization()
+        self._check_recognition()
 
         output_dir = os.path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)

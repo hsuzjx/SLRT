@@ -8,7 +8,7 @@ data_cfgs:
 # keypoints
 keypoints_file: "../data/preprocessed/phoenix2014/phoenix2014-keypoints-mska.pkl"
 
-# for recognization
+# for recognition
 glosses_groundtruth_file:
   train: "../data/preprocessed/phoenix2014/phoenix2014-glosses-groundtruth-train.stm"
   dev: "../data/preprocessed/phoenix2014/phoenix2014-glosses-groundtruth-dev.stm"

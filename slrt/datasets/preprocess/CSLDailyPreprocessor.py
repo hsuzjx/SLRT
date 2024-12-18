@@ -55,7 +55,7 @@ class CSLDailyPreprocessor(BasePreprocessor):
 
     @override
     def generate_gloss_vocab(self, output_dir: str):
-        self._check_recognization()
+        self._check_recognition()
 
         output_dir = os.path.abspath(output_dir)
         os.makedirs(output_dir, exist_ok=True)
@@ -113,7 +113,7 @@ class CSLDailyPreprocessor(BasePreprocessor):
         return subdir
 
     @override
-    def _check_recognization(self) -> bool:
+    def _check_recognition(self) -> bool:
         return True
 
     @override

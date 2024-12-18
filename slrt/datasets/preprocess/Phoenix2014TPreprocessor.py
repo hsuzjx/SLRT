@@ -50,7 +50,7 @@ class Phoenix2014TPreprocessor(BasePreprocessor):
         return subdir
 
     @override
-    def _check_recognization(self) -> bool:
+    def _check_recognition(self) -> bool:
         return True
 
     @override

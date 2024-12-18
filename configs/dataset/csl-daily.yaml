@@ -9,7 +9,7 @@ data_cfgs:
 # keypoints
 keypoints_file: "../data/preprocessed/csl-daily/csl-daily-keypoints-mska.pkl"
 
-# for recognization
+# for recognition
 glosses_groundtruth_file:
   train: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-train.stm"
   dev: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-dev.stm"
