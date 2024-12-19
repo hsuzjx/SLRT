@@ -3,7 +3,6 @@
 defaults:
   - common_keypoint
   - _self_
-  - common_hydra
   - override dataset: csl-daily # 数据集配置
   - override model: STKA # 模型配置
 

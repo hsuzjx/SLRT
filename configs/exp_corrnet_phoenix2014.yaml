@@ -3,7 +3,6 @@
 defaults:
   - common_video
   - _self_
-  - common_hydra
   - override dataset: phoenix2014 # 数据集配置
   - override model: CorrNet # 模型配置
 

@@ -1,0 +1,7 @@
+# /configs/config.yaml
+
+defaults:
+  - exp_mska_csldaily
+  - common_hydra
+  - _self_
+
