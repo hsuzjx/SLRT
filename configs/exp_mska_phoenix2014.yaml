@@ -13,3 +13,5 @@ times: 0
 
 model_name: MSKA
 dataset_name: phoenix2014-keypoint
+
+task: ["recognition", "translation"]

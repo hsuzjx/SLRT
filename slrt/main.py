@@ -49,7 +49,8 @@ def main(cfg: DictConfig):
     model_name = cfg.model_name
     tokenizer_name = cfg.tokenizer_name
     decoder_name = cfg.decoder_name
-    evaluator_name = cfg.evaluator_name
+    recognition_evaluator_name = cfg.recognition_evaluator_name
+    translation_evaluator_name = cfg.translation_evaluator_name
 
     # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
@@ -59,29 +60,49 @@ def main(cfg: DictConfig):
     # Is convert_to_onnx enabled?
     is_save_onnx = cfg.get('convert_to_onnx', False)
 
+    task = cfg.get('task', ["recognition"])
+
     #######################################################################################
     ##################### Load Dataset Configurations #####################################
     data_cfgs = cfg.dataset.get('data_cfgs', None)
     kps_file = cfg.dataset.get('keypoints_file', None)
 
-    recognition_gt_file = cfg.dataset.get('glosses_groundtruth_file', None)
-    recognition_vocab_file = cfg.dataset.get('gloss_vocab_file', None)
+    if "recognition" in task:
+        recognition_gt_file = cfg.dataset.get('glosses_groundtruth_file', None)
+        recognition_vocab_file = cfg.dataset.get('gloss_vocab_file', None)
+    else:
+        recognition_gt_file, recognition_vocab_file = None, None
 
-    translation_gt_file = cfg.dataset.get('translation_groundtruth_file', None)
-    translation_vocab_file = cfg.dataset.get('word_vocab_file', None)
+    if "translation" in task:
+        translation_gt_file = cfg.dataset.get('translation_groundtruth_file', None)
+        translation_vocab_file = cfg.dataset.get('word_vocab_file', None)
+    else:
+        translation_gt_file, translation_vocab_file = None, None
 
     #######################################################################################
     ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
-    recognition_tokenizer = TokenizerDict[tokenizer_name](vocab_file=recognition_vocab_file, **cfg.tokenizer)
-    recognition_decoder = DecoderDict[decoder_name](tokenizer=recognition_tokenizer, **cfg.decoder)
-    recognition_evaluator = EvaluatorDict[evaluator_name](gt_file=recognition_gt_file, dataset=dataset_name,
-                                                          **cfg.evaluator)
+    if "recognition" in task:
+        recognition_tokenizer = TokenizerDict[tokenizer_name](vocab_file=recognition_vocab_file, **cfg.tokenizer)
+        recognition_decoder = DecoderDict[decoder_name](tokenizer=recognition_tokenizer, **cfg.decoder)
+        recognition_evaluator = EvaluatorDict["Recognition"][recognition_evaluator_name](
+            gt_file=recognition_gt_file,
+            dataset=dataset_name,
+            **cfg.recognition_evaluator
+        )
+    else:
+        recognition_tokenizer, recognition_decoder, recognition_evaluator = None, None, None
 
-    translation_tokenizer = TokenizerDict[tokenizer_name](vocab_file=translation_vocab_file, **cfg.tokenizer)
-    translation_decoder = DecoderDict[decoder_name](tokenizer=translation_tokenizer, **cfg.decoder)
-    translation_evaluator = EvaluatorDict[evaluator_name](gt_file=translation_gt_file, dataset=dataset_name,
-                                                          **cfg.evaluator)
+    if "translation" in task:
+        translation_tokenizer = TokenizerDict[tokenizer_name](vocab_file=translation_vocab_file, **cfg.tokenizer)
+        translation_decoder = DecoderDict[decoder_name](tokenizer=translation_tokenizer, **cfg.decoder)
+        translation_evaluator = EvaluatorDict["Translation"][translation_evaluator_name](
+            gt_file=translation_gt_file,
+            dataset=dataset_name,
+            **cfg.translation_evaluator
+        )
+    else:
+        translation_tokenizer, translation_decoder, translation_evaluator = None, None, None
 
     #######################################################################################
     ##################### Initialize WandbLogger ##########################################
@@ -121,6 +142,7 @@ def main(cfg: DictConfig):
         save_dir=save_dir,
         probs_decoder={'recognition': recognition_decoder, 'translation': translation_decoder},
         evaluator={'recognition': recognition_evaluator, 'translation': translation_evaluator},
+        task=task,
         **cfg.model
     )
 

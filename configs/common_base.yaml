@@ -7,7 +7,8 @@ defaults:
   - dataloader: null
   - trainer: null
   - decoder: tf_ctc_beam_search
-  - evaluator: python
+  - recognition_evaluator: python
+  - translation_evaluator: python_translation
   - tokenizer: simple_tokenizer
   - logger: wandb
 
@@ -21,7 +22,8 @@ dataset_name: null
 dataset_type: null
 
 decoder_name: TFCTCBeamSearchDecoder
-evaluator_name: python
+recognition_evaluator_name: python
+translation_evaluator_name: python
 tokenizer_name: SimpleTokenizer
 
 checkpoint: null # if null, no checkpoint loading

@@ -13,3 +13,5 @@ times: 0
 
 model_name: CorrNet
 dataset_name: phoenix2014
+
+task: ["recognition"]

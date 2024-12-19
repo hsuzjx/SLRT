@@ -47,8 +47,13 @@ DecoderDict = {
 }
 
 EvaluatorDict = {
-    "sclite": slrt.evaluation.ScliteEvaluator,
-    "python": slrt.evaluation.PythonEvaluator,
+    "Recognition": {
+        "sclite": slrt.evaluation.ScliteEvaluator,
+        "python": slrt.evaluation.PythonEvaluator,
+    },
+    "Translation": {
+        "python": slrt.evaluation.translation.PythonTranslationEvaluator,
+    }
 }
 
 TransformDict = {

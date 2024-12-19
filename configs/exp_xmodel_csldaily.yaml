@@ -1,17 +1,17 @@
-# /configs/exp_corrnet_csldaily.yaml
+# /configs/exp_xmodel_csldaily.yaml
 
 defaults:
   - common_video
   - _self_
   - override dataset: csl-daily # 数据集配置
-  - override model: CorrNet # 模型配置
+  - override model: XModel # 模型配置
 
 # 项目相关配置
 project: CSL-Daily_Experiment
-name: CorrNet
+name: XModel
 times: 0
 
-model_name: CorrNet
+model_name: XModel
 dataset_name: csl-daily
 
-task: ["recognition"]
+task: ["recognition", "translation"]

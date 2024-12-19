@@ -55,7 +55,7 @@ class SLRTBaseModel(L.LightningModule):
         self.translation_evaluator = self.hparams.evaluator['translation'] \
             if 'translation' in self.hparams.evaluator.keys() else None
 
-        self.task = self.hparams.get("task", "recognition")
+        self.task = self.hparams.get("task", ["recognition"])
         if isinstance(self.task, str):
             self.task = [self.task]
 
@@ -377,10 +377,68 @@ class SLRTBaseModel(L.LightningModule):
         if "translation" in self.task:
             self.translation_rank_output_file.close()
             torch.distributed.barrier()
-            # TODO: ...
-            pass
 
-        torch.distributed.barrier()
+            blue1 = torch.tensor([0.0], device=self.device)
+            bleu2 = torch.tensor([0.0], device=self.device)
+            bleu3 = torch.tensor([0.0], device=self.device)
+            bleu4 = torch.tensor([0.0], device=self.device)
+            rouge = torch.tensor([0.0], device=self.device)
+
+            if self.trainer.is_global_zero:
+                all_lines = dict()
+                for rank in range(self.trainer.world_size):
+                    rank_output_file = os.path.join(self.translation_save_dir, f'output-hypothesis-rank{rank}.txt')
+                    with open(rank_output_file, 'r') as f:
+                        for line in f.readlines():
+                            all_lines[line.split(' ')[0]] = line
+
+                with open(self.translation_output_file, 'w') as f:
+                    f.writelines(list(all_lines.values()))
+
+                try:
+                    # Call evaluate function to compute blue scores and rouge scores
+                    blue1, bleu2, bleu3, bleu4, rouge = self.translation_evaluator.evaluate(
+                        save_dir=self.translation_save_dir,
+                        hyp_file=self.translation_output_file,
+                        mode="dev"
+                    )
+                except Exception as e:
+                    # Handle exceptions and log error information
+                    print(f"ERROR: Exception occurred at the end of validation epoch: {e},",
+                          f"please check detailed error message.")
+                    blue1 = 0.0
+                    bleu2 = 0.0
+                    bleu3 = 0.0
+                    bleu4 = 0.0
+                    rouge = 0.0
+                finally:
+                    blue1 = torch.tensor(blue1, device=self.device) if isinstance(blue1, float) else blue1
+                    bleu2 = torch.tensor(bleu2, device=self.device) if isinstance(bleu2, float) else bleu2
+                    bleu3 = torch.tensor(bleu3, device=self.device) if isinstance(bleu3, float) else bleu3
+                    bleu4 = torch.tensor(bleu4, device=self.device) if isinstance(bleu4, float) else bleu4
+                    rouge = torch.tensor(rouge, device=self.device) if isinstance(rouge, float) else rouge
+
+                    # Print different messages based on whether it's a sanity check
+                    if self.trainer.sanity_checking:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                              f"Sanity Check,",
+                              f"BLUE1: {blue1}, BLUE2: {bleu2}, BLUE3: {bleu3}, BLUE4: {bleu4}, ROUGE: {rouge}")
+                    else:
+                        print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                              f"Epoch {self.current_epoch},",
+                              f"BLUE1: {blue1}, BLUE2: {bleu2}, BLUE3: {bleu3}, BLUE4: {bleu4}, ROUGE: {rouge}")
+
+            torch.distributed.barrier()
+            self.log('Val/BLEU1', blue1,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Val/BLEU2', bleu2,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Val/BLEU3', bleu3,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Val/BLEU4', bleu4,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Val/ROUGE', rouge,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
 
     def on_test_epoch_end(self):
         """
@@ -435,10 +493,63 @@ class SLRTBaseModel(L.LightningModule):
         if "translation" in self.task:
             self.translation_rank_output_file.close()
             torch.distributed.barrier()
-            # TODO: ...
-            pass
 
-        torch.distributed.barrier()
+            blue1 = torch.tensor([0.0], device=self.device)
+            bleu2 = torch.tensor([0.0], device=self.device)
+            bleu3 = torch.tensor([0.0], device=self.device)
+            bleu4 = torch.tensor([0.0], device=self.device)
+            rouge = torch.tensor([0.0], device=self.device)
+
+            if self.trainer.is_global_zero:
+                all_lines = dict()
+                for rank in range(self.trainer.world_size):
+                    rank_output_file = os.path.join(self.translation_save_dir, f'output-hypothesis-rank{rank}.txt')
+                    with open(rank_output_file, 'r') as f:
+                        for line in f.readlines():
+                            all_lines[line.split(' ')[0]] = line
+
+                with open(self.translation_output_file, 'w') as f:
+                    f.writelines(list(all_lines.values()))
+
+                try:
+                    # Call evaluate function to compute blue scores and rouge scores
+                    blue1, bleu2, bleu3, bleu4, rouge = self.translation_evaluator.evaluate(
+                        save_dir=self.translation_save_dir,
+                        hyp_file=self.translation_output_file,
+                        mode="test"
+                    )
+                except Exception as e:
+                    # Handle exceptions and log error information
+                    print(f"ERROR: Exception occurred at the end of the test epoch: {e},",
+                          f"please check the detailed error message.")
+                    blue1 = 0.0
+                    bleu2 = 0.0
+                    bleu3 = 0.0
+                    bleu4 = 0.0
+                    rouge = 0.0
+                finally:
+                    blue1 = torch.tensor(blue1, device=self.device) if isinstance(blue1, float) else blue1
+                    bleu2 = torch.tensor(bleu2, device=self.device) if isinstance(bleu2, float) else bleu2
+                    bleu3 = torch.tensor(bleu3, device=self.device) if isinstance(bleu3, float) else bleu3
+                    bleu4 = torch.tensor(bleu4, device=self.device) if isinstance(bleu4, float) else bleu4
+                    rouge = torch.tensor(rouge, device=self.device) if isinstance(rouge, float) else rouge
+
+                    # Print messages
+                    print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                          f"Test best model after epoch {self.current_epoch - 1},",
+                          f"BLUE1: {blue1}, BLUE2: {bleu2}, BLUE3: {bleu3}, BLUE4: {bleu4}, ROUGE: {rouge}")
+
+            torch.distributed.barrier()
+            self.log('Test/BLEU1', blue1,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Test/BLEU2', bleu2,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Test/BLEU3', bleu3,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Test/BLEU4', bleu4,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
+            self.log('Test/ROUGE', rouge,
+                     on_step=False, on_epoch=True, prog_bar=False, sync_dist=False, rank_zero_only=True)
 
     def configure_optimizers(self):
         """
