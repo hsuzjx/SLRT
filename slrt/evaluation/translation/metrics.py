@@ -28,18 +28,18 @@ import gzip
 import hashlib
 import io
 import logging
-import math
 import os
-import portalocker
 import re
 import sys
 import unicodedata
 import urllib.request
-
-from collections import Counter, namedtuple
+from collections import Counter
 from itertools import zip_longest
 from typing import List, Iterable, Tuple, Union
+
+import math
 import numpy as np
+import portalocker
 
 VERSION = "1.4.2"
 
@@ -2891,7 +2891,7 @@ def get_alignment(r, h, d):
     )
 
 
-import sacrebleu, Rouge
+from .utils import sacrebleu, Rouge
 
 
 def bleu(references, hypotheses, level='word'):

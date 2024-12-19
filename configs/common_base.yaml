@@ -8,7 +8,7 @@ defaults:
   - trainer: null
   - decoder: tf_ctc_beam_search
   - recognition_evaluator: python
-  - translation_evaluator: python_translation
+  - translation_evaluator: python
   - tokenizer: simple_tokenizer
   - logger: wandb
 

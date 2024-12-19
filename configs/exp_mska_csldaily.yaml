@@ -14,4 +14,4 @@ times: 0
 model_name: MSKA
 dataset_name: csl-daily-keypoint
 
-task: ["recognition", "translation"]
+task: ["recognition"]

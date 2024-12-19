@@ -1,7 +1,6 @@
 import os
 
 from omegaconf import DictConfig
-from torchmetrics.functional.text import rouge_score
 
 from .metrics import bleu, rouge
 

@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from slrt.models.MSKA.modules.utils import PositionalEncoding, MaskedNorm, PositionwiseFeedForward, MLPHead
 

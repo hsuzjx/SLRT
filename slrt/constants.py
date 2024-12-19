@@ -23,6 +23,7 @@ ModelClassDict = {
     "SwinBertSLR": slrt.models.SwinBertSLR,
     "MSKA": slrt.models.MSKA,
     "STKA": slrt.models.STKA,
+    "XModel": slrt.models.XModel,
 }
 
 InputSampleDict = {
@@ -34,6 +35,7 @@ InputSampleDict = {
     ),
     "MSKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
     "STKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
+    "XModel" : None
 }
 
 TokenizerDict = {
