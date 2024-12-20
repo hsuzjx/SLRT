@@ -35,17 +35,27 @@ InputSampleDict = {
     ),
     "MSKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
     "STKA": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
-    "XModel" : None
+    "XModel": None
 }
 
 TokenizerDict = {
-    "SimpleTokenizer": slrt.datasets.Tokenizers.SimpleTokenizer,
-    "BertTokenizer": transformers.BertTokenizer,
+    "Recognition": {
+        "SimpleTokenizer": slrt.datasets.Tokenizers.SimpleTokenizer,
+    },
+    "Translation": {
+        "BertTokenizer": transformers.BertTokenizer,
+    }
 }
 
 DecoderDict = {
-    # "CTCBeamSearchDecoder": slrt.models.CTCBeamSearchDecoder,
-    "TFCTCBeamSearchDecoder": slrt.models.TFCTCBeamSearchDecoder,
+    "Recognition": {
+        # "CTCBeamSearchDecoder": slrt.models.CTCBeamSearchDecoder,
+        "TFCTCBeamSearchDecoder": slrt.models.TFCTCBeamSearchDecoder,
+    },
+    "Translation": {
+        # "CTCBeamSearchDecoder": slrt.models.CTCBeamSearchDecoder,
+        "TFCTCBeamSearchDecoder": slrt.models.TFCTCBeamSearchDecoder,
+    }
 }
 
 EvaluatorDict = {

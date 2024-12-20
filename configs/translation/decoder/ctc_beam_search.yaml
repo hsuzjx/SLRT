@@ -1,0 +1,4 @@
+# configs/translation/decoder/ctc_beam_search.yaml
+
+beam_width: 10
+num_processes: 10

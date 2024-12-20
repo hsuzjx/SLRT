@@ -1,0 +1,11 @@
+# /configs/recognition/default.yaml
+
+defaults:
+  - tokenizer: simple_tokenizer
+  - decoder: tf_ctc_beam_search
+  - evaluator: python
+  - _self_
+
+tokenizer_name: SimpleTokenizer
+decoder_name: TFCTCBeamSearchDecoder
+evaluator_name: python

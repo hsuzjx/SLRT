@@ -1,0 +1,4 @@
+# configs/recognition/decoder/tf_ctc_beam_search.yaml
+
+beam_width: 5
+top_paths: 1

@@ -47,10 +47,9 @@ def main(cfg: DictConfig):
     dataset_name = cfg.dataset_name
     dataset_type = cfg.dataset_type
     model_name = cfg.model_name
-    tokenizer_name = cfg.tokenizer_name
-    decoder_name = cfg.decoder_name
-    recognition_evaluator_name = cfg.recognition_evaluator_name
-    translation_evaluator_name = cfg.translation_evaluator_name
+
+    recognition_cfg = cfg.get('recognition', {})
+    translation_cfg = cfg.get('translation', {})
 
     # Create save directory
     save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
@@ -83,24 +82,22 @@ def main(cfg: DictConfig):
     ##################### Initialize Tokenizer, Decoder and Evaluator #####################
     # Initialize tokenizer, decoder, and evaluator
     if "recognition" in task:
-        recognition_tokenizer = TokenizerDict[tokenizer_name](vocab_file=recognition_vocab_file, **cfg.tokenizer)
-        recognition_decoder = DecoderDict[decoder_name](tokenizer=recognition_tokenizer, **cfg.decoder)
-        recognition_evaluator = EvaluatorDict["Recognition"][recognition_evaluator_name](
-            gt_file=recognition_gt_file,
-            dataset=dataset_name,
-            **cfg.recognition_evaluator
-        )
+        recognition_tokenizer = TokenizerDict["Recognition"][recognition_cfg.tokenizer_name](
+            vocab_file=recognition_vocab_file, **recognition_cfg.tokenizer)
+        recognition_decoder = DecoderDict["Recognition"][recognition_cfg.decoder_name](
+            tokenizer=recognition_tokenizer, **recognition_cfg.decoder)
+        recognition_evaluator = EvaluatorDict["Recognition"][recognition_cfg.evaluator_name](
+            gt_file=recognition_gt_file, dataset=dataset_name, **recognition_cfg.evaluator)
     else:
         recognition_tokenizer, recognition_decoder, recognition_evaluator = None, None, None
 
     if "translation" in task:
-        translation_tokenizer = TokenizerDict[tokenizer_name](vocab_file=translation_vocab_file, **cfg.tokenizer)
-        translation_decoder = DecoderDict[decoder_name](tokenizer=translation_tokenizer, **cfg.decoder)
-        translation_evaluator = EvaluatorDict["Translation"][translation_evaluator_name](
-            gt_file=translation_gt_file,
-            dataset=dataset_name,
-            **cfg.translation_evaluator
-        )
+        translation_tokenizer = TokenizerDict["Translation"][translation_cfg.tokenizer_name](
+            vocab_file=translation_vocab_file, **translation_cfg.tokenizer)
+        translation_decoder = DecoderDict["Translation"][translation_cfg.decoder_name](
+            tokenizer=translation_tokenizer, **translation_cfg.decoder)
+        translation_evaluator = EvaluatorDict["Translation"][translation_cfg.evaluator_name](
+            gt_file=translation_gt_file, dataset=dataset_name, **translation_cfg.evaluator)
     else:
         translation_tokenizer, translation_decoder, translation_evaluator = None, None, None
 

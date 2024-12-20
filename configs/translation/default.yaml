@@ -1,0 +1,11 @@
+# /configs/translation/default.yaml
+
+defaults:
+  - tokenizer: mbart
+  - decoder: tf_ctc_beam_search
+  - evaluator: python
+  - _self_
+
+tokenizer_name: MBartTokenizer
+decoder_name: TFCTCBeamSearchDecoder
+evaluator_name: python
