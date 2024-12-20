@@ -6,6 +6,8 @@ from typing_extensions import override
 from slrt.models.BaseModel.SLRTBaseModel import SLRTBaseModel
 from slrt.models.MSKA.modules.DSTA import STAttentionModule
 from slrt.models.MSKA.modules.Visualhead import VisualHead
+# from slrt.models.MSKA.modules.translation import TranslationNetwork
+from slrt.models.MSKA.modules.vl_mapper import VLMapper
 
 
 class MSKA(SLRTBaseModel):
@@ -62,6 +64,25 @@ class MSKA(SLRTBaseModel):
             cls_num=num_classes,
             **self.hparams.network.head_cfg['right_visual_head']
         )
+
+        if "translation" in self.task:
+            self.translation_network = TranslationNetwork(cfg=self.hparams['TranslationNetwork'])
+
+            if self.hparams['VLMapper'].get('type', 'projection') == 'projection':
+                if 'in_features' in self.hparams['VLMapper']:
+                    in_features = self.hparams['VLMapper'].pop('in_features')
+                else:
+                    in_features = 512
+            else:
+                in_features = len(self.recognition_tokenizer)
+
+            self.vl_mapper = VLMapper(
+                cfg=self.hparams['VLMapper'],
+                in_features=in_features,
+                out_features=self.translation_network.input_dim,
+                gloss_id2str=self.recognition_tokenizer.ids_to_vocab,
+                gls2embed=getattr(self.translation_network, 'gls2embed', None)
+            )
 
     @override
     def _define_loss_function(self):
@@ -124,6 +145,25 @@ class MSKA(SLRTBaseModel):
             mask=mask.to(self.device),
             valid_len_in=mask_lgt.to(self.device)
         )
+
+        if "translation" in self.task:
+            mapped_feature = self.vl_mapper(visual_outputs={"gloss_feature": fuse_head_output["gloss_probabilities"]})
+            translation_inputs = {
+                **src_input['translation_inputs'],
+                'input_feature': mapped_feature,
+                'input_lengths': mask_lgt}
+            translation_outputs = self.translation_network(**translation_inputs)
+            model_outputs = {**translation_outputs, **recognition_outputs}
+            model_outputs['transformer_inputs'] = model_outputs['transformer_inputs']  # for latter use of decoding
+            model_outputs['total_loss'] = model_outputs['recognition_loss'] + model_outputs['translation_loss']
+
+
+
+            return {
+                'gloss_logits': fuse_head_output,
+                'input_lengths': mask_lgt
+            }
+
         return {
             'fuse_gloss_logits': fuse_head_output,
             'left_gloss_logits': left_head_output,
@@ -193,7 +233,10 @@ class MSKA(SLRTBaseModel):
 
         loss = loss_ctc + loss_kldiv
 
-        return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), None,outputs['input_lengths'],None, name
+        if "translation" in self.task:
+            pass
+
+        return loss, outputs['ensemble_last_gloss_logits'].permute(1, 0, 2), None, outputs['input_lengths'], None, name
 
     @override
     def configure_optimizers(self):

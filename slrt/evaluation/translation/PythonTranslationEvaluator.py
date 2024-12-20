@@ -33,8 +33,8 @@ class PythonTranslationEvaluator(object):
 
         ref_list, hyp_list = [], []
         for key in ref.keys():
-            ref_list.append(ref[key].split())
-            hyp_list.append(hyp[key].split() if key in hyp.keys() else [])
+            ref_list.append(ref[key])
+            hyp_list.append(hyp[key] if key in hyp.keys() else "")
 
         bleu_score_dict = bleu(ref_list, hyp_list, level='char')
         rouge_score = rouge(ref_list, hyp_list, level='char')
