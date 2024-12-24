@@ -44,9 +44,9 @@ def main(cfg: DictConfig):
     name = cfg.get('name', 'default_name')
     times = cfg.get('times', 0)
     # Common parameters
-    dataset_name = cfg.dataset_name
+    dataset_name = cfg.dataset.name
     dataset_type = cfg.dataset_type
-    model_name = cfg.model_name
+    model_name = cfg.model.name
 
     recognition_cfg = cfg.get('recognition', {})
     translation_cfg = cfg.get('translation', {})
@@ -116,14 +116,14 @@ def main(cfg: DictConfig):
     ##################### Initialize Datamodule ###########################################
     # Initialize data module
     if dataset_type == 'video':
-        data_module = DataModuleClassDict[dataset_name](
+        data_module = DataModuleClassDict['video'][dataset_name](
             transform=TransformDict[dataset_type],
             tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             **data_cfgs,
             **cfg.dataloader
         )
     elif dataset_type == 'keypoint':
-        data_module = DataModuleClassDict[dataset_name](
+        data_module = DataModuleClassDict['keypoint'][dataset_name](
             transform=TransformDict[dataset_type],
             tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             keypoints_file=kps_file,

@@ -11,7 +11,4 @@ project: CSL-Daily_Experiment
 name: XModel
 times: 0
 
-model_name: XModel
-dataset_name: csl-daily
-
 task: [ "recognition" ] #, "translation" ]

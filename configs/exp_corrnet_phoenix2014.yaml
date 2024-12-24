@@ -11,7 +11,4 @@ project: Phoenix2014_Experiment
 name: CorrNet
 times: 0
 
-model_name: CorrNet
-dataset_name: phoenix2014
-
 task: ["recognition"]

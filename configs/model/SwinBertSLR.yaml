@@ -1,5 +1,7 @@
 # configs/model/SwinBertSLR.yaml
 
+name: "SwinBertSLR"
+
 # for after backward
 test_param: false
 

@@ -1,5 +1,7 @@
 # configs/model/STKA.yaml
 
+name: "STKA"
+
 # for after backward
 test_param: false
 

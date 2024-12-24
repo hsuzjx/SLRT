@@ -10,12 +10,16 @@ CONFIG_PATH = '../configs'
 CONFIG_NAME = 'config.yaml'
 
 DataModuleClassDict = {
-    "phoenix2014": slrt.datasets.DataModules.Phoenix2014DataModule,
-    "phoenix2014T": slrt.datasets.DataModules.Phoenix2014TDataModule,
-    "csl-daily": slrt.datasets.DataModules.CSLDailyDataModule,
-    "phoenix2014-keypoint": slrt.datasets.DataModules.Phoenix2014KeypointDataModule,
-    "phoenix2014T-keypoint": slrt.datasets.DataModules.Phoenix2014TKeypointDataModule,
-    "csl-daily-keypoint": slrt.datasets.DataModules.CSLDailyKeypointDataModule,
+    "video": {
+        "Phoenix2014": slrt.datasets.DataModules.Phoenix2014DataModule,
+        "Phoenix2014T": slrt.datasets.DataModules.Phoenix2014TDataModule,
+        "CSL-Daily": slrt.datasets.DataModules.CSLDailyDataModule,
+    },
+    "keypoint": {
+        "Phoenix2014": slrt.datasets.DataModules.Phoenix2014KeypointDataModule,
+        "Phoenix2014T": slrt.datasets.DataModules.Phoenix2014TKeypointDataModule,
+        "CSL-Daily": slrt.datasets.DataModules.CSLDailyKeypointDataModule,
+    }
 }
 
 ModelClassDict = {

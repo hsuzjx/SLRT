@@ -1,5 +1,7 @@
 # configs/model/MSKA.yaml
 
+name: "MSKA"
+
 # for after backward
 test_param: false
 

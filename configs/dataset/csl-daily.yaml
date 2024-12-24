@@ -1,5 +1,7 @@
 # configs/dataset/csl-daily.yaml
 
+name: "CSL-Daily"
+
 data_cfgs:
   dataset_dir: "../data/csl-daily"
   features_dir: "../data/preprocessed/csl-daily/frames-256x256px" # if null, use default features directory in $dataset_dir

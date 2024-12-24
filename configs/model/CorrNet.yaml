@@ -1,5 +1,7 @@
 # configs/model/CorrNet.yaml
 
+name: "CorrNet"
+
 # for after backward
 test_param: false
 

@@ -1,5 +1,7 @@
 # configs/model/XModel.yaml
 
+name: "XModel"
+
 network:
   ResNet18:
     pretrained: true

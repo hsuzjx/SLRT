@@ -1,5 +1,7 @@
 # configs/dataset/phoenix2014.yaml
 
+name: "Phoenix2014"
+
 data_cfgs:
   dataset_dir: "../data/phoenix2014"
   features_dir: "../data/preprocessed/phoenix2014/frames-256x256px" # if null, use default features directory in $dataset_dir
