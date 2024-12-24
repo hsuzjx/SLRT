@@ -1,13 +1,13 @@
 from typing import Any, Tuple, Union, Sequence
 
 import torch
+import torch.nn.functional as F
 from lightning import Callback
 from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
 from typing_extensions import override
 
 from slrt.models.BaseModel import SLRTBaseModel
-from slrt.models.CorrNet.modules import NormLinear
 from slrt.models.XModel.modules import *
 from slrt.models.XModel.modules.TemproalModules import BiLSTMLayer
 from slrt.models.XModel.modules.UNet1D.unet_model import UNet1D
@@ -130,10 +130,10 @@ class XModel(SLRTBaseModel):
             **self.hparams.optimizer['Adam']
         )
 
-        # CosineAnnealingLR
-        lr_scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+        # MultiStepLR
+        lr_scheduler = torch.optim.lr_scheduler.MultiStepLR(
             optimizer=optimizer,
-            **self.hparams.lr_scheduler['CosineAnnealingLR']
+            **self.hparams.lr_scheduler['MultiStepLR']
         )
 
         return {
@@ -167,3 +167,14 @@ class Identity(nn.Module):
 
     def forward(self, x):
         return x
+
+
+class NormLinear(nn.Module):
+    def __init__(self, in_dim, out_dim):
+        super(NormLinear, self).__init__()
+        self.weight = nn.Parameter(torch.Tensor(in_dim, out_dim))
+        nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain('relu'))
+
+    def forward(self, x):
+        outputs = torch.matmul(x, F.normalize(self.weight, dim=0))
+        return outputs
