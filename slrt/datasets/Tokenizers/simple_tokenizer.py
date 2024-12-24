@@ -38,6 +38,7 @@ class SimpleTokenizer:
         self.eos_token = eos_token
 
         self.special_tokens = [pad_token, unk_token, sos_token, eos_token]
+        # self.special_tokens = [sos_token, unk_token, pad_token, eos_token]
 
         if vocab_file:
             self.vocab, self.ids_to_vocab = self.__load_vocab(vocab_file)

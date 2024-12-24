@@ -1,1 +1,6 @@
 # configs/recognition/tokenizer/simple_tokenizer.yaml
+
+pad_token: "<pad>"
+unk_token: "<unk>"
+sos_token: "<si>"
+eos_token: "</s>"

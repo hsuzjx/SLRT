@@ -1,17 +1,17 @@
-# /configs/exp_xmodel_csldaily.yaml
+# /configs/exp_xmodel_phoenix2014.yaml
 
 defaults:
   - common_video
   - _self_
-  - override dataset: csl-daily # 数据集配置
+  - override dataset: phoenix2014T # 数据集配置
   - override model: XModel # 模型配置
 
 # 项目相关配置
-project: CSL-Daily_Experiment
+project: Phoenix2014T_Experiment
 name: XModel
 times: 0
 
 model_name: XModel
-dataset_name: csl-daily
+dataset_name: phoenix2014T
 
 task: [ "recognition" ] #, "translation" ]

@@ -1,2 +1,2 @@
-# from .CTCBeamSearchDecoder import CTCBeamSearchDecoder
+from .CTCBeamSearchDecoder import CTCBeamSearchDecoder
 from .TFCTCBeamSearchDecoder import TFCTCBeamSearchDecoder

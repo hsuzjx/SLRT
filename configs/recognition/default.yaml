@@ -2,10 +2,10 @@
 
 defaults:
   - tokenizer: simple_tokenizer
-  - decoder: tf_ctc_beam_search
-  - evaluator: python
+  - decoder: ctc_beam_search
+  - evaluator: sclite
   - _self_
 
 tokenizer_name: SimpleTokenizer
-decoder_name: TFCTCBeamSearchDecoder
-evaluator_name: python
+decoder_name: CTCBeamSearchDecoder
+evaluator_name: sclite

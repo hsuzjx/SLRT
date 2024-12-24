@@ -49,7 +49,7 @@ TokenizerDict = {
 
 DecoderDict = {
     "Recognition": {
-        # "CTCBeamSearchDecoder": slrt.models.CTCBeamSearchDecoder,
+        "CTCBeamSearchDecoder": slrt.models.CTCBeamSearchDecoder,
         "TFCTCBeamSearchDecoder": slrt.models.TFCTCBeamSearchDecoder,
     },
     "Translation": {
