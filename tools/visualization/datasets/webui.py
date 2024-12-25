@@ -140,19 +140,19 @@ if __name__ == '__main__':
                         default="../../../data/csl-daily",
                         help="Path to the CSL Daily dataset directory")
     parser.add_argument("--csl-daily-keypoints-file", type=str,
-                        default="../../../data/keypoints/kps_info/csl-daily-keypoints.pkl",
+                        default="../../../data/preprocessed/csl-daily/csl-daily-keypoints.pkl",
                         help="Path to the CSL Daily keypoints file")
     parser.add_argument("--phoenix14-data-dir", type=str,
                         default="../../../data/phoenix2014",
                         help="Path to the PHOENIX14 dataset directory")
     parser.add_argument("--phoenix14-keypoints-file", type=str,
-                        default="../../../data/keypoints/kps_info/phoenix2014-keypoints.pkl",
+                        default="../../../data/preprocessed/phoenix14/phoenix2014-keypoints.pkl",
                         help="Path to the PHOENIX14 keypoints file")
     parser.add_argument("--phoenix14T-data-dir", type=str,
                         default="../../../data/phoenix2014T",
                         help="Path to the PHOENIX14T dataset directory")
     parser.add_argument("--phoenix14T-keypoints-file", type=str,
-                        default="../../../data/keypoints/kps_info/phoenix2014t-keypoints.pkl",
+                        default="../../../data/preprocessed/phoenix14T/phoenix2014t-keypoints.pkl",
                         help="Path to the PHOENIX14T keypoints file")
 
     parser.add_argument("--temp-dir", type=str,
