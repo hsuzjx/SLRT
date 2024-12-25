@@ -4,7 +4,7 @@ import torch.nn as nn
 
 class BiLSTMLayer(nn.Module):
     def __init__(self, input_size, debug=False, hidden_size=512, num_layers=1, dropout=0.3,
-                 bidirectional=True, rnn_type='LSTM', num_classes=-1):
+                 bidirectional=True, rnn_type='LSTM'):
         super(BiLSTMLayer, self).__init__()
 
         self.dropout = dropout
@@ -57,10 +57,7 @@ class BiLSTMLayer(nn.Module):
             # cat hidden and cell states
             hidden = torch.cat(hidden, 0)
 
-        return {
-            "predictions": rnn_outputs,
-            "hidden": hidden
-        }
+        return rnn_outputs, hidden
 
     def _cat_directions(self, hidden):
         """ If the encoder is bidirectional, do the following transformation.

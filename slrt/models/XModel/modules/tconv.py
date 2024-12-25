@@ -12,6 +12,7 @@ class MultiScale_TemporalConv(nn.Module):
         kernel_size (int): Size of the convolution kernel.
         dilations (list): List of dilation rates for temporal convolutions.
     """
+
     def __init__(self, in_channels, out_channels, kernel_size=3, dilations=[1, 2, 3, 4]):
         super().__init__()
 
@@ -67,14 +68,13 @@ class TemporalConv(nn.Module):
         hidden_size (int): Number of channels in the hidden layer.
         conv_type (int): Type of convolution structure.
         use_bn (bool): Whether to use batch normalization.
-        num_classes (int): Number of categories for classification, -1 if no classification is performed.
     """
-    def __init__(self, input_size, hidden_size, conv_type=2, use_bn=False, num_classes=-1):
+
+    def __init__(self, input_size, hidden_size, conv_type=2, use_bn=False):
         super(TemporalConv, self).__init__()
         self.use_bn = use_bn
         self.input_size = input_size
         self.hidden_size = hidden_size
-        self.num_classes = num_classes
         assert 0 <= conv_type <= 8, "Invalid conv_type"
         self.conv_type = conv_type
 
@@ -104,9 +104,6 @@ class TemporalConv(nn.Module):
                 modules.append(nn.BatchNorm1d(self.hidden_size))
                 modules.append(nn.ReLU(inplace=True))
         self.temporal_conv = nn.Sequential(*modules)
-
-        if self.num_classes != -1:
-            self.fc = nn.Linear(self.hidden_size, self.num_classes)
 
     def update_lgt(self, lgt):
         """
@@ -140,9 +137,4 @@ class TemporalConv(nn.Module):
         """
         visual_feat = self.temporal_conv(frame_feat)
         lgt = self.update_lgt(lgt)
-        logits = None if self.num_classes == -1 else self.fc(visual_feat.transpose(1, 2)).transpose(1, 2)
-        return {
-            "visual_feat": visual_feat.permute(2, 0, 1),
-            "conv_logits": logits.permute(2, 0, 1),
-            "feat_len": lgt.cpu(),
-        }
+        return visual_feat, lgt

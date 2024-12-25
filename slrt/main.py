@@ -12,7 +12,7 @@ from omegaconf import DictConfig
 
 from slrt.constants import DataModuleClassDict, ModelClassDict, TransformDict, CONFIG_PATH, CONFIG_NAME, TokenizerDict, \
     DecoderDict, EvaluatorDict, InputSampleDict
-from slrt.utils import set_seed
+from slrt.utils import set_seed, set_num_threads
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
@@ -28,8 +28,8 @@ def main(cfg: DictConfig):
     #######################################################################################
     ##################### Set PyTorch Configurations and Random Seed ######################
     # Set num threads
-    torch_num_threads = cfg.get('torch_num_threads', psutil.cpu_count(logical=False))
-    torch.set_num_threads(torch_num_threads)
+    num_threads = cfg.get('num_threads', psutil.cpu_count(logical=False))
+    set_num_threads(num_threads)
     # Set precision for float32 matmul operations
     torch_float32_matmul_precision = cfg.get('torch_float32_matmul_precision', 'high')
     torch.set_float32_matmul_precision(torch_float32_matmul_precision)

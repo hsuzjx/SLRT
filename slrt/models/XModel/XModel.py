@@ -7,10 +7,8 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
 from typing_extensions import override
 
-from slrt.models.BaseModel import SLRTBaseModel
-from slrt.models.XModel.modules import *
-from slrt.models.XModel.modules.TemproalModules import BiLSTMLayer
-from slrt.models.XModel.modules.UNet1D.unet_model import UNet1D
+from .modules import *
+from ..BaseModel import SLRTBaseModel
 
 
 class XModel(SLRTBaseModel):
@@ -34,21 +32,20 @@ class XModel(SLRTBaseModel):
         # self.visual_head = None
 
         self.conv1d = TemporalConv(
-            **self.hparams.network['conv1d'],
-            num_classes=self.recognition_tokenizer.vocab_size
+            **self.hparams.network['conv1d']
         )
-        self.conv1d.fc = NormLinear(1024, self.recognition_tokenizer.vocab_size)
 
-        self.t_unet = UNet1D(n_channels=512, n_classes=512)
+        # self.t_unet = UNet1D(n_channels=512, n_classes=512)
         # self.t_unet.outc = Identity()
-        self.t_unet_fc = None
+        # self.t_unet_fc = None
 
         self.temporal_module = BiLSTMLayer(
             **self.hparams.network['BiLSTM']
         )
 
-        # self.classifier = self.conv1d.fc
         self.classifier = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+        if not self.hparams.network['share_classifier']:
+            self.classifier_conv_fc = NormLinear(1024, self.recognition_tokenizer.vocab_size)
 
     def forward(
             self,
@@ -60,29 +57,47 @@ class XModel(SLRTBaseModel):
             words_lengths: torch.Tensor = None
     ) -> Any:
         N, T, C, H, W = videos.shape
+
+        # (N,T,C,H,W) -> (N,C,T,H,W)
         x = videos.permute(0, 2, 1, 3, 4)
+
+        # (N,C,T,H,W) -> (N*T,features)
         x = self.visual_backbone(x)
+
+        # (N*T,features) -> (N,T,features) -> (N,features,T)
         x = x.view(N, T, -1).permute(0, 2, 1)
 
-        visual_features = self.t_unet(x)
+        # visual_features = self.t_unet(x)
+
         # lstm_output = self.temporal_module(visual_features.permute(2, 0, 1), video_lengths.to('cpu'))
 
         # predictions = lstm_output['predictions']
         # conv1d_logits = self.classifier(visual_features.transpose(1, 2)).transpose(1, 2)
         # output_logits = self.classifier(predictions)
 
-        conv1d_output = self.conv1d(visual_features, video_lengths)
-        visual_features = conv1d_output['visual_feat']
-        feature_lengths = conv1d_output['feat_len']
-        conv1d_logits = conv1d_output['conv_logits']
-        lstm_output = self.temporal_module(visual_features, feature_lengths)
+        # visual_features ()
 
-        # Get predictions
-        predictions = lstm_output['predictions']
+        # (N,features,T) -> (N,features',T')
+        visual_features, feature_lengths = self.conv1d(x, video_lengths)
+
+        # (N,features',T') -> (T',N,features')
+        visual_features = visual_features.permute(2, 0, 1)
+
+        # (T',N,features') -> (T',N,features'')
+        predictions, _ = self.temporal_module(visual_features, feature_lengths.cpu())
+
         # Pass through the classifier
-        output_logits = self.classifier(predictions)
+        # (T',N,features'') -> (T',N,logits)
+        logits = self.classifier(predictions)
 
-        return conv1d_logits, output_logits, feature_lengths
+        if self.hparams.network['share_classifier']:
+            # (T',N,features') -> (T',N,logits_conv)
+            conv_logits = self.classifier(visual_features)
+        else:
+            # (T',N,features') -> (T',N,logits_conv)
+            conv_logits = self.classifier_conv_fc(visual_features)
+
+        return conv_logits, logits, feature_lengths
 
     def step_forward(
             self,
@@ -98,15 +113,15 @@ class XModel(SLRTBaseModel):
             Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
         x, y, _, x_lgt, y_lgt, _, info = batch
-        conv1d_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        conv_hat, y_hat, y_hat_lgt = self(x, x_lgt)
 
         if self.trainer.predicting:
             return torch.tensor([]), y_hat, None, y_hat_lgt, None, info
 
         loss = (
-                1 * self.ctc_loss(conv1d_hat.log_softmax(-1), y, y_hat_lgt, y_lgt).mean() +
-                1 * self.ctc_loss(y_hat.log_softmax(-1), y, y_hat_lgt, y_lgt).mean() +
-                25 * self.kl_loss(conv1d_hat, y_hat.detach(), use_blank=False)
+                1 * self.ctc_loss(conv_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
+                1 * self.ctc_loss(y_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
+                25 * self.dist_loss(conv_hat, y_hat.detach(), use_blank=False)
         )
 
         # Check for NaN values
@@ -120,7 +135,9 @@ class XModel(SLRTBaseModel):
         self.ctc_loss = torch.nn.CTCLoss(
             **self.hparams.loss_fn['CTCLoss']
         )
-        self.kl_loss = SeqKD(T=8)
+        self.dist_loss = SeqKD(
+            **self.hparams.loss_fn['SeqKD']
+        )
 
     @override
     def configure_optimizers(self):
@@ -170,11 +187,60 @@ class Identity(nn.Module):
 
 
 class NormLinear(nn.Module):
-    def __init__(self, in_dim, out_dim):
+    """
+    实现规范化线性层，继承自nn.Module。
+
+    该层的主要功能是对输入进行线性变换，其中线性变换的权重被规范化。
+    支持添加偏置项，但默认不添加。
+
+    Attributes:
+        weight (nn.Parameter): 线性变换的权重参数。
+        bias (nn.Parameter, optional): 偏置项参数，仅在add_bias为True时存在。
+    """
+
+    def __init__(self, in_dim, out_dim, add_bias=False):
+        """
+        初始化NormLinear层。
+
+        Parameters:
+            in_dim (int): 输入特征维度。
+            out_dim (int): 输出特征维度。
+            add_bias (bool, optional): 是否添加偏置项，默认为False。
+        """
         super(NormLinear, self).__init__()
         self.weight = nn.Parameter(torch.Tensor(in_dim, out_dim))
         nn.init.xavier_uniform_(self.weight, gain=nn.init.calculate_gain('relu'))
 
+        self.add_bias = add_bias
+        if self.add_bias:
+            self.bias = nn.Parameter(torch.Tensor(out_dim))  # 添加偏置项
+            nn.init.zeros_(self.bias)  # 初始化偏置项为零
+
     def forward(self, x):
-        outputs = torch.matmul(x, F.normalize(self.weight, dim=0))
+        """
+        对输入张量与规范化后的权重进行矩阵乘法操作，并加上偏置项。
+
+        Parameters:
+            x (torch.Tensor): 输入张量，形状为 (batch_size, sequence_length, feature_dim)。
+
+        Returns:
+            torch.Tensor: 输出张量，形状为 (batch_size, sequence_length, out_dim)。
+        """
+        # 验证输入张量的形状
+        if len(x.shape) != 3:
+            raise ValueError(f"Input tensor must be 3D, got shape {x.shape}")
+        batch_size, sequence_length, feature_dim = x.shape
+        if feature_dim != self.weight.shape[0]:
+            raise ValueError("Feature dimension of input does not match weight")
+
+        # 规范化权重
+        normalized_weight = F.normalize(self.weight, dim=0)
+
+        # 矩阵乘法
+        outputs = torch.matmul(x, normalized_weight)
+
+        if self.add_bias:
+            # 添加偏置项
+            outputs += self.bias  # 偏置项会自动广播以匹配输出的形状
+
         return outputs
