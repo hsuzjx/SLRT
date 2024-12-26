@@ -1,0 +1,9 @@
+# /configs/common_patch_kps.yaml
+
+defaults:
+  - common_base
+  - _self_
+  - override dataloader: patch-kps
+  - override trainer: patch-kps
+
+dataset_type: "patch-kps"
