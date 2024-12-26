@@ -1,0 +1,3 @@
+from .CSLDailyPatchKpsDataset import CSLDailyPatchKpsDataset
+from .Phoenix2014PatchKpsDataset import Phoenix2014PatchKpsDataset
+from .Phoenix2014TPatchKpsDataset import Phoenix2014TPatchKpsDataset
