@@ -23,7 +23,6 @@ class XModel(SLRTBaseModel):
     @override
     def _init_network(self, **kwargs):
         self.visual_backbone = ResNet18(
-            num_classes=1000,
             **self.hparams.network['ResNet18']
         )
         self.visual_backbone.fc = Identity()
@@ -31,13 +30,11 @@ class XModel(SLRTBaseModel):
 
         # self.visual_head = None
 
-        self.conv1d = TemporalConv(
-            **self.hparams.network['conv1d']
-        )
+        # self.conv1d = TemporalConv(
+        #     **self.hparams.network['conv1d']
+        # )
 
-        # self.t_unet = UNet1D(n_channels=512, n_classes=512)
-        # self.t_unet.outc = Identity()
-        # self.t_unet_fc = None
+        self.t_unet = UNet1D(n_channels=512, n_classes=1024)
 
         self.temporal_module = BiLSTMLayer(
             **self.hparams.network['BiLSTM']
@@ -78,7 +75,10 @@ class XModel(SLRTBaseModel):
         # visual_features ()
 
         # (N,features,T) -> (N,features',T')
-        visual_features, feature_lengths = self.conv1d(x, video_lengths)
+        # visual_features, feature_lengths = self.conv1d(x, video_lengths)
+
+        visual_features = self.t_unet(x)
+        feature_lengths = video_lengths
 
         # (N,features',T') -> (T',N,features')
         visual_features = visual_features.permute(2, 0, 1)
