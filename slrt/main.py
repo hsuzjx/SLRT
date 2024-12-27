@@ -45,7 +45,7 @@ def main(cfg: DictConfig):
     times = cfg.get('times', 0)
     # Common parameters
     dataset_name = cfg.dataset.name
-    dataset_type = cfg.dataset_type
+    data_type = cfg.data_type
     model_name = cfg.model.name
 
     recognition_cfg = cfg.get('recognition', {})
@@ -115,22 +115,22 @@ def main(cfg: DictConfig):
     #######################################################################################
     ##################### Initialize Datamodule ###########################################
     # Initialize data module
-    if dataset_type == 'video':
+    if data_type == 'video':
         data_module = DataModuleClassDict['video'][dataset_name](
-            transform=TransformDict[dataset_type],
+            transform=TransformDict[data_type],
             tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             **data_cfgs,
             **cfg.dataloader
         )
-    elif dataset_type == 'keypoint':
+    elif data_type == 'keypoint':
         data_module = DataModuleClassDict['keypoint'][dataset_name](
-            transform=TransformDict[dataset_type],
+            transform=TransformDict[data_type],
             tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
             keypoints_file=kps_file,
             **cfg.dataloader
         )
     else:
-        raise ValueError(f"Unsupported dataset type: {dataset_type}")
+        raise ValueError(f"Unsupported dataset type: {data_type}")
 
     #######################################################################################
     ##################### Initialize Model ################################################

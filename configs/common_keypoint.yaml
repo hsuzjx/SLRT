@@ -6,4 +6,4 @@ defaults:
   - override dataloader: keypoint
   - override trainer: keypoint
 
-dataset_type: "keypoint"
+data_type: "keypoint"

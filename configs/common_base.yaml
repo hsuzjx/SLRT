@@ -15,7 +15,7 @@ project: null
 name: null
 times: 0
 
-dataset_type: null
+data_type: null
 
 checkpoint: null # if null, no checkpoint loading
 

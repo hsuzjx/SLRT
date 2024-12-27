@@ -6,4 +6,4 @@ defaults:
   - override dataloader: video
   - override trainer: video
 
-dataset_type: "video"
+data_type: "video"

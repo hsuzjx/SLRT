@@ -6,4 +6,4 @@ defaults:
   - override dataloader: patch-kps
   - override trainer: patch-kps
 
-dataset_type: "patch-kps"
+data_type: "patch-kps"
