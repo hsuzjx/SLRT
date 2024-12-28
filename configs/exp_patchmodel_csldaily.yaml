@@ -12,3 +12,7 @@ name: PatchModel
 times: 0
 
 task: [ "recognition" ] #, "translation" ]
+
+dataset:
+  data_cfgs:
+    features_dir: null

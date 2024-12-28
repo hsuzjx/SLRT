@@ -72,13 +72,15 @@ class BasePatchKpsDataset(Dataset):
                 x, y, c = kp
                 x = int(x)
                 y = int(y)
+                x_max = frame.shape[1]
+                y_max = frame.shape[0]
                 frame = np.pad(
                     frame,
                     ((self.half_patch_h, self.half_patch_h), (self.half_patch_w, self.half_patch_w), (0, 0)),
                     mode='constant',
                     constant_values=0
                 )
-                if 0 <= x <= frame.shape[1] and 0 <= y <= frame.shape[0]:
+                if 0 <= x <= x_max and 0 <= y <= y_max:
                     frame_patches.append(
                         frame[y:y + 2 * self.half_patch_h + 1, x:x + 2 * self.half_patch_w + 1, :]
                     )
