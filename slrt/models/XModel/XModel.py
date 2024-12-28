@@ -8,6 +8,7 @@ from torch import nn
 from typing_extensions import override
 
 from .modules import *
+from .modules.ResNetLS import ResNet18LS
 from ..BaseModel import SLRTBaseModel
 
 
@@ -22,11 +23,14 @@ class XModel(SLRTBaseModel):
 
     @override
     def _init_network(self, **kwargs):
-        self.visual_backbone = ResNet18(
-            **self.hparams.network['ResNet18']
-        )
-        self.visual_backbone.fc = Identity()
-        # self.visual_backbone = S3D(1000)
+        # self.visual_backbone = ResNet18LS(
+        #     num_layers=3,
+        #     **self.hparams.network['ResNet18']
+        # )
+
+        # self.visual_backbone.fc = Identity()
+
+        self.visual_backbone = S3D(1000)
 
         # self.visual_head = None
 
@@ -34,7 +38,7 @@ class XModel(SLRTBaseModel):
         #     **self.hparams.network['conv1d']
         # )
 
-        self.t_unet = UNet1D(n_channels=512, n_classes=1024)
+        # self.t_unet = UNet1D(n_channels=512, n_classes=1024)
 
         self.temporal_module = BiLSTMLayer(
             **self.hparams.network['BiLSTM']
@@ -63,6 +67,8 @@ class XModel(SLRTBaseModel):
 
         # (N*T,features) -> (N,T,features) -> (N,features,T)
         x = x.view(N, T, -1).permute(0, 2, 1)
+
+
 
         # visual_features = self.t_unet(x)
 

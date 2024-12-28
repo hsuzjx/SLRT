@@ -129,6 +129,14 @@ def main(cfg: DictConfig):
             keypoints_file=kps_file,
             **cfg.dataloader
         )
+    elif data_type == 'patch-kps':
+        data_module = DataModuleClassDict['patch-kps'][dataset_name](
+            transform=TransformDict[data_type],
+            tokenizer={'recognition': recognition_tokenizer, 'translation': translation_tokenizer},
+            keypoints_file=kps_file,
+            **data_cfgs,
+            **cfg.dataloader
+        )
     else:
         raise ValueError(f"Unsupported dataset type: {data_type}")
 

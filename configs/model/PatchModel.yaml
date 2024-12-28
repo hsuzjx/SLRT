@@ -1,2 +1,61 @@
+# configs/model/PatchModel.yaml
 
 name: "PatchModel"
+
+network:
+  share_classifier: true
+  ResNet18:
+    pretrained: true
+    model_dir: ../.pretrained_models
+  conv1d:
+    input_size: 512
+    hidden_size: 1024
+    conv_type: 2
+    use_bn: false
+  BiLSTM:
+    rnn_type: 'LSTM'
+    input_size: 1024
+    hidden_size: 1024
+    num_layers: 2
+    bidirectional: true
+
+loss_fn:
+  CTCLoss:
+    blank: 0
+    zero_infinity: false
+    reduction: 'none'
+  KLDivLoss:
+    reduction: "mean"
+  SeqKD:
+    T: 8
+
+optimizer:
+  Adam:
+    lr: 0.0001
+    weight_decay: 0.0001
+    betas: [ 0.9, 0.999 ]
+    eps: 1e-8
+
+lr_scheduler:
+  MultiStepLR:
+    milestones: [ 20, 35 ]
+    gamma: 0.2
+    last_epoch: -1
+  CosineAnnealingLR:
+    T_max: 100
+    eta_min: 0
+    last_epoch: -1
+    verbose: "deprecated"
+
+callback:
+  EarlyStopping:
+    patience: 40
+    verbose: true
+    check_finite: false
+  ModelCheckpoint:
+    filename: 'top_{epoch}'
+    save_last: true
+    save_top_k: 3
+    verbose: true
+
+test_param: true

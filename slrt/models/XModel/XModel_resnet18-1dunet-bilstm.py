@@ -1,4 +1,4 @@
-from typing import Any, Union, Sequence
+from typing import Any, Tuple, Union, Sequence
 
 import torch
 import torch.nn.functional as F
@@ -7,90 +7,128 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
 from typing_extensions import override
 
-from .modules import ResNet18, TemporalConv, BiLSTMLayer, SeqKD
+from .modules import *
 from ..BaseModel import SLRTBaseModel
-from ..XModel.modules import SeqKD
 
 
-class PatchModel(SLRTBaseModel):
+class XModel(SLRTBaseModel):
+    """
+    XModel
+    """
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.name = "PatchModel"
+        self.name = "XModel"
 
     @override
     def _init_network(self, **kwargs):
-        self.visual_local_layer = ResNet18(
-            **self.hparams.network["ResNet18"]
+        self.visual_backbone = ResNet18(
+            **self.hparams.network['ResNet18']
+        )
+        self.visual_backbone.fc = Identity()
+        # self.visual_backbone = S3D(1000)
+
+        # self.visual_head = None
+
+        # self.conv1d = TemporalConv(
+        #     **self.hparams.network['conv1d']
+        # )
+
+        self.t_unet = UNet1D(n_channels=512, n_classes=1024)
+
+        self.temporal_module = BiLSTMLayer(
+            **self.hparams.network['BiLSTM']
         )
 
-        self.pool_layer = None
-
-        self.temporal_conv_layer = TemporalConv(
-            **self.hparams.network["conv1d"]
-        )
-
-        self.visual_gat = None
-        self.temporal_gat = None
-
-        self.visual_conv_layer = TemporalConv(
-            **self.hparams.network["conv1d"]
-        )
-
-        self.bilstm = BiLSTMLayer(
-            **self.hparams.network["BiLSTM"]
-        )
         self.classifier = NormLinear(1024, self.recognition_tokenizer.vocab_size)
-
         if not self.hparams.network['share_classifier']:
-            self.classifier_vconv_fc = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+            self.classifier_conv_fc = NormLinear(1024, self.recognition_tokenizer.vocab_size)
 
-    def forward(self, patchs: torch.Tensor, patch_lengths: torch.Tensor,
-                kps: torch.Tensor) -> Any:
-        N, T, C, V, H, W = patchs.shape
-        N, T, V, _ = kps.shape
+    def forward(
+            self,
+            videos: torch.Tensor,
+            video_lengths: torch.Tensor,
+            glosses: torch.Tensor = None,
+            gloss_lengths: torch.Tensor = None,
+            words: torch.Tensor = None,
+            words_lengths: torch.Tensor = None
+    ) -> Any:
+        N, T, C, H, W = videos.shape
 
-        x = patchs.permute(0, 3, 2, 1, 4, 5).contiguous().view(N * V, C, T, H, W)
+        # (N,T,C,H,W) -> (N,C,T,H,W)
+        x = videos.permute(0, 2, 1, 3, 4)
 
-        # (N * V, C, T, H, W) -> (N * V, C, T, H', W')
-        x = self.visual_local_layer(x)
+        # (N,C,T,H,W) -> (N*T,features)
+        x = self.visual_backbone(x)
 
-        # (N * V, C, T, H', W') -> (N * V, T, f)
-        # ..... mean pooling
-        x = self.pool_layer(x)
+        # (N*T,features) -> (N,T,features) -> (N,features,T)
+        x = x.view(N, T, -1).permute(0, 2, 1)
 
-        x = torch.cat([x, kps.view(N * T, V, 3)], dim=2)
+        # visual_features = self.t_unet(x)
 
-        # (N * V, T, f) -> (N * V, f, T) -> (N * V, f, T')
-        x, x_lengths = self.temporal_conv_layer(x.permute(0, 2, 1).contiguous(), patch_lengths)
+        # lstm_output = self.temporal_module(visual_features.permute(2, 0, 1), video_lengths.to('cpu'))
 
-        # (N * V, f, T') -> (N, V, f, T')
-        x = x.view(N, V, -1, x_lengths)
+        # predictions = lstm_output['predictions']
+        # conv1d_logits = self.classifier(visual_features.transpose(1, 2)).transpose(1, 2)
+        # output_logits = self.classifier(predictions)
 
-        # (N, V, f, T') -> (N, T', V, f) -> (N, T', V, f_v)
-        visual_features = self.visual_gat(x.permute(0, 3, 1, 2).contiguous())
+        # visual_features ()
 
-        # (N, V, f, T') -> (N, V, T', f) -> (N, V, T', f_t) -> (N, T', V, f_t))
-        temporal_features = self.temporal_gat(x.permute(0, 1, 3, 2).contiguous()).permute(0, 2, 1, 3).contiguous()
+        # (N,features,T) -> (N,features',T')
+        # visual_features, feature_lengths = self.conv1d(x, video_lengths)
 
-        # concat(visual_features, temporal_features) -> (N, T', V, 2f)
-        gat_out_features = torch.cat([visual_features, temporal_features], dim=3)
+        visual_features = self.t_unet(x)
+        feature_lengths = video_lengths
 
-        # (N, T', V, 2f) -> (N, T', f, V) -> (N * T', f, V)) -> (N * T', f_bilstm_in))
-        bilstm_in = self.visual_conv_layer(gat_out_features.permute(0, 1, 3, 2).contiguous().view(N * x_lengths, -1, V))
+        # (N,features',T') -> (T',N,features')
+        visual_features = visual_features.permute(2, 0, 1)
 
-        # (N * T', f_bilstm_in) -> (N, T', f_bilstm_in) -> (T', N, f_bilstm_in)
-        bilstm_in = bilstm_in.view(N, x_lengths, -1).permute(1, 0, 2).contiguous()
-        # (N, T', V, 2f) -> (N, T', V, 2f)
-        predictions, _ = self.bilstm(bilstm_in, x_lengths)
+        # (T',N,features') -> (T',N,features'')
+        predictions, _ = self.temporal_module(visual_features, feature_lengths.cpu())
 
+        # Pass through the classifier
+        # (T',N,features'') -> (T',N,logits)
         logits = self.classifier(predictions)
 
         if self.hparams.network['share_classifier']:
-            vconv_logits = self.classifier(bilstm_in.view(N, x_lengths, -1))
+            # (T',N,features') -> (T',N,logits_conv)
+            conv_logits = self.classifier(visual_features)
         else:
-            vconv_logits = self.classifier_vconv_fc(bilstm_in.view(N, x_lengths, -1))
+            # (T',N,features') -> (T',N,logits_conv)
+            conv_logits = self.classifier_conv_fc(visual_features)
 
-        return vconv_logits, logits, x_lengths
+        return conv_logits, logits, feature_lengths
+
+    def step_forward(
+            self,
+            batch: Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]
+    ) -> Tuple[torch.Tensor, Any, Any, Any, Any, Any]:
+        """
+        Performs a forward pass and computes the loss for a given batch.
+
+        Args:
+            batch (Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]): A tuple containing the input data, input lengths, target data, target lengths, and additional information.
+
+        Returns:
+            Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
+        """
+        x, y, _, x_lgt, y_lgt, _, info = batch
+        conv_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+
+        if self.trainer.predicting:
+            return torch.tensor([]), y_hat, None, y_hat_lgt, None, info
+
+        loss = (
+                1 * self.ctc_loss(conv_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
+                1 * self.ctc_loss(y_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
+                25 * self.dist_loss(conv_hat, y_hat.detach(), use_blank=False)
+        )
+
+        # Check for NaN values
+        if torch.isnan(loss):
+            print('\nWARNING: Detected NaN in loss.')
+
+        return loss, y_hat, None, y_hat_lgt, None, info
 
     @override
     def _define_loss_function(self):
@@ -138,6 +176,14 @@ class PatchModel(SLRTBaseModel):
             **self.hparams.callback['ModelCheckpoint']
         )
         return [early_stop, checkpoint]
+
+
+class Identity(nn.Module):
+    def __init__(self):
+        super(Identity, self).__init__()
+
+    def forward(self, x):
+        return x
 
 
 class NormLinear(nn.Module):

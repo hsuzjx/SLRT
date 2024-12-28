@@ -70,6 +70,8 @@ class BasePatchKpsDataset(Dataset):
             for v in range(kps.shape[1]):
                 kp = kps[t, v]
                 x, y, c = kp
+                x = int(x)
+                y = int(y)
                 frame = np.pad(
                     frame,
                     ((self.half_patch_h, self.half_patch_h), (self.half_patch_w, self.half_patch_w), (0, 0)),
