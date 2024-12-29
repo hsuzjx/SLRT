@@ -66,21 +66,23 @@ class BasePatchKpsDataset(Dataset):
         patchs_list = []
         for t in range(kps.shape[0]):
             frame = frames[t]
+            x_max = frame.shape[1]
+            y_max = frame.shape[0]
+
+            frame = np.pad(
+                frame,
+                ((self.half_patch_h, self.half_patch_h), (self.half_patch_w, self.half_patch_w), (0, 0)),
+                mode='constant',
+                constant_values=0
+            )
+
             frame_patches = []
             for v in range(kps.shape[1]):
                 kp = kps[t, v]
                 x, y, c = kp
                 x = int(x)
                 y = int(y)
-                x_max = frame.shape[1]
-                y_max = frame.shape[0]
-                frame = np.pad(
-                    frame,
-                    ((self.half_patch_h, self.half_patch_h), (self.half_patch_w, self.half_patch_w), (0, 0)),
-                    mode='constant',
-                    constant_values=0
-                )
-                if 0 <= x <= x_max and 0 <= y <= y_max:
+                if 0 <= x < x_max and 0 <= y < y_max:
                     frame_patches.append(
                         frame[y:y + 2 * self.half_patch_h + 1, x:x + 2 * self.half_patch_w + 1, :]
                     )
@@ -94,6 +96,9 @@ class BasePatchKpsDataset(Dataset):
         video_patches = torch.from_numpy(video_patches).permute(0, 4, 1, 2, 3)  # (T, C, V, H, W)
         video_patches = video_patches.float()
 
+        if isinstance(kps, np.ndarray):
+            kps = torch.from_numpy(kps)
+        kps = kps.permute(2, 0, 1).contiguous()  # (T,V,C) -> (C,T,V)
         if self.kps_transform:
             kps = self.kps_transform(kps)
 

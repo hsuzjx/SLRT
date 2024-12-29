@@ -1,4 +1,4 @@
-from typing import Any, Union, Sequence
+from typing import Any, Union, Sequence, Tuple
 
 import torch
 import torch.nn.functional as F
@@ -22,8 +22,9 @@ class PatchModel(SLRTBaseModel):
         self.visual_local_layer = ResNet18(
             **self.hparams.network["ResNet18"]
         )
-
         self.pool_layer = None
+
+        # self.kps_linear_layer = nn.Linear()
 
         self.temporal_conv_layer = TemporalConv(
             **self.hparams.network["conv1d"]
@@ -47,7 +48,7 @@ class PatchModel(SLRTBaseModel):
     def forward(self, patchs: torch.Tensor, patch_lengths: torch.Tensor,
                 kps: torch.Tensor) -> Any:
         N, T, C, V, H, W = patchs.shape
-        N, T, V, _ = kps.shape
+        # N, _, T, V = kps.shape
 
         x = patchs.permute(0, 3, 2, 1, 4, 5).contiguous().view(N * V, C, T, H, W)
 
@@ -100,6 +101,31 @@ class PatchModel(SLRTBaseModel):
         self.dist_loss = SeqKD(
             **self.hparams.loss_fn['SeqKD']
         )
+
+    def step_forward(
+            self,
+            batch: Tuple[
+                torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,
+                torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any
+            ]
+    ) -> Tuple[torch.Tensor, Any, Any, Any, Any, Any]:
+        patches, kps, glosses, words, patches_length, kps_length, gloss_lengths, words_lengths, info = batch
+        vconv_hat, y_hat, lgt = self(patches, patches_length, kps)
+
+        if self.trainer.predicting:
+            return torch.tensor([]), y_hat, None, lgt, None, info
+
+        loss = (
+                1 * self.ctc_loss(vconv_hat.log_softmax(-1), glosses, lgt.cpu(), gloss_lengths.cpu()).mean() +
+                1 * self.ctc_loss(y_hat.log_softmax(-1), glosses, lgt.cpu(), gloss_lengths.cpu()).mean() +
+                25 * self.dist_loss(vconv_hat, y_hat.detach(), use_blank=False)
+        )
+
+        # Check for NaN values
+        if torch.isnan(loss):
+            print('\nWARNING: Detected NaN in loss.')
+
+        return loss, y_hat, None, lgt, None, info
 
     @override
     def configure_optimizers(self):
