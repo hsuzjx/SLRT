@@ -81,7 +81,7 @@ class BasePatchPreprocessor:
                 x, y, c = kp
                 x = int(x)
                 y = int(y)
-                if 0 <= x <= x_max and 0 <= y <= y_max:
+                if 0 <= x < x_max and 0 <= y < y_max:
                     patch = img[y:y + 2 * half_patch_h + 1, x:x + 2 * half_patch_w + 1, :]
                 else:
                     patch = np.zeros((2 * half_patch_h + 1, 2 * half_patch_w + 1, 3), dtype=np.uint8)
