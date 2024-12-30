@@ -7,7 +7,7 @@ from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from torch import nn
 from typing_extensions import override
 
-from .modules import ResNet18, TemporalConv, BiLSTMLayer, SeqKD
+from .modules import ResNet18, TemporalConv, BiLSTMLayer, SeqKD, STAttentionBlock
 from ..BaseModel import SLRTBaseModel
 from ..XModel.modules import SeqKD
 
@@ -22,20 +22,42 @@ class PatchModel(SLRTBaseModel):
         self.visual_local_layer = ResNet18(
             **self.hparams.network["ResNet18"]
         )
-        self.pool_layer = None
+        # self.pool_layer = None
 
         # self.kps_linear_layer = nn.Linear()
 
         self.temporal_conv_layer = TemporalConv(
             **self.hparams.network["conv1d"]
         )
-
-        self.visual_gat = None
-        self.temporal_gat = None
-
-        self.visual_conv_layer = TemporalConv(
-            **self.hparams.network["conv1d"]
+        self.kps_map_layer = nn.Sequential(
+            nn.Conv2d(3, 128, 1),
+            nn.BatchNorm2d(128),
+            nn.LeakyReLU(0.1),
         )
+
+        config = [
+            # [64, 64, 16, 7, 2], [64, 64, 16, 3, 1],
+            # [64, 128, 32, 3, 1],
+            [128, 128, 32, 3, 1],
+            [128, 256, 64, 3, 1], [256, 256, 64, 3, 1],
+            [256, 512, 128, 3, 1], [512, 512, 128, 3, 1],
+            [512, 1024, 256, 3, 1]#, [1024, 1024, 256, 3, 1],
+        ]
+
+        self.visual_at = nn.ModuleList()
+        for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
+            self.visual_at.append(
+                STAttentionBlock(in_channels, out_channels, inter_channels, stride=stride, num_node=133,
+                                 t_kernel=t_kernel, use_pes=False))
+        # self.temporal_at = nn.ModuleList()
+        # for index, (in_channels, out_channels, inter_channels, t_kernel, stride) in enumerate(config):
+        #     self.temporal_at.append(
+        #         STAttentionBlock(in_channels, out_channels, inter_channels, stride=stride, num_node=79,
+        #                          t_kernel=t_kernel, use_pet=False))
+
+        # self.visual_conv_layer = TemporalConv(
+        #     **self.hparams.network["conv1d"]
+        # )
 
         self.bilstm = BiLSTMLayer(
             **self.hparams.network["BiLSTM"]
@@ -48,7 +70,7 @@ class PatchModel(SLRTBaseModel):
     def forward(self, patchs: torch.Tensor, patch_lengths: torch.Tensor,
                 kps: torch.Tensor) -> Any:
         N, T, C, V, H, W = patchs.shape
-        # N, _, T, V = kps.shape
+        NK, _, TK, VK = kps.shape
 
         x = patchs.permute(0, 3, 2, 1, 4, 5).contiguous().view(N * V, C, T, H, W)
 
@@ -57,39 +79,52 @@ class PatchModel(SLRTBaseModel):
 
         # (N * V, C, T, H', W') -> (N * V, T, f)
         # ..... mean pooling
-        x = self.pool_layer(x)
+        # x = self.pool_layer(x)
 
-        x = torch.cat([x, kps.view(N * T, V, 3)], dim=2)
+        x = x.view(N * V, T, -1)
+
+        kps_feature = self.kps_map_layer(kps)
+
+        # x = torch.cat([x, kps_feature.permute(0, 3, 2, 1).contiguous().view(NK * VK, TK, -1)], dim=2)
+        x = x + kps_feature.permute(0, 3, 2, 1).contiguous().view(NK * VK, TK, -1)
 
         # (N * V, T, f) -> (N * V, f, T) -> (N * V, f, T')
         x, x_lengths = self.temporal_conv_layer(x.permute(0, 2, 1).contiguous(), patch_lengths)
 
-        # (N * V, f, T') -> (N, V, f, T')
-        x = x.view(N, V, -1, x_lengths)
+        # (N * V, f, T') -> (N, V, f, T') -> (N, f, T', V))
+        x = x.view(N, V, x.shape[1], x.shape[2]).permute(0, 2, 3, 1).contiguous()
 
-        # (N, V, f, T') -> (N, T', V, f) -> (N, T', V, f_v)
-        visual_features = self.visual_gat(x.permute(0, 3, 1, 2).contiguous())
+        ############## (N, V, f, T') -> (N, T', V, f) -> (N, T', V, f_v)
+        # visual_features = self.visual_at(x.permute(0, 3, 1, 2).contiguous())
+        for i, m in enumerate(self.visual_at):
+            x = m(x)
+        visual_features = x
+        # # (N, f, T', V) -> (N, V, f, T')
+        # visual_features = visual_features.permute(0, 3, 1, 2).contiguous()
+
+        visual_features = visual_features.mean(3) # (N,f,T')
 
         # (N, V, f, T') -> (N, V, T', f) -> (N, V, T', f_t) -> (N, T', V, f_t))
-        temporal_features = self.temporal_gat(x.permute(0, 1, 3, 2).contiguous()).permute(0, 2, 1, 3).contiguous()
+        # temporal_features = self.temporal_gat(x.permute(0, 1, 3, 2).contiguous()).permute(0, 2, 1, 3).contiguous()
 
         # concat(visual_features, temporal_features) -> (N, T', V, 2f)
-        gat_out_features = torch.cat([visual_features, temporal_features], dim=3)
+        # at_out_features = torch.cat([visual_features, temporal_features], dim=3)
 
         # (N, T', V, 2f) -> (N, T', f, V) -> (N * T', f, V)) -> (N * T', f_bilstm_in))
-        bilstm_in = self.visual_conv_layer(gat_out_features.permute(0, 1, 3, 2).contiguous().view(N * x_lengths, -1, V))
+        # bilstm_in = self.visual_conv_layer(at_out_features.permute(0, 1, 3, 2).contiguous().view(N * x_lengths, -1, V))
 
         # (N * T', f_bilstm_in) -> (N, T', f_bilstm_in) -> (T', N, f_bilstm_in)
-        bilstm_in = bilstm_in.view(N, x_lengths, -1).permute(1, 0, 2).contiguous()
+        #(N,f,T')->(T',N,f)
+        bilstm_in = visual_features.permute(2, 0, 1).contiguous()
         # (N, T', V, 2f) -> (N, T', V, 2f)
-        predictions, _ = self.bilstm(bilstm_in, x_lengths)
+        predictions, _ = self.bilstm(bilstm_in, x_lengths.cpu())
 
         logits = self.classifier(predictions)
 
         if self.hparams.network['share_classifier']:
-            vconv_logits = self.classifier(bilstm_in.view(N, x_lengths, -1))
+            vconv_logits = self.classifier(bilstm_in)
         else:
-            vconv_logits = self.classifier_vconv_fc(bilstm_in.view(N, x_lengths, -1))
+            vconv_logits = self.classifier_vconv_fc(bilstm_in)
 
         return vconv_logits, logits, x_lengths
 

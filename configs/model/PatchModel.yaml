@@ -8,8 +8,8 @@ network:
     pretrained: true
     model_dir: ../.pretrained_models
   conv1d:
-    input_size: 512
-    hidden_size: 1024
+    input_size: 128
+    hidden_size: 128
     conv_type: 2
     use_bn: false
   BiLSTM:

@@ -172,7 +172,8 @@ class BasePatchKpsDataset(Dataset):
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
         patches, kps, glosses, translation, info = list(zip(*batch))
 
-        patches, patches_length = pad_video_sequence(patches, batch_first=True, padding_value=0.0)
+        patches, patches_length = pad_video_sequence(patches, batch_first=True, padding_value=0.0,
+                                                     left_pad_length=0, right_pad_length=0)
         patches_length = torch.LongTensor(patches_length)
 
         kps, kps_length = pad_keypoints_sequence(kps, batch_first=True, num_keypoints=133)

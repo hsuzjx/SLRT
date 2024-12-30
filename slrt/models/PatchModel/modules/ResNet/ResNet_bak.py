@@ -20,6 +20,67 @@ model_urls = {
 }
 
 
+class Get_Correlation(nn.Module):
+    """
+    该类用于实现获取特征图之间的相关性。
+
+    Attributes:
+        channels (int): 输入特征图的通道数。
+        reduction_channel (int): 降维后的通道数，为输入通道数的1/16。
+        down_conv (nn.Conv3d): 用于降维的3D卷积层。
+        down_conv2 (nn.Conv3d): 用于特征变换的3D卷积层。
+        spatial_aggregation1 (nn.Conv3d): 用于空间聚合的3D卷积层，使用标准卷积。
+        spatial_aggregation2 (nn.Conv3d): 用于空间聚合的3D卷积层，使用扩张卷积。
+        spatial_aggregation3 (nn.Conv3d): 用于空间聚合的3D卷积层，使用扩张卷积。
+        weights (nn.Parameter): 空间聚合层的权重参数，用于加权求和。
+        weights2 (nn.Parameter): 特征融合层的权重参数，用于加权求和。
+        conv_back (nn.Conv3d): 用于升维的3D卷积层。
+    """
+
+    def __init__(self, channels):
+        super().__init__()
+        reduction_channel = channels // 16
+        self.down_conv = nn.Conv3d(channels, reduction_channel, kernel_size=1, bias=False)
+
+        self.down_conv2 = nn.Conv3d(channels, channels, kernel_size=1, bias=False)
+        self.spatial_aggregation1 = nn.Conv3d(reduction_channel, reduction_channel, kernel_size=(9, 3, 3),
+                                              padding=(4, 1, 1), groups=reduction_channel)
+        self.spatial_aggregation2 = nn.Conv3d(reduction_channel, reduction_channel, kernel_size=(9, 3, 3),
+                                              padding=(4, 2, 2), dilation=(1, 2, 2), groups=reduction_channel)
+        self.spatial_aggregation3 = nn.Conv3d(reduction_channel, reduction_channel, kernel_size=(9, 3, 3),
+                                              padding=(4, 3, 3), dilation=(1, 3, 3), groups=reduction_channel)
+        self.weights = nn.Parameter(torch.ones(3) / 3, requires_grad=True)
+        self.weights2 = nn.Parameter(torch.ones(2) / 2, requires_grad=True)
+        self.conv_back = nn.Conv3d(reduction_channel, channels, kernel_size=1, bias=False)
+
+    def forward(self, x):
+        """
+        前向传播函数，用于计算输入特征图的相关性。
+
+        Parameters:
+            x (torch.Tensor): 输入特征图，形状为(B, C, T, H, W)。
+
+        Returns:
+            torch.Tensor: 输出特征图，形状与输入相同。
+        """
+        x2 = self.down_conv2(x)
+        affinities = torch.einsum('bcthw,bctsd->bthwsd', x,
+                                  torch.concat([x2[:, :, 1:], x2[:, :, -1:]], 2))  # 重复最后一帧
+        affinities2 = torch.einsum('bcthw,bctsd->bthwsd', x,
+                                   torch.concat([x2[:, :, :1], x2[:, :, :-1]], 2))  # 重复第一帧
+        features = torch.einsum('bctsd,bthwsd->bcthw', torch.concat([x2[:, :, 1:], x2[:, :, -1:]], 2),
+                                torch.sigmoid(affinities) - 0.5) * self.weights2[0] + \
+                   torch.einsum('bctsd,bthwsd->bcthw', torch.concat([x2[:, :, :1], x2[:, :, :-1]], 2),
+                                torch.sigmoid(affinities2) - 0.5) * self.weights2[1]
+
+        x = self.down_conv(x)
+        aggregated_x = self.spatial_aggregation1(x) * self.weights[0] + self.spatial_aggregation2(x) * self.weights[1] \
+                       + self.spatial_aggregation3(x) * self.weights[2]
+        aggregated_x = self.conv_back(aggregated_x)
+
+        return features * (torch.sigmoid(aggregated_x) - 0.5)
+
+
 def conv3x3(in_planes, out_planes, stride=1):
     # 3x3x3 convolution with padding
     return nn.Conv3d(
@@ -126,17 +187,22 @@ class ResNet(nn.Module):
         self.layer1 = self._make_layer(block, 64, layers[0])
         # 构建模型的第二层
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
-
-        # # 构建模型的第三层
-        # self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-
-        # # 构建模型的第四层
-        # self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-
+        # 构建相关性模块的第一部分
+        self.corr1 = Get_Correlation(self.inplanes)
+        # 构建模型的第三层
+        self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
+        # 构建相关性模块的第二部分
+        self.corr2 = Get_Correlation(self.inplanes)
+        # 定义参数alpha，用于控制相关性模块的融合程度
+        self.alpha = nn.Parameter(torch.zeros(3), requires_grad=True)
+        # 构建模型的第四层
+        self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
+        # 构建相关性模块的第三部分
+        self.corr3 = Get_Correlation(self.inplanes)
         # 定义平均池化层，用于全局平均池化
-        self.avgpool = nn.AvgPool2d(2, stride=1)
-        # # 定义全连接层，用于分类
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
+        self.avgpool = nn.AvgPool2d(7, stride=1)
+        # 定义全连接层，用于分类
+        self.fc = nn.Linear(512 * block.expansion, num_classes)
 
         # 初始化模型参数
         for m in self.modules():
@@ -199,13 +265,16 @@ class ResNet(nn.Module):
         x = self.layer1(x)
         # 通过模型的第二层
         x = self.layer2(x)
-
-        # # 通过模型的第三层
-        # x = self.layer3(x)
-        #
-        # # 通过模型的第四层
-        # x = self.layer4(x)
-
+        # 加入相关性模块的第一部分
+        x = x + self.corr1(x) * self.alpha[0]
+        # 通过模型的第三层
+        x = self.layer3(x)
+        # 加入相关性模块的第二部分
+        x = x + self.corr2(x) * self.alpha[1]
+        # 通过模型的第四层
+        x = self.layer4(x)
+        # 加入相关性模块的第三部分
+        x = x + self.corr3(x) * self.alpha[2]
         # 调整特征图的维度顺序
         x = x.transpose(1, 2).contiguous()
         # 调整张量形状为(batch_size*T, C, H, W)
@@ -213,10 +282,10 @@ class ResNet(nn.Module):
 
         # 全局平均池化
         x = self.avgpool(x)
-        # # 将张量展平
-        # x = x.view(x.size(0), -1)
-        # # 全连接层，得到最终的分类分数
-        # x = self.fc(x)
+        # 将张量展平
+        x = x.view(x.size(0), -1)
+        # 全连接层，得到最终的分类分数
+        x = self.fc(x)
 
         return x
 

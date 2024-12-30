@@ -1,7 +1,7 @@
 # /configs/config.yaml
 
 defaults:
-  - exp_patchmodel_csldaily
+  - exp_patchmodel_phoenix2014
   - common_hydra
   - _self_
 
