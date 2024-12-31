@@ -1,6 +1,0 @@
-# /configs/common_hydra.yaml
-
-# Hydra 运行配置
-hydra:
-  run:
-    dir: ../experiments/${project}/${name}/${times}/hydra

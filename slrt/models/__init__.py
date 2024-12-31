@@ -4,4 +4,4 @@ from .PatchModel import PatchModel
 from .STKA import STKA
 from .SwinBertSLR import SwinBertSLR
 from .XModel import XModel
-from .utils import *
+from .BaseModel.decoders import *
