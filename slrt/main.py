@@ -26,6 +26,30 @@ def main(cfg: DictConfig):
     data modules, then trains and tests the model based on the provided config.
     """
     #######################################################################################
+    ##################### Check cfg #######################################################
+    if not cfg.project:
+        print("Error: cfg.project is None, exit!")
+        exit(1)
+    if not cfg.name:
+        print("Error: cfg.name is None, exit!")
+        exit(1)
+    if not cfg.model:
+        print("Error: cfg.model is not exist, exit!")
+        exit(1)
+    if not cfg.dataset:
+        print("Error: cfg.dataset is None, exit!")
+        exit(1)
+    if not cfg.dataloader:
+        print("Error: cfg.dataloader is None, exit!")
+        exit(1)
+    if not cfg.trainer:
+        print("Error: cfg.trainer is None, exit!")
+        exit(1)
+    if not cfg.data_type:
+        print("Error: cfg.data_type is None, exit!")
+        exit(1)
+
+    #######################################################################################
     ##################### Set PyTorch Configurations and Random Seed ######################
     # Set num threads
     num_threads = cfg.get('num_threads', psutil.cpu_count(logical=False))
