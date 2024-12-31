@@ -157,8 +157,6 @@ class MSKA(SLRTBaseModel):
             model_outputs['transformer_inputs'] = model_outputs['transformer_inputs']  # for latter use of decoding
             model_outputs['total_loss'] = model_outputs['recognition_loss'] + model_outputs['translation_loss']
 
-
-
             return {
                 'gloss_logits': fuse_head_output,
                 'input_lengths': mask_lgt
@@ -169,10 +167,8 @@ class MSKA(SLRTBaseModel):
             'left_gloss_logits': left_head_output,
             'right_gloss_logits': right_head_output,
             'body_gloss_logits': body_head_output,
-            'ensemble_last_gloss_logits': (
-                    left_head_output.softmax(dim=2) + right_head_output.softmax(dim=2) +
-                    body_head_output.softmax(dim=2) + fuse_head_output.softmax(dim=2)
-            ).log(),
+            'ensemble_last_gloss_logits': (left_head_output.softmax(dim=2) + right_head_output.softmax(dim=2) +
+                                           body_head_output.softmax(dim=2) + fuse_head_output.softmax(dim=2)) / 4,
             'input_lengths': mask_lgt
         }
 

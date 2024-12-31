@@ -8,7 +8,6 @@ from torch import nn
 from typing_extensions import override
 
 from .modules import *
-from .modules.ResNetLS import ResNet18LS
 from ..BaseModel import SLRTBaseModel
 
 
@@ -30,7 +29,8 @@ class XModel(SLRTBaseModel):
 
         # self.visual_backbone.fc = Identity()
 
-        self.visual_backbone = S3D(1000)
+        self.visual_backbone = S3D_backbone(in_channel=3, **self.hparams.network['s3d'],
+                                            cfg_pyramid=self.hparams.network['pyramid'])
 
         # self.visual_head = None
 
@@ -44,9 +44,9 @@ class XModel(SLRTBaseModel):
             **self.hparams.network['BiLSTM']
         )
 
-        self.classifier = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+        self.classifier = NormLinear(832, self.recognition_tokenizer.vocab_size)
         if not self.hparams.network['share_classifier']:
-            self.classifier_conv_fc = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+            self.classifier_conv_fc = NormLinear(832, self.recognition_tokenizer.vocab_size)
 
     def forward(
             self,
@@ -63,12 +63,12 @@ class XModel(SLRTBaseModel):
         x = videos.permute(0, 2, 1, 3, 4)
 
         # (N,C,T,H,W) -> (N*T,features)
-        x = self.visual_backbone(x)
+        out = self.visual_backbone(x, sgn_lengths=video_lengths)
+        sgn_feature, sgn_mask, valid_len_out, fea_lst = out['sgn_feature'], out['sgn_mask'], out['valid_len_out'], out[
+            'fea_lst']
 
-        # (N*T,features) -> (N,T,features) -> (N,features,T)
-        x = x.view(N, T, -1).permute(0, 2, 1)
-
-
+        # (N,T,features) -> (T,N,features)
+        visual_features = sgn_feature.permute(1, 0, 2)
 
         # visual_features = self.t_unet(x)
 
@@ -83,27 +83,35 @@ class XModel(SLRTBaseModel):
         # (N,features,T) -> (N,features',T')
         # visual_features, feature_lengths = self.conv1d(x, video_lengths)
 
-        visual_features = self.t_unet(x)
-        feature_lengths = video_lengths
+        # visual_features = self.t_unet(x)
+        # feature_lengths = video_lengths
 
         # (N,features',T') -> (T',N,features')
-        visual_features = visual_features.permute(2, 0, 1)
+        # visual_features = visual_features.permute(2, 0, 1)
 
         # (T',N,features') -> (T',N,features'')
-        predictions, _ = self.temporal_module(visual_features, feature_lengths.cpu())
+        predictions, _ = self.temporal_module(visual_features, valid_len_out[-1].cpu())
 
         # Pass through the classifier
         # (T',N,features'') -> (T',N,logits)
         logits = self.classifier(predictions)
 
+        if visual_features.shape[0] != predictions.shape[0]:
+            print(f"\n{visual_features.shape[0]} {predictions.shape[0]}")
+
         if self.hparams.network['share_classifier']:
             # (T',N,features') -> (T',N,logits_conv)
-            conv_logits = self.classifier(visual_features)
+            conv_logits = self.classifier(visual_features[:max(valid_len_out[-1]), :, :])
         else:
             # (T',N,features') -> (T',N,logits_conv)
             conv_logits = self.classifier_conv_fc(visual_features)
 
-        return conv_logits, logits, feature_lengths
+        return {
+            "logits": logits,
+            "logits_length": valid_len_out[-1],
+            "conv_logits": conv_logits,
+            "vlo": valid_len_out
+        }
 
     def step_forward(
             self,
@@ -116,10 +124,11 @@ class XModel(SLRTBaseModel):
             batch (Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]): A tuple containing the input data, input lengths, target data, target lengths, and additional information.
 
         Returns:
-            Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
+            Tuple[torch.Tensor, Any, Any, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
         x, y, _, x_lgt, y_lgt, _, info = batch
-        conv_hat, y_hat, y_hat_lgt = self(x, x_lgt)
+        out = self(x, x_lgt)
+        y_hat, y_hat_lgt, conv_hat = out['logits'], out['logits_length'], out['conv_logits']
 
         if self.trainer.predicting:
             return torch.tensor([]), y_hat, None, y_hat_lgt, None, info

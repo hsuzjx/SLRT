@@ -60,7 +60,8 @@ def pad_keypoints_sequence(sequences, batch_first=True, num_keypoints=133):
         sequences = [torch.tensor(seq, dtype=torch.float32) for seq in sequences]
 
     lengths = [seq.shape[1] for seq in sequences]
-    max_length = int(np.ceil(max(lengths) / 4.0) * 4.0)
+    # max_length = int(np.ceil(max(lengths) / 4.0) * 4.0)
+    max_length =max(lengths)
     batch_size = len(sequences)
 
     batch = torch.full((batch_size, 3, max_length, num_keypoints), 0.0, dtype=sequences[0].dtype)

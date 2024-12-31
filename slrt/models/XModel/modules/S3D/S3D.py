@@ -1,336 +1,157 @@
+import glob
+import os
 import torch
-import torch.nn.functional as F
-from torch import nn
+
+from .models_3d import S3Dsup
+from .pyramid import PyramidNetwork, PyramidNetwork_v2
+
+BLOCK2SIZE = {1: 64, 2: 192, 3: 480, 4: 832, 5: 1024}
 
 
-class S3D(nn.Module):
-    def __init__(self, num_class):
-        super(S3D, self).__init__()
-        self.base = nn.Sequential(
-            SepConv3d(3, 64, kernel_size=7, stride=2, padding=3),
-            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
-            BasicConv3d(64, 64, kernel_size=1, stride=1),
-            SepConv3d(64, 192, kernel_size=3, stride=1, padding=1),
-            nn.MaxPool3d(kernel_size=(1, 3, 3), stride=(1, 2, 2), padding=(0, 1, 1)),
-            Mixed_3b(),
-            Mixed_3c(),
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=(2, 2, 2), padding=(1, 1, 1)),
-            Mixed_4b(),
-            Mixed_4c(),
-            Mixed_4d(),
-            Mixed_4e(),
-            Mixed_4f(),
-            nn.MaxPool3d(kernel_size=(2, 2, 2), stride=(2, 2, 2), padding=(0, 0, 0)),
-            Mixed_5b(),
-            Mixed_5c(),
-        )
-        self.fc = nn.Sequential(nn.Conv3d(1024, num_class, kernel_size=1, stride=1, bias=True), )
+class S3Ds(S3Dsup):
+    def __init__(self, in_channel=3, use_block=5, freeze_block=0, stride=2):
+        self.use_block = use_block
+        super(S3Ds, self).__init__(in_channels=in_channel, num_class=400, use_block=use_block, stride=stride)
+        self.freeze_block = freeze_block
+        self.END_POINT2BLOCK = {
+            0: 'block1',
+            3: 'block2',
+            6: 'block3',
+            12: 'block4',
+            15: 'block5',
+        }
+        self.BLOCK2END_POINT = {blk: ep for ep, blk in self.END_POINT2BLOCK.items()}
 
-    def forward(self, x):
-        y = self.base(x)
-        y = F.avg_pool3d(y, (2, y.size(3), y.size(4)), stride=1)
-        y = self.fc(y)
-        y = y.view(y.size(0), y.size(1), y.size(2))
-        logits = torch.mean(y, 2)
+        self.frozen_modules = []
+        self.use_block = use_block
 
-        return logits
-
-
-class BasicConv3d(nn.Module):
-    def __init__(self, in_planes, out_planes, kernel_size, stride, padding=0):
-        super(BasicConv3d, self).__init__()
-        self.conv = nn.Conv3d(in_planes, out_planes, kernel_size=kernel_size, stride=stride, padding=padding,
-                              bias=False)
-        self.bn = nn.BatchNorm3d(out_planes, eps=1e-3, momentum=0.001, affine=True)
-        self.relu = nn.ReLU()
+        if freeze_block > 0:
+            for i in range(0, self.base_num_layers):  # base  0,1,2,...,self.BLOCK2END_POINT[blk]
+                module_name = 'base.{}'.format(i)
+                submodule = self.base[i]
+                assert submodule != None, module_name
+                if i <= self.BLOCK2END_POINT['block{}'.format(freeze_block)]:
+                    self.frozen_modules.append(submodule)
 
     def forward(self, x):
-        x = self.conv(x)
-        x = self.bn(x)
-        x = self.relu(x)
+        x = self.base(x)
         return x
 
 
-class SepConv3d(nn.Module):
-    def __init__(self, in_planes, out_planes, kernel_size, stride, padding=0):
-        super(SepConv3d, self).__init__()
-        self.conv_s = nn.Conv3d(in_planes, out_planes, kernel_size=(1, kernel_size, kernel_size),
-                                stride=(1, stride, stride), padding=(0, padding, padding), bias=False)
-        self.bn_s = nn.BatchNorm3d(out_planes, eps=1e-3, momentum=0.001, affine=True)
-        self.relu_s = nn.ReLU()
+class S3D_backbone(torch.nn.Module):
+    def __init__(self,
+                 in_channel=3,
+                 use_block=5, freeze_block=0, stride=2, pretrained_ckpt='scratch', cfg_pyramid=None):
+        super(S3D_backbone, self).__init__()
+        self.cfg_pyramid = cfg_pyramid
+        self.backbone = S3Ds(
+            in_channel=in_channel,
+            use_block=use_block, freeze_block=freeze_block, stride=stride)
+        self.set_frozen_layers()
+        self.out_features = BLOCK2SIZE[use_block]
+        if pretrained_ckpt == 'scratch':
+            print('Train S3D backbone from scratch')
+        else:
+            print('Load pretrained S3D backbone from {}'.format(pretrained_ckpt))
+            self.load_s3d_model_weight(pretrained_ckpt)
 
-        self.conv_t = nn.Conv3d(out_planes, out_planes, kernel_size=(kernel_size, 1, 1), stride=(stride, 1, 1),
-                                padding=(padding, 0, 0), bias=False)
-        self.bn_t = nn.BatchNorm3d(out_planes, eps=1e-3, momentum=0.001, affine=True)
-        self.relu_t = nn.ReLU()
+        self.stage_idx = [0, 3, 6, 12]
+        self.stage_idx = self.stage_idx[:use_block]
+        self.use_block = use_block
 
-    def forward(self, x):
-        x = self.conv_s(x)
-        x = self.bn_s(x)
-        x = self.relu_s(x)
+        if in_channel == 3:
+            branch = 'rgb'
+        else:
+            branch = 'pose'
 
-        x = self.conv_t(x)
-        x = self.bn_t(x)
-        x = self.relu_t(x)
-        return x
+        self.pyramid = None
+        self.num_levels = 3
+        if cfg_pyramid is not None:
+            if cfg_pyramid[branch]:
+                if cfg_pyramid['version'] == 'v2':
+                    self.num_levels = cfg_pyramid.get('num_levels', 3)
+                    self.pyramid = PyramidNetwork_v2(channels=[832, 480, 192, 64], kernel_size=1,
+                                                     num_levels=self.num_levels, temp_scale=[2, 1, 1],
+                                                     spat_scale=[2, 2, 2])
+                else:
+                    self.num_levels = cfg_pyramid.get('num_levels', 4)
+                    self.pyramid = PyramidNetwork(channels=[832, 480, 192, 64], kernel_size=3,
+                                                  num_levels=self.num_levels, temp_scale=[2, 1, 1],
+                                                  spat_scale=[2, 2, 2])
 
+    def load_s3d_model_weight(self, model_path):
+        if 'actioncls' in model_path:
+            filename = glob.glob(os.path.join(model_path, '*.pt'))
+            checkpoint = torch.load(filename[0], map_location='cpu')
+            state_dict = checkpoint
+            new_dict = {}
+            for k, v in state_dict.items():
+                k = k.replace('module.', 'backbone.')
+                new_dict[k] = v
+            state_dict = new_dict
+            try:
+                self.load_state_dict(state_dict)
+            except Exception:
+                print('Error loading state dict')
+        elif 'glosscls' in model_path:
+            filename = glob.glob(os.path.join(model_path, '*.pth.tar'))
+            checkpoint = torch.load(filename[0], map_location='cpu')
+            state_dict = checkpoint['state_dict']
+            try:
+                self.load_state_dict(state_dict)
+            except:
+                print('Error loading state dict')
+        else:
+            raise ValueError
 
-class Mixed_3b(nn.Module):
-    def __init__(self):
-        super(Mixed_3b, self).__init__()
+    def set_train(self):
+        self.train()
+        for m in getattr(self.backbone, 'frozen_modules', []):
+            m.eval()
 
-        self.branch0 = nn.Sequential(
-            BasicConv3d(192, 64, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(192, 96, kernel_size=1, stride=1),
-            SepConv3d(96, 128, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(192, 16, kernel_size=1, stride=1),
-            SepConv3d(16, 32, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(192, 32, kernel_size=1, stride=1),
-        )
+    def get_frozen_layers(self):
+        return getattr(self.backbone, 'frozen_modules', [])
 
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
+    def set_frozen_layers(self):
+        for m in getattr(self.backbone, 'frozen_modules', []):
+            for param in m.parameters():
+                param.requires_grad = False
+            m.eval()
 
-        return out
+    def forward(self, sgn_videos, sgn_lengths=None):
+        (B, C, T_in, H, W) = sgn_videos.shape
 
+        fea_lst = []
+        for i, layer in enumerate(self.backbone.base):
+            sgn_videos = layer(sgn_videos)
+            if i in self.stage_idx[self.use_block - self.num_levels:]:
+                fea_lst.append(sgn_videos)
 
-class Mixed_3c(nn.Module):
-    def __init__(self):
-        super(Mixed_3c, self).__init__()
-        self.branch0 = nn.Sequential(
-            BasicConv3d(256, 128, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(256, 128, kernel_size=1, stride=1),
-            SepConv3d(128, 192, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(256, 32, kernel_size=1, stride=1),
-            SepConv3d(32, 96, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(256, 64, kernel_size=1, stride=1),
-        )
+        sgn_mask_lst, valid_len_out_lst = [], []
+        if self.pyramid is not None:
+            fea_lst, _ = self.pyramid(fea_lst)
+            for i in range(len(fea_lst)):
+                B, T_out, _ = fea_lst[i].shape
+                sgn_mask = torch.zeros([B, 1, T_out], dtype=torch.bool, device=fea_lst[i].device)
+                valid_len_out = torch.floor(sgn_lengths * T_out / T_in).long()  # B,
+                for bi in range(B):
+                    sgn_mask[bi, :, :valid_len_out[bi]] = True
+                sgn_mask_lst.append(sgn_mask)
+                valid_len_out_lst.append(valid_len_out)
+            return {'sgn_feature': fea_lst[-1], 'sgn_mask': sgn_mask_lst, 'valid_len_out': valid_len_out_lst,
+                    'fea_lst': fea_lst}
 
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
+        else:
+            feat3d = fea_lst[-1]
+            B, _, T_out, _, _ = feat3d.shape
+            pooled_sgn_feature = torch.mean(feat3d, dim=[3, 4])  # B, D, T_out
+            sgn = torch.transpose(pooled_sgn_feature, 1, 2)  # b, t_OUT, d
+            sgn_mask = torch.zeros([B, 1, T_out], dtype=torch.bool, device=sgn.device)
+            valid_len_out = torch.floor(sgn_lengths * T_out / T_in).long()  # B,
+            for bi in range(B):
+                sgn_mask[bi, :, :valid_len_out[bi]] = True
+            sgn_mask_lst.append(sgn_mask)
+            valid_len_out_lst.append(valid_len_out)
 
-
-class Mixed_4b(nn.Module):
-    def __init__(self):
-        super(Mixed_4b, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(480, 192, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(480, 96, kernel_size=1, stride=1),
-            SepConv3d(96, 208, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(480, 16, kernel_size=1, stride=1),
-            SepConv3d(16, 48, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(480, 64, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_4c(nn.Module):
-    def __init__(self):
-        super(Mixed_4c, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(512, 160, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(512, 112, kernel_size=1, stride=1),
-            SepConv3d(112, 224, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(512, 24, kernel_size=1, stride=1),
-            SepConv3d(24, 64, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(512, 64, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_4d(nn.Module):
-    def __init__(self):
-        super(Mixed_4d, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(512, 128, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(512, 128, kernel_size=1, stride=1),
-            SepConv3d(128, 256, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(512, 24, kernel_size=1, stride=1),
-            SepConv3d(24, 64, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(512, 64, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_4e(nn.Module):
-    def __init__(self):
-        super(Mixed_4e, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(512, 112, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(512, 144, kernel_size=1, stride=1),
-            SepConv3d(144, 288, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(512, 32, kernel_size=1, stride=1),
-            SepConv3d(32, 64, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(512, 64, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_4f(nn.Module):
-    def __init__(self):
-        super(Mixed_4f, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(528, 256, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(528, 160, kernel_size=1, stride=1),
-            SepConv3d(160, 320, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(528, 32, kernel_size=1, stride=1),
-            SepConv3d(32, 128, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(528, 128, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_5b(nn.Module):
-    def __init__(self):
-        super(Mixed_5b, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(832, 256, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(832, 160, kernel_size=1, stride=1),
-            SepConv3d(160, 320, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(832, 32, kernel_size=1, stride=1),
-            SepConv3d(32, 128, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(832, 128, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
-
-
-class Mixed_5c(nn.Module):
-    def __init__(self):
-        super(Mixed_5c, self).__init__()
-
-        self.branch0 = nn.Sequential(
-            BasicConv3d(832, 384, kernel_size=1, stride=1),
-        )
-        self.branch1 = nn.Sequential(
-            BasicConv3d(832, 192, kernel_size=1, stride=1),
-            SepConv3d(192, 384, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch2 = nn.Sequential(
-            BasicConv3d(832, 48, kernel_size=1, stride=1),
-            SepConv3d(48, 128, kernel_size=3, stride=1, padding=1),
-        )
-        self.branch3 = nn.Sequential(
-            nn.MaxPool3d(kernel_size=(3, 3, 3), stride=1, padding=1),
-            BasicConv3d(832, 128, kernel_size=1, stride=1),
-        )
-
-    def forward(self, x):
-        x0 = self.branch0(x)
-        x1 = self.branch1(x)
-        x2 = self.branch2(x)
-        x3 = self.branch3(x)
-        out = torch.cat((x0, x1, x2, x3), 1)
-        return out
+            return {'sgn_feature': fea_lst[-1], 'sgn_mask': sgn_mask_lst,
+                    'valid_len_out': valid_len_out_lst, 'fea_lst': fea_lst, 'sgn': sgn}

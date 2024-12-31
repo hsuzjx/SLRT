@@ -1,1 +1,1 @@
-from .S3D import S3D
+from .S3D import S3D_backbone
