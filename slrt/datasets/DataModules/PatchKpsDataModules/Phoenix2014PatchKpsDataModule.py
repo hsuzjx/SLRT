@@ -51,15 +51,14 @@ class Phoenix2014PatchKpsDataModule(BasePatchKpsDataModule):
         Returns:
             CSLDailyDataset: The dataset instance for the specified mode.
         """
-        video_transform = self.video_transforms.get(mode, self.video_transforms['test'])
-        kps_transform = self.kps_transforms.get(mode, self.kps_transforms['test'])
+        transform = self.transforms.get(mode, self.transforms['test'])
         return Phoenix2014PatchKpsDataset(
             dataset_dir=self.dataset_dir,
             features_dir=self.features_dir,
             annotations_dir=self.annotations_dir,
             keypoints_file=self.keypoints_file,
             mode=mode,
-            transform={"video": video_transform, "keypoint": kps_transform},
+            transform=transform,
             recognition_tokenizer=self.recognition_tokenizer,
             translation_tokenizer=self.translation_tokenizer,
             patch_hw=self.patch_hw

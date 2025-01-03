@@ -24,8 +24,7 @@ class BasePatchKpsDataModule(L.LightningDataModule):
         self.num_workers = self.hparams.get("num_workers", 8)
 
         # Process transformations
-        self.video_transforms = self.__process_transforms(self.hparams.get("transform", None).get('video', None))
-        self.kps_transforms = self.__process_transforms(self.hparams.get("transform", None).get('keypoint', None))
+        self.transforms = self.__process_transforms(self.hparams.get("transform", None))
 
         # Process tokenizers
         self.recognition_tokenizer = self.hparams.tokenizer.get('recognition', None)
