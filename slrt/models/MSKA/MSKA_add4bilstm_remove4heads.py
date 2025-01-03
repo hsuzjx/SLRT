@@ -7,7 +7,6 @@ from typing_extensions import override
 from slrt.models.BaseModel.SLRTBaseModel import SLRTBaseModel
 from slrt.models.MSKA.modules.BiLSTM import BiLSTMLayer
 from slrt.models.MSKA.modules.DSTA import STAttentionModule
-from slrt.models.MSKA.modules.LstmHead import LstmHead
 from slrt.models.MSKA.modules.Visualhead import VisualHead
 # from slrt.models.MSKA.modules.translation import TranslationNetwork
 from slrt.models.MSKA.modules.vl_mapper import VLMapper
@@ -52,38 +51,32 @@ class MSKA(SLRTBaseModel):
             st_attention_module_prams=self.hparams.network.st_attention_module_prams,
         )
 
-        # self.fuse_bilstm_layer = BiLSTMLayer(**self.hparams.network["fuse_BiLSTM"])
-        # self.body_bilstm_layer = BiLSTMLayer(**self.hparams.network["body_BiLSTM"])
-        # self.left_bilstm_layer = BiLSTMLayer(**self.hparams.network["left_BiLSTM"])
-        # self.right_bilstm_layer = BiLSTMLayer(**self.hparams.network["right_BiLSTM"])
-        #
-        # num_classes = len(self.recognition_tokenizer)
-        # # self.fuse_visual_head = VisualHead(
-        # #     cls_num=num_classes,
-        # #     **self.hparams.network.head_cfg['fuse_visual_head']
-        # # )
-        # # self.body_visual_head = VisualHead(
-        # #     cls_num=num_classes,
-        # #     **self.hparams.network.head_cfg['body_visual_head']
-        # # )
-        # # self.left_visual_head = VisualHead(
-        # #     cls_num=num_classes,
-        # #     **self.hparams.network.head_cfg['left_visual_head']
-        # # )
-        # # self.right_visual_head = VisualHead(
-        # #     cls_num=num_classes,
-        # #     **self.hparams.network.head_cfg['right_visual_head']
-        # # )
-        # self.fuse_linear = NormLinear(1024, num_classes)
-        # self.body_linear = NormLinear(256, num_classes)
-        # self.left_linear = NormLinear(512, num_classes)
-        # self.right_linear = NormLinear(512, num_classes)
+        self.fuse_bilstm_layer = BiLSTMLayer(**self.hparams.network["fuse_BiLSTM"])
+        self.body_bilstm_layer = BiLSTMLayer(**self.hparams.network["body_BiLSTM"])
+        self.left_bilstm_layer = BiLSTMLayer(**self.hparams.network["left_BiLSTM"])
+        self.right_bilstm_layer = BiLSTMLayer(**self.hparams.network["right_BiLSTM"])
 
         num_classes = len(self.recognition_tokenizer)
-        self.fuse_lstm_head = LstmHead(input_size=1024, hidden_size=512, num_classes=num_classes)
-        self.body_lstm_head = LstmHead(input_size=256, hidden_size=512, num_classes=num_classes)
-        self.left_lstm_head = LstmHead(input_size=512, hidden_size=512, num_classes=num_classes)
-        self.right_lstm_head = LstmHead(input_size=512, hidden_size=512, num_classes=num_classes)
+        # self.fuse_visual_head = VisualHead(
+        #     cls_num=num_classes,
+        #     **self.hparams.network.head_cfg['fuse_visual_head']
+        # )
+        # self.body_visual_head = VisualHead(
+        #     cls_num=num_classes,
+        #     **self.hparams.network.head_cfg['body_visual_head']
+        # )
+        # self.left_visual_head = VisualHead(
+        #     cls_num=num_classes,
+        #     **self.hparams.network.head_cfg['left_visual_head']
+        # )
+        # self.right_visual_head = VisualHead(
+        #     cls_num=num_classes,
+        #     **self.hparams.network.head_cfg['right_visual_head']
+        # )
+        self.fuse_linear = NormLinear(1024, num_classes)
+        self.body_linear = NormLinear(256, num_classes)
+        self.left_linear = NormLinear(512, num_classes)
+        self.right_linear = NormLinear(512, num_classes)
 
         # if "translation" in self.task:
         #     self.translation_network = TranslationNetwork(cfg=self.hparams['TranslationNetwork'])
@@ -148,10 +141,10 @@ class MSKA(SLRTBaseModel):
         body_cat = body_cat.permute(1, 0, 2).contiguous()
         left_cat = left_cat.permute(1, 0, 2).contiguous()
         right_cat = right_cat.permute(1, 0, 2).contiguous()
-        fuse_cat = self.fuse_lstm_head(fuse_cat, mask_lgt.cpu())
-        body_cat = self.body_lstm_head(body_cat, mask_lgt.cpu())
-        left_cat = self.left_lstm_head(left_cat, mask_lgt.cpu())
-        right_cat = self.right_lstm_head(right_cat, mask_lgt.cpu())
+        fuse_cat, _ = self.fuse_bilstm_layer(fuse_cat, mask_lgt.cpu())
+        body_cat, _ = self.body_bilstm_layer(body_cat, mask_lgt.cpu())
+        left_cat, _ = self.left_bilstm_layer(left_cat, mask_lgt.cpu())
+        right_cat, _ = self.right_bilstm_layer(right_cat, mask_lgt.cpu())
         fuse_cat = fuse_cat.permute(1, 0, 2).contiguous()
         body_cat = body_cat.permute(1, 0, 2).contiguous()
         left_cat = left_cat.permute(1, 0, 2).contiguous()
@@ -194,10 +187,10 @@ class MSKA(SLRTBaseModel):
         #         'gloss_logits': fuse_head_output,
         #         'input_lengths': mask_lgt
         #     }
-        fuse_head_output = fuse_cat
-        left_head_output = left_cat
-        right_head_output = right_cat
-        body_head_output = body_cat
+        fuse_head_output = self.fuse_linear(fuse_cat)
+        left_head_output = self.left_linear(left_cat)
+        right_head_output = self.right_linear(right_cat)
+        body_head_output = self.body_linear(body_cat)
 
         return {
             'fuse_gloss_logits': fuse_head_output,
