@@ -76,7 +76,7 @@ def main(cfg: DictConfig):
     translation_cfg = cfg.get('translation', {})
 
     # Create save directory
-    save_dir = os.path.join(os.path.abspath(cfg.get('save_dir', '../experiments')), project, name, str(times))
+    save_dir = os.path.join(cfg.get('save_dir', '../experiments'), project, name, str(times))
     os.makedirs(save_dir, exist_ok=True)
     # Checkpoint file
     ckpt_file = cfg.get('checkpoint', None)
@@ -210,7 +210,7 @@ def main(cfg: DictConfig):
     # Optionally convert model to ONNX format
     input_sample = InputSampleDict.get(model_name, None)
     if is_save_onnx and trainer.is_global_zero and input_sample:
-        onnx_save_dir = os.path.join(save_dir, 'onnx')
+        onnx_save_dir = os.path.join(os.path.abspath(save_dir), 'onnx')
         os.makedirs(onnx_save_dir, exist_ok=True)
         best_model = ModelClassDict[model_name].load_from_checkpoint(best_model_path).to('cpu')
         best_model.eval()
