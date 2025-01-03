@@ -10,7 +10,7 @@ import torch
 from torch.utils.data import Dataset
 from typing_extensions import LiteralString
 
-from ..utils import pad_video_sequence, pad_label_sequence, pad_keypoints_sequence
+from .utils import pad_patches_sequence, pad_label_sequence, pad_keypoints_sequence
 
 
 class BasePatchKpsDataset(Dataset):
@@ -20,7 +20,7 @@ class BasePatchKpsDataset(Dataset):
 
     def __init__(
             self,
-            transform: dict[str, callable] = None,
+            transform: callable = None,
             recognition_tokenizer: object = None,
             translation_tokenizer: object = None,
             patch_hw: tuple[int, int] = (13, 13)
@@ -37,9 +37,7 @@ class BasePatchKpsDataset(Dataset):
         self.frame_size = None
 
         # Set transform and tokenizer
-        self.video_transform = transform["video"]
-        self.kps_transform = transform["keypoint"]
-
+        self.transform = transform
         self.recognition_tokenizer = recognition_tokenizer
         self.translation_tokenizer = translation_tokenizer
 
@@ -56,10 +54,7 @@ class BasePatchKpsDataset(Dataset):
         item = self.video_info.iloc[idx]
 
         frames = self.__read_frames(item)  # (T, H, W, C)
-        if self.video_transform:
-            frames = self.video_transform(frames)
-
-        kps = self.kps_info[item.name]["keypoints"]
+        kps = self.kps_info[item.name]["keypoints"]  # (T, V, 3)
 
         assert len(frames) == kps.shape[0]
 
@@ -93,14 +88,14 @@ class BasePatchKpsDataset(Dataset):
             frame_patches = np.stack(frame_patches, axis=0)
             patchs_list.append(frame_patches)
         video_patches = np.stack(patchs_list, axis=0)  # (T, V, H, W, C)
-        video_patches = torch.from_numpy(video_patches).permute(0, 4, 1, 2, 3)  # (T, C, V, H, W)
+        video_patches = torch.from_numpy(video_patches).permute(0, 1, 4, 2, 3).contiguous()  # (T, V, C, H, W)
         video_patches = video_patches.float()
 
         if isinstance(kps, np.ndarray):
             kps = torch.from_numpy(kps)
-        kps = kps.permute(2, 0, 1).contiguous()  # (T,V,C) -> (C,T,V)
-        if self.kps_transform:
-            kps = self.kps_transform(kps)
+
+        if self.transform:
+            video_patches, kps = self.transform(video_patches, kps)
 
         glosses = self._get_glosses(item)
         translation = self._get_translation(item)
@@ -172,8 +167,8 @@ class BasePatchKpsDataset(Dataset):
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
         patches, kps, glosses, translation, info = list(zip(*batch))
 
-        patches, patches_length = pad_video_sequence(patches, batch_first=True, padding_value=0.0,
-                                                     left_pad_length=0, right_pad_length=0)
+        patches, patches_length = pad_patches_sequence(patches, batch_first=True, padding_value=0.0,
+                                                       left_pad_length=0, right_pad_length=0)
         patches_length = torch.LongTensor(patches_length)
 
         kps, kps_length = pad_keypoints_sequence(kps, batch_first=True, num_keypoints=133)

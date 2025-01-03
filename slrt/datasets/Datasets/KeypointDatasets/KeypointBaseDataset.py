@@ -5,7 +5,7 @@ from abc import abstractmethod
 import torch
 from torch.utils.data import Dataset
 
-from slrt.datasets.Datasets.utils import pad_label_sequence, pad_keypoints_sequence
+from .utils import pad_label_sequence, pad_keypoints_sequence
 
 
 class KeypointBaseDataset(Dataset):

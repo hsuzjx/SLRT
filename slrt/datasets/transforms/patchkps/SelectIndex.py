@@ -1,17 +1,17 @@
 import numpy as np
 
 
-class DefinedDorp(object):
+class SelectIndex(object):
     def __init__(self, tmin, tmax, clip_len):
         """
         """
-        super(DefinedDorp, self).__init__()
+        super(SelectIndex, self).__init__()
         self.tmin = tmin
         self.tmax = tmax
         self.clip_len = clip_len
 
-    def __call__(self, x):
-        vlen = x.shape[1]
+    def __call__(self, patches, kps):
+        vlen = kps.shape[0]  # kps (T,V,3)
 
         # 当时间范围限制为1时，尝试选择整个视频或视频的中心部分作为帧序列
         if self.tmin == 1 and self.tmax == 1:
@@ -32,7 +32,7 @@ class DefinedDorp(object):
 
             # 断言确保帧序列长度与有效长度匹配
             assert len(frame_index) == valid_len, (frame_index, valid_len)
-            return x[:, frame_index, :]
+            return patches[frame_index, :, :, :, :], kps[frame_index, :, :]
 
         # 计算基于时间范围的最小和最大长度限制
         min_len = min(int(self.tmin * vlen), self.clip_len)
@@ -58,4 +58,4 @@ class DefinedDorp(object):
 
         # 再次断言确保帧序列长度与有效长度匹配
         assert len(frame_index) == valid_len, (frame_index, valid_len)
-        return x[:, frame_index, :]
+        return patches[frame_index, :, :, :, :], kps[frame_index, :, :]

@@ -4,7 +4,7 @@ from torchvision.transforms import Compose, RandomCrop, Normalize, RandomHorizon
 
 import slrt
 from slrt.datasets.transforms import ToTensor, TemporalRescale, RandomDrop
-from slrt.datasets.transforms.keypoints import DefinedDorp, RandomMove
+from slrt.datasets.transforms.keypoints import SelectIndex, RandomMove
 
 CONFIG_PATH = '../configs'
 CONFIG_NAME = 'config.yaml'
@@ -97,29 +97,26 @@ TransformDict = {
     },
     "keypoint": {
         'train': Compose([
-            DefinedDorp(0.5, 1.5, 400),
+            SelectIndex(0.5, 1.5, 400),
             # RandomDrop(0.3),
             RandomMove()
         ]),
         'dev': Compose([
-            DefinedDorp(1, 1, 400)
+            SelectIndex(1, 1, 400)
         ]),
         'test': Compose([
-            DefinedDorp(1, 1, 400)
+            SelectIndex(1, 1, 400)
         ])
     },
     "patch-kps": {
-        'train': {
-            "video": None,
-            "keypoint": None
-        },
-        'dev': {
-            "video": None,
-            "keypoint": None
-        },
-        'test': {
-            "video": None,
-            "keypoint": None
-        }
+        'train': slrt.datasets.transforms.patchkps.Compose([
+            slrt.datasets.transforms.patchkps.SelectIndex(0.5, 1.5, 400),
+        ]),
+        'dev': slrt.datasets.transforms.patchkps.Compose([
+            slrt.datasets.transforms.patchkps.SelectIndex(1, 1, 400),
+        ]),
+        'test': slrt.datasets.transforms.patchkps.Compose([
+            slrt.datasets.transforms.patchkps.SelectIndex(1, 1, 400),
+        ]),
     }
 }

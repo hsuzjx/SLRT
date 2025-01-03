@@ -17,7 +17,7 @@ class CSLDailyPatchKpsDataset(BasePatchKpsDataset):
             split_file: str = None,
             keypoints_file: str = None,
             mode: [str, list] = "train",
-            transform: dict = None,
+            transform: callable = None,
             recognition_tokenizer: object = None,
             translation_tokenizer: object = None,
             patch_hw: tuple[int, int] = (13, 13)

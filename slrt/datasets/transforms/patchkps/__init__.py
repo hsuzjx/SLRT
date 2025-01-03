@@ -1,3 +1,3 @@
+from .Compose import Compose
 from .RandomDrop import *
-from .RandomMove import *
 from .SelectIndex import *

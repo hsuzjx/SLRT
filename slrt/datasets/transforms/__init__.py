@@ -4,3 +4,4 @@ from .transforms import Compose, CenterCrop, RandomCrop, RandomHorizontalFlip, R
 # from .TemporalRescale import TemporalRescale
 
 from .keypoints import *
+from . import patchkps
