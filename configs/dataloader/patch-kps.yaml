@@ -2,3 +2,5 @@
 
 batch_size: 2
 num_workers: 8
+
+patch_hw: [5,5]
