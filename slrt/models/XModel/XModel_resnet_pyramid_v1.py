@@ -8,6 +8,7 @@ from torch import nn
 from typing_extensions import override
 
 from .modules import *
+from .modules.Pyramid.pyramid import PyramidNetwork_v2
 from ..BaseModel import SLRTBaseModel
 
 

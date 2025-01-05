@@ -252,6 +252,7 @@ class ResNet(nn.Module):
         """
         # 获取输入的尺寸信息
         N, C, T, H, W = x.size()
+        fea_list = []
         # 初始卷积层
         x = self.conv1(x)
         # 批归一化
@@ -267,27 +268,30 @@ class ResNet(nn.Module):
         x = self.layer2(x)
         # 加入相关性模块的第一部分
         x = x + self.corr1(x) * self.alpha[0]
+        fea_list.append(x)
         # 通过模型的第三层
         x = self.layer3(x)
         # 加入相关性模块的第二部分
         x = x + self.corr2(x) * self.alpha[1]
+        fea_list.append(x)
         # 通过模型的第四层
         x = self.layer4(x)
         # 加入相关性模块的第三部分
         x = x + self.corr3(x) * self.alpha[2]
-        # 调整特征图的维度顺序
-        x = x.transpose(1, 2).contiguous()
-        # 调整张量形状为(batch_size*T, C, H, W)
-        x = x.view((-1,) + x.size()[2:])
+        fea_list.append(x)
+        # # 调整特征图的维度顺序
+        # x = x.transpose(1, 2).contiguous()
+        # # 调整张量形状为(batch_size*T, C, H, W)
+        # x = x.view((-1,) + x.size()[2:])
+        #
+        # # 全局平均池化
+        # x = self.avgpool(x)
+        # # 将张量展平
+        # x = x.view(x.size(0), -1)
+        # # 全连接层，得到最终的分类分数
+        # x = self.fc(x)
 
-        # 全局平均池化
-        x = self.avgpool(x)
-        # 将张量展平
-        x = x.view(x.size(0), -1)
-        # 全连接层，得到最终的分类分数
-        x = self.fc(x)
-
-        return x
+        return x,fea_list
 
 
 class ResNet18(ResNet):

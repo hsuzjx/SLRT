@@ -26,8 +26,9 @@ class XModel(SLRTBaseModel):
             **self.hparams.network['ResNet18']
         )
 
-        self.pyramid = PyramidNetwork(channels=[512, 256, 128, 64], kernel_size=3, num_levels=3, temp_scale=[1, 1, 1],
-                                      spat_scale=[2, 2, 2])
+        self.head1 = VHead(28, 1)
+        self.head2 = VHead(14, 1)
+        self.head3 = VHead(7, 1)
 
         self.conv1d1 = TemporalConv(input_size=128, hidden_size=1024, conv_type=2, use_bn=False)
         self.conv1d2 = TemporalConv(input_size=256, hidden_size=1024, conv_type=2, use_bn=False)
@@ -58,11 +59,15 @@ class XModel(SLRTBaseModel):
         x = videos.permute(0, 2, 1, 3, 4)
 
         x, fea_lst = self.visual_backbone(x)
-        fea_lst, _ = self.pyramid(fea_lst)
 
-        tvf1, feature_lengths1 = self.conv1d1(fea_lst[0].permute(0, 2, 1), video_lengths)
-        tvf2, feature_lengths2 = self.conv1d2(fea_lst[1].permute(0, 2, 1), video_lengths)
-        tvf3, feature_lengths3 = self.conv1d3(fea_lst[2].permute(0, 2, 1), video_lengths)
+        # (NT,f) -> (N,T,f) -> (N,f,T)
+        vf1 = self.head1(fea_lst[0]).view(N, T, -1).permute(0, 2, 1)
+        vf2 = self.head2(fea_lst[1]).view(N, T, -1).permute(0, 2, 1)
+        vf3 = self.head3(fea_lst[2]).view(N, T, -1).permute(0, 2, 1)
+
+        tvf1, feature_lengths1 = self.conv1d1(vf1, video_lengths)
+        tvf2, feature_lengths2 = self.conv1d2(vf2, video_lengths)
+        tvf3, feature_lengths3 = self.conv1d3(vf3, video_lengths)
         # (N,f,T') -> (T',N,f)
         tvf3 = tvf3.permute(2, 0, 1)
         tvf2 = tvf2.permute(2, 0, 1)

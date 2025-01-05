@@ -1,5 +1,6 @@
 from .BiLSTM import *
 from .GAT import *
+from .Pyramid import *
 from .ResNet import *
 from .S3D import *
 from .TUNet import *
