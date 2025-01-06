@@ -127,24 +127,6 @@ class ResNet(nn.Module):
         # 构建模型的第二层
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
 
-        # # 构建模型的第三层
-        # self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
-
-        # # 构建模型的第四层
-        # self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-
-        # 定义平均池化层，用于全局平均池化
-        self.avgpool = nn.AvgPool2d(2, stride=1)
-        # # 定义全连接层，用于分类
-        # self.fc = nn.Linear(512 * block.expansion, num_classes)
-
-        # 初始化模型参数
-        for m in self.modules():
-            if isinstance(m, nn.Conv3d) or isinstance(m, nn.Conv2d):
-                nn.init.kaiming_normal_(m.weight, mode='fan_out', nonlinearity='relu')
-            elif isinstance(m, nn.BatchNorm3d) or isinstance(m, nn.BatchNorm2d):
-                nn.init.constant_(m.weight, 1)
-                nn.init.constant_(m.bias, 0)
 
     def _make_layer(self, block, planes, blocks, stride=1):
         """
@@ -200,23 +182,6 @@ class ResNet(nn.Module):
         # 通过模型的第二层
         x = self.layer2(x)
 
-        # # 通过模型的第三层
-        # x = self.layer3(x)
-        #
-        # # 通过模型的第四层
-        # x = self.layer4(x)
-
-        # 调整特征图的维度顺序
-        x = x.transpose(1, 2).contiguous()
-        # 调整张量形状为(batch_size*T, C, H, W)
-        x = x.view((-1,) + x.size()[2:])
-
-        # 全局平均池化
-        x = self.avgpool(x)
-        # # 将张量展平
-        # x = x.view(x.size(0), -1)
-        # # 全连接层，得到最终的分类分数
-        # x = self.fc(x)
 
         return x
 
