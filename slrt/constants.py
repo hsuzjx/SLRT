@@ -34,6 +34,7 @@ ModelClassDict = {
     "STKA": slrt.models.STKA,
     "XModel": slrt.models.XModel,
     "PatchModel": slrt.models.PatchModel,
+    "KpsModel": slrt.models.KpsModel,
 }
 
 InputSampleDict = {
@@ -48,6 +49,7 @@ InputSampleDict = {
     "XModel": (torch.randn(1, 100, 3, 224, 224).to('cpu'), torch.LongTensor([100]).to('cpu')),
     "PatchModel": (torch.randn(1, 100, 3, 79, 13, 13).to('cpu'), torch.LongTensor([100]).to('cpu'),
                    torch.randn(1, 100, 79, 3).to('cpu')),
+    "KpsModel": (torch.randn(1, 3, 100, 133).to('cpu'), torch.LongTensor([100]).to('cpu')),
 }
 
 TokenizerDict = {
