@@ -3,7 +3,7 @@ import os
 import numpy as np
 from omegaconf import DictConfig
 
-from slrt.evaluation.contents import DatasetCleanFunctionDict
+from .clean_dict import DatasetCleanFunctionDict
 
 
 class PythonEvaluator(object):

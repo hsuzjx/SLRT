@@ -8,10 +8,10 @@
 
 ```bash
 MODEL=XModel
-DATASET=phoenix2014
+DATASET=Phoenix2014
 DATA_TYPE=video
-PROJECT=Phoenix2014_Experiment
-NAME=XModel_xxx
+PROJECT=${DATASET}_Experiment
+NAME=${MODEL}/xxx
 
 python main.py project=${PROJECT} name=${NAME} model=${MODEL} dataset=${DATASET} dataloader=${DATA_TYPE} trainer=${DATA_TYPE} data_type=${DATA_TYPE} trainer.devices=[0] times=0
 ```
@@ -20,10 +20,10 @@ python main.py project=${PROJECT} name=${NAME} model=${MODEL} dataset=${DATASET}
 
 ```bash
 MODEL=MSKA
-DATASET=phoenix2014
+DATASET=Phoenix2014
 DATA_TYPE=keypoint
-PROJECT=Phoenix2014_Experiment
-NAME=MSKA_xxx
+PROJECT=${DATASET}_Experiment
+NAME=${MODEL}/xxx
 
 python main.py project=${PROJECT} name=${NAME} model=${MODEL} dataset=${DATASET} dataloader=${DATA_TYPE} trainer=${DATA_TYPE} data_type=${DATA_TYPE} trainer.devices=[0] times=0
 ```

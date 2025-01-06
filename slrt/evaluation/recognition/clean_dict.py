@@ -1,4 +1,4 @@
-from slrt.evaluation.utils import clean_phoenix_2014, clean_phoenix_2014_trans
+from .utils import clean_phoenix_2014, clean_phoenix_2014_trans
 
 DatasetCleanFunctionDict = {
     "Phoenix2014": clean_phoenix_2014,

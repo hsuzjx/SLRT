@@ -6,7 +6,7 @@ from datetime import datetime
 
 from omegaconf import DictConfig
 
-from slrt.evaluation.contents import DatasetCleanFunctionDict
+from .clean_dict import DatasetCleanFunctionDict
 
 
 class ScliteEvaluator:

@@ -132,7 +132,7 @@ def main(cfg: DictConfig):
     wandb_logger = WandbLogger(
         save_dir=save_dir,
         project=project,
-        name=f'{name}_{times}_{datetime.now().strftime("%Y%m%d-%H%M%S")}',
+        name=f'{name}/{times}/{datetime.now().strftime("%Y%m%d-%H%M%S")}',
         **cfg.logger
     )
 
