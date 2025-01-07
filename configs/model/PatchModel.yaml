@@ -41,36 +41,36 @@ network:
     hidden_size: 1024
     num_layers: 2
     bidirectional: true
-  head_cfg: {
-    'body_visual_head': {
-      'input_size': 512,
-      'hidden_size': 1024,
-      'ff_size': 4096,
-      'pe': True,
-      'ff_kernelsize': [ 3, 3 ]
-    },
-    'fuse_visual_head': {
-      'input_size': 2048,
-      'hidden_size': 1024,
-      'ff_size': 4096,
-      'pe': True,
-      'ff_kernelsize': [ 3, 3 ]
-    },
-    'left_visual_head': {
-      'input_size': 1024,
-      'hidden_size': 1024,
-      'ff_size': 4096,
-      'pe': True,
-      'ff_kernelsize': [ 3, 3 ]
-    },
-    'right_visual_head': {
-      'input_size': 1024,
-      'hidden_size': 1024,
-      'ff_size': 4096,
-      'pe': True,
-      'ff_kernelsize': [ 3, 3 ]
-    }
-  }
+#  head_cfg: {
+#    'body_visual_head': {
+#      'input_size': 512,
+#      'hidden_size': 1024,
+#      'ff_size': 4096,
+#      'pe': True,
+#      'ff_kernelsize': [ 3, 3 ]
+#    },
+#    'fuse_visual_head': {
+#      'input_size': 2048,
+#      'hidden_size': 1024,
+#      'ff_size': 4096,
+#      'pe': True,
+#      'ff_kernelsize': [ 3, 3 ]
+#    },
+#    'left_visual_head': {
+#      'input_size': 1024,
+#      'hidden_size': 1024,
+#      'ff_size': 4096,
+#      'pe': True,
+#      'ff_kernelsize': [ 3, 3 ]
+#    },
+#    'right_visual_head': {
+#      'input_size': 1024,
+#      'hidden_size': 1024,
+#      'ff_size': 4096,
+#      'pe': True,
+#      'ff_kernelsize': [ 3, 3 ]
+#    }
+#  }
 
 #loss_fn:
 #  CTCLoss:

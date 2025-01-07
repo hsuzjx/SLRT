@@ -10,10 +10,10 @@ accelerator: "gpu"
 devices: [ 0 ]
 
 # 精度模式，"16-mixed" 表示使用混合精度训练，有助于加速训练和减少内存使用
-precision: "16-mixed"
+precision: "32-true"
 
 # 指定训练策略，此处使用 'ddp_find_unused_parameters_true' 策略
-strategy: 'ddp_find_unused_parameters_true'
+strategy: 'ddp'
 
 # 限制训练集批次的比例，1.0 表示使用全部批次
 limit_train_batches: 1.0
