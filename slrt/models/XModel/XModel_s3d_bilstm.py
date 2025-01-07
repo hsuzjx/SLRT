@@ -1,3 +1,4 @@
+import shutil
 from typing import Any, Tuple, Union, Sequence
 
 import torch
@@ -19,29 +20,22 @@ class XModel(SLRTBaseModel):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.name = "XModel"
+        shutil.copy("models/XModel/XModel.py", self.hparams.save_dir)
 
     @override
     def _init_network(self, **kwargs):
-        # self.visual_backbone = ResNet18LS(
-        #     num_layers=3,
-        #     **self.hparams.network['ResNet18']
-        # )
-
-        # self.visual_backbone.fc = Identity()
-
-        self.visual_backbone = S3D_backbone(in_channel=3, **self.hparams.network['s3d'],
-                                            cfg_pyramid=self.hparams.network['pyramid'])
-
-        # self.visual_head = None
-
-        # self.conv1d = TemporalConv(
-        #     **self.hparams.network['conv1d']
-        # )
-
-        # self.t_unet = UNet1D(n_channels=512, n_classes=1024)
+        self.visual_backbone = S3D_backbone(
+            in_channel=3,
+            **self.hparams.network['s3d'],
+            cfg_pyramid=self.hparams.network['pyramid']
+        )
 
         self.temporal_module = BiLSTMLayer(
-            **self.hparams.network['BiLSTM']
+            rnn_type='LSTM',
+            input_size=832,
+            hidden_size=832,
+            num_layers=2,
+            bidirectional=True
         )
 
         self.classifier = NormLinear(832, self.recognition_tokenizer.vocab_size)
@@ -59,35 +53,18 @@ class XModel(SLRTBaseModel):
     ) -> Any:
         N, T, C, H, W = videos.shape
 
-        # (N,T,C,H,W) -> (N,C,T,H,W)
-        x = videos.permute(0, 2, 1, 3, 4)
+        videos = videos / 127.5 - 1
 
-        # (N,C,T,H,W) -> (N*T,features)
+        # (N,T,C,H,W) -> (N,C,T,H,W)
+        x = videos.permute(0, 2, 1, 3, 4).contiguous().view(N, C, T, H, W)
+
+        # (N,C,T,H,W) -> out
         out = self.visual_backbone(x, sgn_lengths=video_lengths)
         sgn_feature, sgn_mask, valid_len_out, fea_lst = out['sgn_feature'], out['sgn_mask'], out['valid_len_out'], out[
             'fea_lst']
 
         # (N,T,features) -> (T,N,features)
         visual_features = sgn_feature.permute(1, 0, 2)
-
-        # visual_features = self.t_unet(x)
-
-        # lstm_output = self.temporal_module(visual_features.permute(2, 0, 1), video_lengths.to('cpu'))
-
-        # predictions = lstm_output['predictions']
-        # conv1d_logits = self.classifier(visual_features.transpose(1, 2)).transpose(1, 2)
-        # output_logits = self.classifier(predictions)
-
-        # visual_features ()
-
-        # (N,features,T) -> (N,features',T')
-        # visual_features, feature_lengths = self.conv1d(x, video_lengths)
-
-        # visual_features = self.t_unet(x)
-        # feature_lengths = video_lengths
-
-        # (N,features',T') -> (T',N,features')
-        # visual_features = visual_features.permute(2, 0, 1)
 
         # (T',N,features') -> (T',N,features'')
         predictions, _ = self.temporal_module(visual_features, valid_len_out[-1].cpu())

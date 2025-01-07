@@ -86,15 +86,15 @@ TransformDict = {
     "video": {
         'train': Compose([
             ToTensor(), RandomCrop(224), RandomHorizontalFlip(0.5), TemporalRescale(0.2),
-            Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
+            # Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
         ]),
         'dev': Compose([
             ToTensor(), CenterCrop(224),
-            Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
+            # Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
         ]),
         'test': Compose([
             ToTensor(), CenterCrop(224),
-            Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
+            # Normalize(mean=[127.5, 127.5, 127.5], std=[127.5, 127.5, 127.5])
         ])
     },
     "keypoint": {

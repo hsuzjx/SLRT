@@ -24,28 +24,23 @@ class XModel(SLRTBaseModel):
 
     @override
     def _init_network(self, **kwargs):
-        self.visual_backbone = ResNet18(
-            **self.hparams.network['ResNet18']
+        self.visual_backbone = S3D_backbone(
+            in_channel=3,
+            **self.hparams.network['s3d'],
+            cfg_pyramid=self.hparams.network['pyramid']
         )
-
-        self.pyramid = PyramidNetwork_v2(
-            channels=[512, 256, 128, 64], kernel_size=1, num_levels=3,
-            temp_scale=[1, 1, 1], spat_scale=[2, 2, 2]
-        )
-
-        self.conv1d1 = TemporalConv(input_size=128, hidden_size=1024, conv_type=2, use_bn=False)
-        self.conv1d2 = TemporalConv(input_size=256, hidden_size=1024, conv_type=2, use_bn=False)
-        self.conv1d3 = TemporalConv(input_size=512, hidden_size=1024, conv_type=2, use_bn=False)
 
         self.temporal_module = BiLSTMLayer(
-            **self.hparams.network['BiLSTM']
+            rnn_type='LSTM',
+            input_size=832,
+            hidden_size=832,
+            num_layers=2,
+            bidirectional=True
         )
 
-        self.classifier = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+        self.classifier = NormLinear(832, self.recognition_tokenizer.vocab_size)
         if not self.hparams.network['share_classifier']:
-            self.classifier_conv_fc1 = NormLinear(1024, self.recognition_tokenizer.vocab_size)
-            self.classifier_conv_fc2 = NormLinear(1024, self.recognition_tokenizer.vocab_size)
-            self.classifier_conv_fc3 = NormLinear(1024, self.recognition_tokenizer.vocab_size)
+            self.classifier_conv_fc = NormLinear(832, self.recognition_tokenizer.vocab_size)
 
     def forward(
             self,
@@ -58,44 +53,41 @@ class XModel(SLRTBaseModel):
     ) -> Any:
         N, T, C, H, W = videos.shape
 
+        videos = videos / 127.5 - 1
+
         # (N,T,C,H,W) -> (N,C,T,H,W)
-        x = videos.permute(0, 2, 1, 3, 4)
+        x = videos.permute(0, 2, 1, 3, 4).contiguous().view(N, C, T, H, W)
 
-        x, fea_lst = self.visual_backbone(x)
-        fea_lst, _ = self.pyramid(fea_lst)
+        # (N,C,T,H,W) -> out
+        out = self.visual_backbone(x, sgn_lengths=video_lengths)
+        sgn_feature, sgn_mask, valid_len_out, fea_lst = out['sgn_feature'], out['sgn_mask'], out['valid_len_out'], out[
+            'fea_lst']
 
-        tvf1, feature_lengths1 = self.conv1d1(fea_lst[0].permute(0, 2, 1), video_lengths)
-        tvf2, feature_lengths2 = self.conv1d2(fea_lst[1].permute(0, 2, 1), video_lengths)
-        tvf3, feature_lengths3 = self.conv1d3(fea_lst[2].permute(0, 2, 1), video_lengths)
-        # (N,f,T') -> (T',N,f)
-        tvf3 = tvf3.permute(2, 0, 1)
-        tvf2 = tvf2.permute(2, 0, 1)
-        tvf1 = tvf1.permute(2, 0, 1)
+        # (N,T,features) -> (T,N,features)
+        visual_features = sgn_feature.permute(1, 0, 2)
 
         # (T',N,features') -> (T',N,features'')
-        predictions, _ = self.temporal_module(tvf3, feature_lengths3.cpu())
+        predictions, _ = self.temporal_module(visual_features, valid_len_out[-1].cpu())
 
         # Pass through the classifier
         # (T',N,features'') -> (T',N,logits)
         logits = self.classifier(predictions)
 
+        if visual_features.shape[0] != predictions.shape[0]:
+            print(f"\n{visual_features.shape[0]} {predictions.shape[0]}")
+
         if self.hparams.network['share_classifier']:
             # (T',N,features') -> (T',N,logits_conv)
-            conv_logits3 = self.classifier(tvf3)
-            conv_logits2 = self.classifier(tvf2)
-            conv_logits1 = self.classifier(tvf1)
+            conv_logits = self.classifier(visual_features[:max(valid_len_out[-1]), :, :])
         else:
             # (T',N,features') -> (T',N,logits_conv)
-            conv_logits3 = self.classifier_conv_fc3(tvf3)
-            conv_logits2 = self.classifier_conv_fc2(tvf2)
-            conv_logits1 = self.classifier_conv_fc1(tvf1)
+            conv_logits = self.classifier_conv_fc(visual_features)
 
         return {
             "logits": logits,
-            "conv_logits3": conv_logits3,
-            "conv_logits2": conv_logits2,
-            "conv_logits1": conv_logits1,
-            "feature_lengths": feature_lengths3
+            "logits_length": valid_len_out[-1],
+            "conv_logits": conv_logits,
+            "vlo": valid_len_out
         }
 
     def step_forward(
@@ -109,27 +101,19 @@ class XModel(SLRTBaseModel):
             batch (Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor, Any]): A tuple containing the input data, input lengths, target data, target lengths, and additional information.
 
         Returns:
-            Tuple[torch.Tensor, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
+            Tuple[torch.Tensor, Any, Any, Any, Any, Any]: Loss value, softmax predictions, predicted lengths, and additional information.
         """
         x, y, _, x_lgt, y_lgt, _, info = batch
         out = self(x, x_lgt)
-        y_hat = out['logits']
-        conv_logits3 = out['conv_logits3']
-        conv_logits2 = out['conv_logits2']
-        conv_logits1 = out['conv_logits1']
-        y_hat_lgt = out['feature_lengths']
+        y_hat, y_hat_lgt, conv_hat = out['logits'], out['logits_length'], out['conv_logits']
 
         if self.trainer.predicting:
             return torch.tensor([]), y_hat, None, y_hat_lgt, None, info
 
         loss = (
+                1 * self.ctc_loss(conv_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
                 1 * self.ctc_loss(y_hat.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
-                1 * self.ctc_loss(conv_logits3.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
-                25 * self.dist_loss(conv_logits3, y_hat.detach(), use_blank=False) +
-                0.5 * self.ctc_loss(conv_logits2.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
-                15 * self.dist_loss(conv_logits2, y_hat.detach(), use_blank=False) +
-                0.5 * self.ctc_loss(conv_logits1.log_softmax(-1), y, y_hat_lgt.cpu(), y_lgt.cpu()).mean() +
-                10 * self.dist_loss(conv_logits1, y_hat.detach(), use_blank=False)
+                25 * self.dist_loss(conv_hat, y_hat.detach(), use_blank=False)
         )
 
         # Check for NaN values
@@ -252,22 +236,3 @@ class NormLinear(nn.Module):
             outputs += self.bias  # 偏置项会自动广播以匹配输出的形状
 
         return outputs
-
-
-class VHead(nn.Module):
-    def __init__(self, k, s=1):
-        super(VHead, self).__init__()
-
-        self.avgpool = nn.AvgPool2d(k, stride=s)
-
-    def forward(self, x):
-        x = x.transpose(1, 2).contiguous()
-        # 调整张量形状为(batch_size*T, C, H, W)
-        x = x.view((-1,) + x.size()[2:])
-
-        # 全局平均池化
-        x = self.avgpool(x)
-        # 将张量展平
-        x = x.view(x.size(0), -1)
-
-        return x
