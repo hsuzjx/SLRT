@@ -1,1 +1,0 @@
-from .SwinBertSLR import SwinBertSLR
