@@ -131,7 +131,7 @@ class KeypointBaseDataset(Dataset):
         Returns:
             tuple: Batched data including videos, labels, video lengths, label lengths, and info.
         """
-        batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
+        batch = [item for item in sorted(batch, key=lambda x: x[0].shape[1], reverse=True)]
         kps, label_gloss, label_translation, name = list(zip(*batch))
 
         kps, kps_length = pad_keypoints_sequence(kps, batch_first=True, num_keypoints=133)

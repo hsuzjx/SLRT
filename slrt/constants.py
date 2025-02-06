@@ -28,8 +28,8 @@ DataModuleClassDict = {
 }
 
 ModelClassDict = {
-    "XModel": slrt.models.XModel,
-    "PatchModel": slrt.models.PatchModel,
+    # "XModel": slrt.models.XModel,
+    # "PatchModel": slrt.models.PatchModel,
     "KpsModel": slrt.models.KpsModel,
 }
 
