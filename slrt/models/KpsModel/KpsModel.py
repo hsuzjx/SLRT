@@ -6,7 +6,8 @@ from torch import nn
 from typing_extensions import override
 
 from .BaseModel import BaseModel
-from .modules import BiLSTMLayer, SeqKD
+from .modules import BiLSTMLayer, SeqKD, AdjacencyLearn, DynamicLSTM
+from .modules.DeGCN import DeGCN
 from .modules.Identity import Identity
 from .modules.STGCN import STGCN
 
@@ -16,62 +17,122 @@ class KpsModel(BaseModel):
         super().__init__(**kwargs)
         self.name = 'KpsModel'
 
+    @override
+    def _init_network(self, **kwargs):
         self.kps_dict = {
             'body': [i for i in range(0, 11)],
             'left_hand': [i for i in range(91, 112)],
             'right_hand': [i for i in range(112, 133)],
+            'all_face': [i for i in range(23, 91)],
             'face': [i for i in range(23, 40)],
             'mouth': [i for i in range(71, 91)],
             'nose': [i for i in range(50, 59)],
             'eyes': [i for i in range(59, 71)],
             'eyebrows': [i for i in range(40, 50)]
         }
+        # self.kps_dict = {
+        #     "body": [
+        #         0, 1, 3, 5, 7, 9, 91, 92, 93, 94, 95, 96, 97, 98, 99,
+        #         100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110,
+        #         111, 2, 4, 6, 8, 10, 112, 113, 114, 115, 116, 117, 118,
+        #         119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129,
+        #         130, 131, 132, 23, 26, 29, 33, 36, 39, 41, 43, 46, 48,
+        #         53, 56, 59, 62, 65, 68, 71, 72, 73, 74, 75, 76, 77, 79,
+        #         80, 81
+        #     ],
+        #     "left": [
+        #         0, 1, 3, 5, 7, 9, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100,
+        #         101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111
+        #     ],
+        #     "right": [
+        #         0, 2, 4, 6, 8, 10, 112, 113, 114, 115, 116, 117, 118, 119,
+        #         120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132
+        #     ],
+        #     "face": [
+        #         23, 26, 29, 33, 36, 39, 41, 43, 46, 48, 53, 56, 59, 62, 65,
+        #         68, 71, 72, 73, 74, 75, 76, 77, 79, 80, 81
+        #     ]
+        # }
 
-    @override
-    def _init_network(self, **kwargs):
+        # self.adj_learn_body = AdjacencyLearn(
+        #     n_in_enc=3,
+        #     n_hid_enc=256,
+        #     edge_types=3,
+        #     n_in_dec=256,
+        #     n_hid_dec=256,
+        #     node_num=len(self.kps_dict['body'])
+        # )
+
         # self.gcn_body = STGCN(
         #     in_channels=3,
         #     num_class=1000,
-        #     graph_args={},
+        #     graph_args={'layout': 'body'},
         #     edge_importance_weighting=True,
-        #     num_nodes=9
+        #     num_nodes=len(self.kps_dict['body'])
         # )
         # self.gcn_body.fcn = Identity()
         # self.gcn_hand = STGCN(
         #     in_channels=3,
         #     num_class=1000,
-        #     graph_args={},
+        #     graph_args={'layout': 'left_hand'},
         #     edge_importance_weighting=True,
-        #     num_nodes=21
+        #     num_nodes=len(self.kps_dict['left_hand'])
         # )
         # self.gcn_hand.fcn = Identity()
         # self.gcn_face = STGCN(
         #     in_channels=3,
         #     num_class=1000,
-        #     graph_args={},
+        #     graph_args={'layout': 'face'},
         #     edge_importance_weighting=True,
-        #     num_nodes=68
+        #     num_nodes=len(self.kps_dict['all_face'])
         # )
         # self.gcn_face.fcn = Identity()
-        # self.mlp = nn.Sequential(
-        #     nn.Linear(256 * 4, 1024),
-        #     # nn.LayerNorm(1024, eps=1e-6),
-        #     nn.ReLU(),
-        # )
 
-        self.gcn = STGCN(
+        self.gcn_body = DeGCN(
             in_channels=3,
             num_class=1000,
-            graph_args={},
-            edge_importance_weighting=True,
-            num_nodes=121
+            graph_args={'layout': 'body'},
+            num_point=len(self.kps_dict['body']),
+            num_person=1,
+            num_stream=1,
         )
-        self.gcn.fcn = Identity()
-        self.mlp = nn.Sequential(
-            nn.Linear(256, 512),
-            nn.LayerNorm(512, eps=1e-6),
-            nn.ReLU(),
+        self.gcn_body.fc = Identity()
+        self.gcn_hand = DeGCN(
+            in_channels=3,
+            num_class=1000,
+            graph_args={'layout': 'left_hand'},
+            num_point=len(self.kps_dict['left_hand']),
+            num_person=1,
+            num_stream=1,
         )
+        self.gcn_hand.fc = Identity()
+        self.gcn_face = DeGCN(
+            in_channels=3,
+            num_class=1000,
+            graph_args={'layout': 'face'},
+            num_point=len(self.kps_dict['all_face']),
+            num_person=1,
+            num_stream=1,
+        )
+        self.gcn_face.fc = Identity()
+        self.linear1 = nn.Linear(256 * 4, 2048)
+        self.linear2 = nn.Linear(2048, 1024)
+        self.bn = nn.BatchNorm1d(1024, eps=1e-6)
+        self.relu = nn.ReLU()
+
+        # self.gcn = STGCN(
+        #     in_channels=3,
+        #     num_class=1000,
+        #     graph_args={},
+        #     edge_importance_weighting=True,
+        #     num_nodes=121
+        # )
+        # self.gcn.fcn = Identity()
+        # self.mlp = nn.Sequential(
+        #     nn.Linear(256, 512),
+        #     nn.LayerNorm(512, eps=1e-6),
+        #     nn.ReLU(),
+        # )
 
         # self.conv1d = TemporalConv(
         #     input_size=256,
@@ -80,16 +141,16 @@ class KpsModel(BaseModel):
         #     use_bn=True
         # )
 
-        self.lstm = BiLSTMLayer(
-            input_size=512,
-            hidden_size=512,
-            num_layers=2,
-            dropout=0.3,
-            bidirectional=True,
-            rnn_type='LSTM'
-        )
+        # self.lstm = BiLSTMLayer(
+        #     input_size=1024,
+        #     hidden_size=1024,
+        #     num_layers=2,
+        #     dropout=0.1,
+        #     bidirectional=True,
+        #     rnn_type='LSTM'
+        # )
 
-        self.classifier = NormLinear(512, self.recognition_tokenizer.vocab_size)
+        self.classifier = NormLinear(1024, self.recognition_tokenizer.vocab_size)
 
     @override
     def _define_loss_function(self):
@@ -111,38 +172,47 @@ class KpsModel(BaseModel):
         N, C, T, V, M = kps.shape
 
         kps_body = kps[:, :, :, self.kps_dict['body'], :]
+        # A_body = self.adj_learn_body(kps_body)
         kps_left_hand = kps[:, :, :, self.kps_dict['left_hand'], :]
+        # A_left_hand = self.adj_learn(kps_left_hand)
         kps_right_hand = kps[:, :, :, self.kps_dict['right_hand'], :]
-        kps_face = kps[:, :, :,
-                   self.kps_dict['face'] + self.kps_dict['eyes'] + self.kps_dict['eyebrows'] + self.kps_dict['mouth'] +
-                   self.kps_dict['nose'],
-                   :]
+        # A_right_hand = self.adj_learn(kps_right_hand)
+        kps_face = kps[:, :, :, self.kps_dict['all_face'], :]
+        # A_face = self.adj_learn(kps_face)
 
-        # f_body = self.gcn_body(kps_body)
-        # f_left_hand = self.gcn_hand(kps_left_hand)
-        # f_right_hand = self.gcn_hand(kps_right_hand)
-        # f_face = self.gcn_face(kps_face)
+        f_body = self.gcn_body(kps_body)
+        f_left_hand = self.gcn_hand(kps_left_hand)
+        f_right_hand = self.gcn_hand(kps_right_hand)
+        f_face = self.gcn_face(kps_face)
 
-        # f_concat = torch.cat((f_body, f_left_hand, f_right_hand, f_face), dim=1)
-        f_concat = self.gcn(kps[:, :, :,
-                   self.kps_dict['body']+
-                   self.kps_dict['left_hand'] +
-                   self.kps_dict['right_hand'] +
-                   self.kps_dict['face'] +
-                   self.kps_dict['eyes'] +
-                   self.kps_dict['eyebrows'] +
-                   self.kps_dict['mouth'] +
-                   self.kps_dict['nose'],
-                   :])
-        f_fuse = self.mlp(f_concat.permute(0, 2, 1))
+        f_concat = torch.cat((f_body[0], f_left_hand[0], f_right_hand[0], f_face[0]), dim=1)
+        # f_concat = self.gcn(kps[:, :, :,
+        #                     self.kps_dict['body'] +
+        #                     self.kps_dict['left_hand'] +
+        #                     self.kps_dict['right_hand'] +
+        #                     self.kps_dict['face'] +
+        #                     self.kps_dict['eyes'] +
+        #                     self.kps_dict['eyebrows'] +
+        #                     self.kps_dict['mouth'] +
+        #                     self.kps_dict['nose'],
+        #                     :])
+
+        # f_fuse = self.mlp(f_concat.permute(0, 2, 1))
+
+        f_fuse = self.linear1(f_concat.permute(0, 2, 1))
+        f_fuse = self.linear2(f_fuse)
+        f_fuse = f_fuse.permute(0, 2, 1)
+        f_fuse = self.bn(f_fuse)
+        f_fuse = self.relu(f_fuse)
+        f_fuse = f_fuse.permute(0, 2, 1)
 
         # f_conv1d = self.conv1d(f_fuse)
 
         f_fuse = f_fuse.permute(1, 0, 2)  # ntc -> (T, N, C)
         v_len = kps_lgt // 4
-        f_lstm, _ = self.lstm(f_fuse, v_len.cpu())
+        # f_lstm, _ = self.lstm(f_fuse, v_len.cpu())
 
-        return self.classifier(f_fuse), self.classifier(f_lstm), v_len
+        return self.classifier(f_fuse), None, v_len
 
     @override
     def step_forward(self, batch) -> Any:
@@ -155,9 +225,9 @@ class KpsModel(BaseModel):
             return torch.tensor([]), outputs[1], None, outputs[2], None, name
 
         loss = (
-                1 * self.ctc_loss(outputs[0].log_softmax(-1), y_glosses, outputs[2].cpu(), y_glosses_lgt.cpu()).mean() +
-                1 * self.ctc_loss(outputs[1].log_softmax(-1), y_glosses, outputs[2].cpu(), y_glosses_lgt.cpu()).mean() +
-                25 * self.dist_loss(outputs[0], outputs[1].detach(), use_blank=False)
+                1 * self.ctc_loss(outputs[0].log_softmax(-1), y_glosses, outputs[2].cpu(), y_glosses_lgt.cpu()).mean() +0
+                # 1 * self.ctc_loss(outputs[1].log_softmax(-1), y_glosses, outputs[2].cpu(), y_glosses_lgt.cpu()).mean() +
+                # 25 * self.dist_loss(outputs[0], outputs[1].detach(), use_blank=False)
         )
 
         # Check for NaN values
@@ -167,7 +237,7 @@ class KpsModel(BaseModel):
         if "translation" in self.task:
             pass
 
-        return loss, outputs[1], None, outputs[2], None, name
+        return loss, outputs[0], None, outputs[2], None, name
 
 
 class NormLinear(nn.Module):

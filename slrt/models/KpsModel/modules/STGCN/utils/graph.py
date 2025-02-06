@@ -78,6 +78,65 @@ class Graph():
             self.center = 2
         # elif layout=='customer settings'
         #     pass
+        elif layout=="body":
+            self.num_node = 11
+            self_link = [(i, i) for i in range(self.num_node)]
+            neighbor_1base = [
+                [6, 7], [6, 8], [7, 9],
+                [8, 10], [9, 11], [2, 3], [1, 2], [1, 3],
+                [2, 4], [3, 5], [4, 6], [5, 7]
+            ]
+            neighbor_link = [(i - 1, j - 1) for (i, j) in neighbor_1base]
+            self.edge = self_link + neighbor_link
+            self.center = 1
+        elif layout=="left_hand":
+            self.num_node = 21
+            self_link = [(i, i) for i in range(self.num_node)]
+            neighbor_1base = [
+                [92, 93], [92, 97], [92, 101], [92, 105], [92, 109],  # root
+                [93, 94], [94, 95], [95, 96],  # finger 1
+                [97, 98], [98, 99], [99, 100],  # finger 2
+                [101, 102], [102, 103], [103, 104],  # finger 3
+                [105, 106], [106, 107], [107, 108],  # finger 4
+                [109, 110], [110, 111], [111, 112]  # finger 5
+            ]
+            neighbor_link = [(i - 92, j - 92) for (i, j) in neighbor_1base]
+            self.edge = self_link + neighbor_link
+            self.center = 1
+        elif layout == "right_hand":
+            self.num_node = 21
+            self_link = [(i, i) for i in range(self.num_node)]
+            neighbor_1base = [
+                [113, 114], [113, 118], [113, 122], [113, 126], [113, 130],  # root
+                [114, 115], [115, 116], [116, 117],  # finger 1
+                [118, 119], [119, 120], [120, 121],  # finger 2
+                [122, 123], [123, 124], [124, 125],  # finger 3
+                [126, 127], [127, 128], [128, 129],  # finger 4
+                [130, 131], [131, 132], [132, 133]  # finger 5
+            ]
+            neighbor_link = [(i - 113, j - 113) for (i, j) in neighbor_1base]
+            self.edge = self_link + neighbor_link
+            self.center = 1
+        elif layout == "face":
+            self.num_node = 68
+            self_link = [(i, i) for i in range(self.num_node)]
+            neighbor_1base = [
+                [24, 25], [25, 26], [26, 27], [27, 28], [28, 29], [29, 30], [30, 31], [31, 32],
+                [32, 33], [33, 34], [34, 35], [35, 36], [36, 37], [37, 38], [38, 39], [39, 40],  # facial contour
+                [41, 42], [42, 43], [43, 44], [44, 45],  # right eyebrow
+                [46, 47], [47, 48], [48, 49], [49, 50],  # left eyebrow
+                [51, 52], [52, 53], [53, 54], [54, 55], [54, 59], [55, 56],
+                [56, 57], [57, 58], [58, 59], [51, 55], [51, 59],  # nose
+                [60, 61], [61, 62], [62, 63], [63, 64], [64, 65], [65, 60],  # right eye
+                [66, 67], [67, 68], [68, 69], [69, 70], [70, 71], [71, 66],  # left eye
+                # [72, 73], [73, 74], [74, 75], [75, 76], [76, 77], [77, 78],
+                # [78, 79], [79, 80], [80, 81], [81, 82], [82, 83], [83, 72],
+                # [72, 84], [84, 85], [85, 86], [86, 87], [87, 88], [88, 78],
+                # [78, 89], [89, 90], [90, 91], [91, 72]  # mouth
+            ]
+            neighbor_link = [(i - 24, j - 24) for (i, j) in neighbor_1base]
+            self.edge = self_link + neighbor_link
+            self.center = 1
         else:
             raise ValueError("Do Not Exist This Layout.")
 

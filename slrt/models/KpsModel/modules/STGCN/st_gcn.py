@@ -31,9 +31,9 @@ class Model(nn.Module):
         super().__init__()
 
         # load graph
-        # self.graph = Graph(**graph_args)
-        # A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
-        A = torch.ones((1, num_nodes, num_nodes), dtype=torch.float32, requires_grad=False)
+        self.graph = Graph(**graph_args)
+        A = torch.tensor(self.graph.A, dtype=torch.float32, requires_grad=False)
+        # A = torch.ones((1, num_nodes, num_nodes), dtype=torch.float32, requires_grad=False)
         self.register_buffer('A', A)
 
         # build networks
