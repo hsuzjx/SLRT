@@ -1,0 +1,27 @@
+# configs/dataset/Phoenix2014T.yaml
+
+name: "Phoenix2014T"
+
+data_cfgs:
+  dataset_dir: "../data/phoenix2014T"
+  features_dir: "../data/preprocessed/phoenix2014T/frames-256x256px" # if null, use default features directory in $dataset_dir
+  annotations_dir: null # if null, use default annotations directory in $dataset_dir
+
+# keypoints
+keypoints_file: "../data/preprocessed/phoenix2014T/phoenix2014t-keypoints-mska.pkl"
+
+# for recognition
+glosses_groundtruth_file:
+  train: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-train.stm"
+  dev: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-dev.stm"
+  test: "../data/preprocessed/phoenix2014T/phoenix2014t-glosses-groundtruth-test.stm"
+
+gloss_vocab_file: "../data/preprocessed/phoenix2014T/phoenix2014t-gloss-vocab.txt"
+
+# for translation
+translation_groundtruth_file:
+  train: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-train.stm"
+  dev: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-dev.stm"
+  test: "../data/preprocessed/phoenix2014T/phoenix2014t-translation-groundtruth-test.stm"
+
+word_vocab_file: "../data/preprocessed/phoenix2014T/phoenix2014t-word-vocab.txt"

@@ -1,0 +1,110 @@
+import numpy as np
+import torch
+
+
+def pad_patches_sequence(sequences, batch_first=False, padding_value=0.0, left_pad_length=6, right_pad_length=6):
+    """
+    Pad the first dimension of each element in a list of video sequences while keeping other dimensions unchanged.
+
+    Args:
+    - sequences: A list of video sequences, where each sequence is a Tensor.
+    - batch_first: Whether to put the batch dimension first (default: False, output shape is [T, B, ...]).
+    - padding_value: Value used for padding (default: 0.0).
+    - left_pad_length: Length of padding on the left side (default: 6).
+    - right_pad_length: Length of padding on the right side (default: 6).
+
+    Returns:
+    - A tuple containing the padded Tensor and a list of original sequence lengths.
+    """
+    # Handle empty list
+    if not sequences:
+        return torch.tensor([], dtype=torch.float32), []
+
+    # Get the length of each sequence
+    lengths = [seq.shape[0] for seq in sequences]  # Assuming the length dimension is the first one (T)
+    padded_lengths = [int(left_pad_length + l + right_pad_length) for l in lengths]
+    max_padded_length = max(padded_lengths)
+    batch_size = len(sequences)
+
+    # Get the size of other dimensions
+    other_dims = sequences[0].shape[1:]  # Assuming other dimensions start from the second one
+
+    # Create padded tensor
+    batch = torch.full(
+        (max_padded_length, batch_size, *other_dims),
+        padding_value, dtype=sequences[0].dtype
+    )
+
+    # Fill in the data
+    for i, seq in enumerate(sequences):
+        start_index = left_pad_length
+        end_index = start_index + lengths[i]
+        batch[start_index:end_index, i] = seq
+
+    # If batch_first is True, swap the dimensions
+    if batch_first:
+        batch = batch.transpose(0, 1)  # Swap dimensions to (B, T, ...)
+
+    return batch, padded_lengths
+
+
+def pad_keypoints_sequence(sequences, batch_first=True, num_keypoints=133):
+    """
+    Pad the first dimension of each element in a list of keypoint sequences while keeping other dimensions unchanged.
+    """
+    # Handle empty list
+    if not sequences:
+        return torch.tensor([], dtype=torch.float32), []
+
+    if not isinstance(sequences[0], torch.Tensor):
+        sequences = [torch.tensor(seq, dtype=torch.float32) for seq in sequences]
+
+    lengths = [seq.shape[0] for seq in sequences]
+    # max_length = int(np.ceil(max(lengths) / 4.0) * 4.0)
+    max_length = max(lengths)
+    batch_size = len(sequences)
+
+    batch = torch.full((batch_size, max_length, num_keypoints, 3), 0.0, dtype=sequences[0].dtype)
+
+    for i, seq in enumerate(sequences):
+        batch[i, :seq.shape[0], :, :] = seq
+
+    return batch, lengths
+
+
+def pad_label_sequence(sequences, batch_first=False, padding_value=0.0):
+    """
+    Pad the first dimension of each element in a list of label sequences while keeping other dimensions unchanged.
+
+    Args:
+    - sequences: A list of label sequences, where each sequence is a Tensor.
+    - batch_first: Whether to put the batch dimension first (default: False, output shape is [T, B]).
+    - padding_value: Value used for padding (default: 0.0).
+
+    Returns:
+    - A tuple containing the padded Tensor and a list of original sequence lengths.
+    """
+    # Handle empty list
+    if not sequences:
+        return torch.tensor([], dtype=torch.float32), []
+
+    if not isinstance(sequences[0], torch.Tensor):
+        sequences = [torch.tensor(seq, dtype=torch.float32) for seq in sequences]
+
+    # Get the length of each sequence
+    lengths = [seq.shape[0] for seq in sequences]  # Assuming the length dimension is the first one (T)
+    max_length = max(lengths)
+    batch_size = len(sequences)
+
+    # Create padded tensor
+    batch = torch.full((max_length, batch_size), padding_value, dtype=sequences[0].dtype)
+
+    # Fill in the data
+    for i, seq in enumerate(sequences):
+        batch[:len(seq), i] = seq
+
+    # If batch_first is True, swap the dimensions
+    if batch_first:
+        batch = batch.transpose(0, 1)  # Swap dimensions to (B, T)
+
+    return batch, lengths

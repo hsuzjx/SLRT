@@ -1,0 +1,4 @@
+# configs/recognition/evaluator/sclite.yaml
+
+sclite_bin: '../.bin/sclite'
+cleanup: false

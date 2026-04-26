@@ -1,0 +1,3 @@
+from .CSLDailyPatchKpsDataModule import CSLDailyPatchKpsDataModule
+from .Phoenix2014PatchKpsDataModule import Phoenix2014PatchKpsDataModule
+from .Phoenix2014TPatchKpsDataModule import Phoenix2014TPatchKpsDataModule

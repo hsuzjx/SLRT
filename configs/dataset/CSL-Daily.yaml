@@ -1,0 +1,28 @@
+# configs/dataset/CSL-Daily.yaml
+
+name: "CSL-Daily"
+
+data_cfgs:
+  dataset_dir: "../data/csl-daily"
+  features_dir: "../data/preprocessed/csl-daily/frames-256x256px" # if null, use default features directory in $dataset_dir
+  annotations_dir: null # if null, use default annotations directory in $dataset_dir
+  split_file: null # if null, use default split file in $dataset_dir
+
+# keypoints
+keypoints_file: "../data/preprocessed/csl-daily/csl-daily-keypoints-mska.pkl"
+
+# for recognition
+glosses_groundtruth_file:
+  train: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-train.stm"
+  dev: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-dev.stm"
+  test: "../data/preprocessed/csl-daily/csl-daily-glosses-groundtruth-test.stm"
+
+gloss_vocab_file: "../data/preprocessed/csl-daily/csl-daily-gloss-vocab-2.txt"
+
+# for translation
+translation_groundtruth_file:
+  train: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-train.stm"
+  dev: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-dev.stm"
+  test: "../data/preprocessed/csl-daily/csl-daily-translation-groundtruth-test.stm"
+
+word_vocab_file: "../data/preprocessed/csl-daily/csl-daily-word-vocab.txt"

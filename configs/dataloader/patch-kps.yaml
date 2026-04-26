@@ -1,0 +1,6 @@
+# configs/dataloader/patch-kps.yaml
+
+batch_size: 2
+num_workers: 8
+
+patch_hw: [7,7]
